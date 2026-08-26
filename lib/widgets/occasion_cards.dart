@@ -169,12 +169,14 @@ class OccasionCardView extends StatelessWidget {
     this.customDataRaw = '',
     this.customTitle,
     this.customSubtitle,
+    this.customBadge,
   });
 
   final String cardId;
   final String customDataRaw;
   final String? customTitle;
   final String? customSubtitle;
+  final String? customBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -183,10 +185,9 @@ class OccasionCardView extends StatelessWidget {
 
     final title = customTitle ?? data.title;
     final subtitle = customSubtitle ?? data.subtitle;
-    final badge = data.badge;
+    final badge = customBadge ?? data.badge;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: t.primaryColor,
         borderRadius: BorderRadius.circular(14),
@@ -199,105 +200,105 @@ class OccasionCardView extends StatelessWidget {
           ),
         ],
       ),
-      child: Stack(
-        children: [
-          // Köşe altın süsleri
-          Positioned(
-            top: -2,
-            left: -2,
-            child: Icon(Icons.circle, size: 6, color: t.accentColor),
-          ),
-          Positioned(
-            top: -2,
-            right: -2,
-            child: Icon(Icons.circle, size: 6, color: t.accentColor),
-          ),
-          Positioned(
-            bottom: -2,
-            left: -2,
-            child: Icon(Icons.circle, size: 6, color: t.accentColor),
-          ),
-          Positioned(
-            bottom: -2,
-            right: -2,
-            child: Icon(Icons.circle, size: 6, color: t.accentColor),
-          ),
-          Positioned.fill(
-            child: LayoutBuilder(
-              builder: (context, constraints) => Center(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(13),
+        child: Stack(
+          children: [
+            // Köşe altın süsleri
+            Positioned(
+              top: 4,
+              left: 4,
+              child: Icon(Icons.circle, size: 5, color: t.accentColor),
+            ),
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Icon(Icons.circle, size: 5, color: t.accentColor),
+            ),
+            Positioned(
+              bottom: 4,
+              left: 4,
+              child: Icon(Icons.circle, size: 5, color: t.accentColor),
+            ),
+            Positioned(
+              bottom: 4,
+              right: 4,
+              child: Icon(Icons.circle, size: 5, color: t.accentColor),
+            ),
+            // Non-positioned center body giving intrinsic size to the container
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Center(
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
-                  child: SizedBox(
-                    width: constraints.maxWidth,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Rozet
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 3,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Rozet
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: t.accentColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(99),
+                          border: Border.all(
+                            color: t.accentColor.withValues(alpha: 0.3),
+                            width: 0.8,
                           ),
-                          decoration: BoxDecoration(
-                            color: t.accentColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(99),
-                            border: Border.all(
-                              color: t.accentColor.withValues(alpha: 0.3),
-                              width: 0.8,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              t.emoji,
+                              style: const TextStyle(fontSize: 12),
                             ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                t.emoji,
-                                style: const TextStyle(fontSize: 12),
+                            const SizedBox(width: 4),
+                            Text(
+                              badge,
+                              style: GoogleFonts.inter(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                color: t.accentColor,
+                                letterSpacing: 1.2,
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                badge,
-                                style: GoogleFonts.inter(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w800,
-                                  color: t.accentColor,
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          title,
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.cormorantGaramond(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF2C2520),
-                            height: 1.1,
-                          ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.cormorantGaramond(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF2C2520),
+                          height: 1.15,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          subtitle,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.quicksand(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF6B5F54),
-                            height: 1.25,
-                          ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.quicksand(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF6B5F54),
+                          height: 1.25,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -382,16 +383,23 @@ class _EditOccasionCardDialogState extends State<EditOccasionCardDialog> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                // Live preview
-                OccasionCardView(
-                  cardId: widget.cardId,
-                  customTitle: _titleController.text.trim().isEmpty
-                      ? _template.title
-                      : _titleController.text.trim(),
-                  customSubtitle: _subtitleController.text.trim().isEmpty
-                      ? _template.subtitle
-                      : _subtitleController.text.trim(),
+                const SizedBox(height: 14),
+                // Live preview card with guaranteed dimensions
+                SizedBox(
+                  height: 125,
+                  width: double.infinity,
+                  child: OccasionCardView(
+                    cardId: widget.cardId,
+                    customTitle: _titleController.text.trim().isEmpty
+                        ? _template.title
+                        : _titleController.text.trim(),
+                    customSubtitle: _subtitleController.text.trim().isEmpty
+                        ? _template.subtitle
+                        : _subtitleController.text.trim(),
+                    customBadge: _badgeController.text.trim().isEmpty
+                        ? _template.badge
+                        : _badgeController.text.trim(),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -511,7 +519,7 @@ class OccasionCardPickerSheet extends StatelessWidget {
               child: GridView.builder(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  childAspectRatio: 1.4,
+                  childAspectRatio: 1.5,
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
                 ),

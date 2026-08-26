@@ -74,25 +74,21 @@ class AlbumCover extends StatelessWidget {
             ),
           };
 
-    if (compact) {
-      return LayoutBuilder(
-        builder: (context, constraints) {
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: SizedBox(
-              width: constraints.maxWidth,
-              height: constraints.maxHeight,
-              child: FittedBox(
-                fit: BoxFit.cover,
-                child: SizedBox(width: 300, height: 440, child: coverWidget),
-              ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(compact ? 16 : 14),
+          child: SizedBox(
+            width: constraints.maxWidth,
+            height: constraints.maxHeight,
+            child: FittedBox(
+              fit: BoxFit.fill,
+              child: SizedBox(width: 300, height: 440, child: coverWidget),
             ),
-          );
-        },
-      );
-    }
-
-    return coverWidget;
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -121,126 +117,139 @@ class _OrnateAssetCover extends StatelessWidget {
         onTap: onTap,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(14),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [theme.coverStart, theme.coverEnd],
+          child: SizedBox(
+            width: 300,
+            height: 440,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [theme.coverStart, theme.coverEnd],
+                    ),
                   ),
                 ),
-              ),
-              Image.asset(
-                assetPath,
-                fit: BoxFit.fill,
-                filterQuality: FilterQuality.high,
-                errorBuilder: (_, _, _) => const SizedBox.shrink(),
-              ),
-              const _CoverMaterialLighting(),
-              Positioned(
-                left: 51,
-                right: 31,
-                top: 163,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Color.lerp(
-                      theme.coverEnd,
-                      Colors.black,
-                      0.44,
-                    )!.withValues(alpha: 0.88),
-                    borderRadius: BorderRadius.circular(5),
-                    border: Border.all(color: gold.withValues(alpha: 0.82)),
-                    boxShadow: [
-                      const BoxShadow(
-                        color: Color(0x88000000),
-                        blurRadius: 12,
-                        offset: Offset(0, 6),
+                Image.asset(
+                  assetPath,
+                  fit: BoxFit.fill,
+                  filterQuality: FilterQuality.high,
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                ),
+                const _CoverMaterialLighting(),
+                Positioned(
+                  left: 46,
+                  right: 26,
+                  bottom: 38,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Color.lerp(
+                        theme.coverEnd,
+                        Colors.black,
+                        0.48,
+                      )!.withValues(alpha: 0.90),
+                      borderRadius: BorderRadius.circular(7),
+                      border: Border.all(
+                        color: gold.withValues(alpha: 0.85),
+                        width: 1.1,
                       ),
-                      BoxShadow(
-                        color: gold.withValues(alpha: 0.16),
-                        blurRadius: 9,
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'ALBUMIUM',
-                          style: TextStyle(
-                            color: gold.withValues(alpha: 0.84),
-                            fontSize: 7.5,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 2.7,
-                          ),
+                      boxShadow: [
+                        const BoxShadow(
+                          color: Color(0x88000000),
+                          blurRadius: 14,
+                          offset: Offset(0, 6),
                         ),
-                        const SizedBox(height: 7),
-                        Container(
-                          height: 0.7,
-                          color: gold.withValues(alpha: 0.6),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          title,
-                          textAlign: TextAlign.center,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: const Color(0xFFFFF4DD),
-                            fontFamily: 'serif',
-                            fontSize: 24,
-                            height: 0.98,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.2,
-                            shadows: const [
-                              Shadow(
-                                color: Color(0xCC000000),
-                                blurRadius: 3,
-                                offset: Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          height: 0.7,
-                          color: gold.withValues(alpha: 0.6),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          theme.name.toUpperCase(),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: gold.withValues(alpha: 0.78),
-                            fontSize: 6.8,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1.8,
-                          ),
+                        BoxShadow(
+                          color: gold.withValues(alpha: 0.20),
+                          blurRadius: 10,
                         ),
                       ],
                     ),
-                  ),
-                ),
-              ),
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.13),
-                        width: 0.8,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 11,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'ALBUMIUM',
+                            style: TextStyle(
+                              color: gold.withValues(alpha: 0.84),
+                              fontSize: 7.5,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 2.7,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            height: 0.7,
+                            color: gold.withValues(alpha: 0.5),
+                          ),
+                          const SizedBox(height: 6),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              title,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: const Color(0xFFFFF4DD),
+                                fontFamily: 'serif',
+                                fontSize: title.length > 18 ? 16 : 21,
+                                height: 1.05,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.2,
+                                shadows: const [
+                                  Shadow(
+                                    color: Color(0xCC000000),
+                                    blurRadius: 3,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            height: 0.7,
+                            color: gold.withValues(alpha: 0.5),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            theme.name.toUpperCase(),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: gold.withValues(alpha: 0.78),
+                              fontSize: 6.8,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 1.8,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.13),
+                          width: 0.8,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

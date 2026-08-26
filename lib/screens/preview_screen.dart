@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -167,14 +168,63 @@ class _PreviewScreenState extends State<PreviewScreen>
     return data.buffer.asUint8List();
   }
 
-  Uint8List _blend(Uint8List first, Uint8List second, double amount) {
-    final output = Uint8List(first.length);
-    final inverse = 1 - amount;
-    for (var i = 0; i < first.length; i += 4) {
-      output[i] = (first[i] * inverse + second[i] * amount).round();
-      output[i + 1] = (first[i + 1] * inverse + second[i + 1] * amount).round();
-      output[i + 2] = (first[i + 2] * inverse + second[i + 2] * amount).round();
-      output[i + 3] = 255;
+  Uint8List _pageTurnTransition(
+    Uint8List currentFrame,
+    Uint8List nextFrame,
+    double progress, {
+    int width = 360,
+    int height = 640,
+  }) {
+    final output = Uint8List(currentFrame.length);
+    final eased = Curves.easeInOutCubic.transform(progress);
+    final splitX = (width * (1.0 - eased)).round().clamp(0, width);
+
+    for (var y = 0; y < height; y++) {
+      final rowOffset = y * width * 4;
+      for (var x = 0; x < width; x++) {
+        final pixelIndex = rowOffset + x * 4;
+        if (x < splitX) {
+          // Outgoing Page (curling to the left)
+          var r = currentFrame[pixelIndex];
+          var g = currentFrame[pixelIndex + 1];
+          var b = currentFrame[pixelIndex + 2];
+
+          // Crease lighting near the folding edge
+          final distFromEdge = splitX - x;
+          if (distFromEdge < 22) {
+            final highlight =
+                (math.sin((22 - distFromEdge) / 22 * math.pi * 0.5) * 36).round();
+            r = (r + highlight).clamp(0, 255);
+            g = (g + highlight).clamp(0, 255);
+            b = (b + highlight).clamp(0, 255);
+          }
+
+          output[pixelIndex] = r;
+          output[pixelIndex + 1] = g;
+          output[pixelIndex + 2] = b;
+          output[pixelIndex + 3] = 255;
+        } else {
+          // Incoming Page (revealed underneath from right to left)
+          var r = nextFrame[pixelIndex];
+          var g = nextFrame[pixelIndex + 1];
+          var b = nextFrame[pixelIndex + 2];
+
+          // Drop shadow cast by the turning page onto the revealed page
+          final shadowDist = x - splitX;
+          if (shadowDist < 46) {
+            final shadowFactor =
+                math.sin((46 - shadowDist) / 46 * math.pi * 0.5) * 0.54;
+            r = (r * (1.0 - shadowFactor)).round().clamp(0, 255);
+            g = (g * (1.0 - shadowFactor)).round().clamp(0, 255);
+            b = (b * (1.0 - shadowFactor)).round().clamp(0, 255);
+          }
+
+          output[pixelIndex] = r;
+          output[pixelIndex + 1] = g;
+          output[pixelIndex + 2] = b;
+          output[pixelIndex + 3] = 255;
+        }
+      }
     }
     return output;
   }
@@ -212,8 +262,8 @@ class _PreviewScreenState extends State<PreviewScreen>
       await FlutterQuickVideoEncoder.setup(
         width: 360,
         height: 640,
-        fps: 10,
-        videoBitrate: 1600000,
+        fps: 12,
+        videoBitrate: 2000000,
         profileLevel: ProfileLevel.baselineAutoLevel,
         audioChannels: 0,
         audioBitrate: 0,
@@ -221,8 +271,8 @@ class _PreviewScreenState extends State<PreviewScreen>
         filepath: path,
       );
 
-      const holdFrames = 13;
-      const transitionFrames = 3;
+      const holdFrames = 22; // ~1.85 seconds per slide at 12 fps
+      const transitionFrames = 8; // ~0.67 seconds per page turn
       final total =
           frames.length * holdFrames + (frames.length - 1) * transitionFrames;
       var completed = 0;
@@ -241,13 +291,18 @@ class _PreviewScreenState extends State<PreviewScreen>
             transition <= transitionFrames;
             transition++
           ) {
-            final mixed = _blend(
+            final turned = _pageTurnTransition(
               frames[index],
               frames[index + 1],
               transition / (transitionFrames + 1),
+              width: 360,
+              height: 640,
             );
-            await FlutterQuickVideoEncoder.appendVideoFrame(mixed);
+            await FlutterQuickVideoEncoder.appendVideoFrame(turned);
             completed++;
+            if (mounted && completed % 3 == 0) {
+              setState(() => _exportProgress = 0.24 + completed / total * 0.72);
+            }
           }
         }
       }
