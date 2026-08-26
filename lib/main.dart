@@ -1,104 +1,86 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'screens/home_screen.dart';
+import 'services/theme_controller.dart';
+import 'theme/albumium_app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: Color(0xFF181513),
-      systemNavigationBarIconBrightness: Brightness.light,
-    ),
-  );
-  runApp(const AlbumiumApp());
+
+  final themeController = ThemeController();
+  await themeController.initialize();
+  runApp(AlbumiumApp(themeController: themeController));
 }
 
-class AlbumiumApp extends StatelessWidget {
-  const AlbumiumApp({super.key});
+class AlbumiumApp extends StatefulWidget {
+  const AlbumiumApp({super.key, this.themeController});
+
+  /// Optional for tests and embedders. The app owns the controller it creates
+  /// when this is null.
+  final ThemeController? themeController;
+
+  @override
+  State<AlbumiumApp> createState() => _AlbumiumAppState();
+}
+
+class _AlbumiumAppState extends State<AlbumiumApp> {
+  late final ThemeController _themeController;
+  late final bool _ownsThemeController;
+
+  @override
+  void initState() {
+    super.initState();
+    _ownsThemeController = widget.themeController == null;
+    _themeController = widget.themeController ?? ThemeController();
+    if (!_themeController.isInitialized) {
+      unawaited(_themeController.initialize());
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_ownsThemeController) _themeController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    const background = Color(0xFF181513);
-    const surface = Color(0xFF25211F);
-    const accent = Color(0xFFFFA95C);
-    final scheme = ColorScheme.fromSeed(
-      seedColor: accent,
-      brightness: Brightness.dark,
-      surface: surface,
-    );
-    return MaterialApp(
-      title: 'Albumium',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        colorScheme: scheme,
-        scaffoldBackgroundColor: background,
-        fontFamily: 'sans-serif',
-        appBarTheme: const AppBarTheme(
-          backgroundColor: background,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          centerTitle: false,
-          titleTextStyle: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white.withValues(alpha: 0.055),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: Colors.white10),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: accent, width: 1.4),
-          ),
-        ),
-        filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(
-            backgroundColor: accent,
-            foregroundColor: const Color(0xFF25170D),
-            textStyle: const TextStyle(fontWeight: FontWeight.w800),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-            ),
-          ),
-        ),
-        floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: accent,
-          foregroundColor: Color(0xFF25170D),
-        ),
-        bottomSheetTheme: const BottomSheetThemeData(
-          backgroundColor: surface,
-          modalBackgroundColor: surface,
-        ),
-        dialogTheme: DialogThemeData(
-          backgroundColor: surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
-          ),
-        ),
-        snackBarTheme: SnackBarThemeData(
-          backgroundColor: const Color(0xFF342E2A),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      ),
-      home: const HomeScreen(),
+    return AnimatedBuilder(
+      animation: _themeController,
+      builder: (context, _) {
+        return MaterialApp(
+          title: 'Albumium',
+          debugShowCheckedModeBanner: false,
+          theme: _themeController.lightTheme,
+          darkTheme: _themeController.darkTheme,
+          themeMode: _themeController.themeMode,
+          themeAnimationDuration: const Duration(milliseconds: 420),
+          themeAnimationCurve: Curves.easeInOutCubic,
+          builder: (context, child) {
+            final theme = Theme.of(context);
+            final colors = theme.extension<AlbumiumThemeColors>()!;
+            final isDark = theme.brightness == Brightness.dark;
+            return AnnotatedRegion<SystemUiOverlayStyle>(
+              value: SystemUiOverlayStyle(
+                statusBarColor: Colors.transparent,
+                statusBarIconBrightness: isDark
+                    ? Brightness.light
+                    : Brightness.dark,
+                systemNavigationBarColor: colors.background,
+                systemNavigationBarIconBrightness: isDark
+                    ? Brightness.light
+                    : Brightness.dark,
+              ),
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
+          home: HomeScreen(themeController: _themeController),
+        );
+      },
     );
   }
 }

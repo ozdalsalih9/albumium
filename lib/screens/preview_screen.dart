@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_quick_video_encoder/flutter_quick_video_encoder.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -12,6 +12,7 @@ import 'package:share_plus/share_plus.dart';
 import '../models/album_models.dart';
 import '../widgets/album_cover.dart';
 import '../widgets/album_page_canvas.dart';
+import '../widgets/physical_book_spread.dart';
 
 class PreviewScreen extends StatefulWidget {
   const PreviewScreen({super.key, required this.album});
@@ -22,45 +23,140 @@ class PreviewScreen extends StatefulWidget {
   State<PreviewScreen> createState() => _PreviewScreenState();
 }
 
-class _PreviewScreenState extends State<PreviewScreen> {
-  final _pageController = PageController(viewportFraction: 0.86);
+class _PreviewScreenState extends State<PreviewScreen>
+    with SingleTickerProviderStateMixin {
   final _exportBoundary = GlobalKey();
+  late final AnimationController _turnController;
+
   int _current = 0;
-  int _exportSlide = 0;
+  int? _target;
+  bool _turningForward = true;
   bool _autoPlay = false;
   bool _exporting = false;
+  bool _reduceMotion = false;
+  double _dragDistance = 0;
+  int _exportSlide = 0;
   double _exportProgress = 0;
   String _exportStatus = '';
   Timer? _timer;
 
-  int get slideCount => widget.album.pages.length + 1;
+  int get singleSlideCount => widget.album.pages.length + 1;
+
+  /// Cover + inside title spread + the remaining two-page spreads.
+  int get previewCount => 2 + widget.album.pages.length ~/ 2;
+
+  @override
+  void initState() {
+    super.initState();
+    _turnController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 940),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduceMotion = MediaQuery.disableAnimationsOf(context);
+  }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _pageController.dispose();
+    _turnController.dispose();
     super.dispose();
+  }
+
+  _BookPosition _positionFor(int previewIndex) {
+    if (previewIndex == 0) {
+      return const _BookPosition(
+        left: PhysicalBookSpread.titlePageIndex,
+        right: PhysicalBookSpread.blankPageIndex,
+        closed: true,
+      );
+    }
+
+    final spread = previewIndex - 1;
+    if (spread == 0) {
+      return _BookPosition(
+        left: PhysicalBookSpread.titlePageIndex,
+        right: widget.album.pages.isEmpty
+            ? PhysicalBookSpread.blankPageIndex
+            : 0,
+      );
+    }
+
+    final left = spread * 2 - 1;
+    final right = left + 1;
+    return _BookPosition(
+      left: left < widget.album.pages.length
+          ? left
+          : PhysicalBookSpread.blankPageIndex,
+      right: right < widget.album.pages.length
+          ? right
+          : PhysicalBookSpread.blankPageIndex,
+    );
+  }
+
+  Future<void> _goTo(int target, {bool animate = true}) async {
+    if (_target != null || target == _current) return;
+    if (target < 0 || target >= previewCount) return;
+
+    if (_reduceMotion || !animate) {
+      setState(() => _current = target);
+      return;
+    }
+
+    setState(() {
+      _target = target;
+      _turningForward = target > _current;
+    });
+    HapticFeedback.selectionClick();
+
+    try {
+      await _turnController.forward(from: 0).orCancel;
+    } on TickerCanceled {
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _current = target;
+      _target = null;
+    });
+    _turnController.value = 0;
   }
 
   void _toggleAutoPlay() {
     setState(() => _autoPlay = !_autoPlay);
     _timer?.cancel();
     if (!_autoPlay) return;
-    _timer = Timer.periodic(const Duration(milliseconds: 2200), (_) {
-      if (!mounted || !_autoPlay) return;
-      final next = (_current + 1) % slideCount;
-      _pageController.animateToPage(
-        next,
-        duration: const Duration(milliseconds: 650),
-        curve: Curves.easeInOutCubic,
-      );
+
+    _timer = Timer.periodic(const Duration(milliseconds: 2750), (_) {
+      if (!mounted || !_autoPlay || _target != null) return;
+      if (_current == previewCount - 1) {
+        _goTo(0, animate: false);
+      } else {
+        _goTo(_current + 1);
+      }
     });
+  }
+
+  void _handleDragEnd(DragEndDetails details) {
+    final velocity = details.primaryVelocity ?? 0;
+    final wantsNext = _dragDistance < -34 || velocity < -360;
+    final wantsPrevious = _dragDistance > 34 || velocity > 360;
+    _dragDistance = 0;
+    if (wantsNext) {
+      _goTo(_current + 1);
+    } else if (wantsPrevious) {
+      _goTo(_current - 1);
+    }
   }
 
   Future<Uint8List> _captureExportSlide(int index) async {
     setState(() => _exportSlide = index);
     await WidgetsBinding.instance.endOfFrame;
-    await Future<void>.delayed(const Duration(milliseconds: 45));
+    await Future<void>.delayed(const Duration(milliseconds: 50));
     final boundary =
         _exportBoundary.currentContext!.findRenderObject()!
             as RenderRepaintBoundary;
@@ -102,10 +198,11 @@ class _PreviewScreenState extends State<PreviewScreen> {
 
     try {
       final frames = <Uint8List>[];
-      for (var index = 0; index < slideCount; index++) {
+      final count = singleSlideCount;
+      for (var index = 0; index < count; index++) {
         frames.add(await _captureExportSlide(index));
         if (!mounted) return;
-        setState(() => _exportProgress = (index + 1) / slideCount * 0.24);
+        setState(() => _exportProgress = (index + 1) / count * 0.24);
       }
 
       final directory = await getTemporaryDirectory();
@@ -183,13 +280,51 @@ class _PreviewScreenState extends State<PreviewScreen> {
     }
   }
 
+  String _positionLabel() {
+    if (_current == 0) return 'Kapak · ${widget.album.bindingType.title}';
+    if (_current == 1) {
+      return widget.album.pages.isEmpty ? 'İç kapak' : 'İç kapak · Sayfa 1';
+    }
+    final position = _positionFor(_current);
+    final visible = [
+      position.left,
+      position.right,
+    ].where((index) => index >= 0).map((index) => index + 1).toList();
+    return visible.length == 1
+        ? 'Sayfa ${visible.first}'
+        : 'Sayfalar ${visible.first}–${visible.last}';
+  }
+
+  Widget _buildBookPreview() {
+    final current = _positionFor(_current);
+    return AnimatedBuilder(
+      animation: _turnController,
+      builder: (context, _) {
+        final target = _target == null ? null : _positionFor(_target!);
+        return PhysicalBookSpread(
+          album: widget.album,
+          leftPageIndex: current.left,
+          rightPageIndex: current.right,
+          closed: current.closed,
+          nextLeftPageIndex: target?.left,
+          nextRightPageIndex: target?.right,
+          nextClosed: target?.closed ?? false,
+          turnProgress: _turnController.value,
+          turningForward: _turningForward,
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = themeById(widget.album.themeId);
+    final albumTheme = themeById(widget.album.themeId);
+    final colors = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF12100F),
+      backgroundColor: colors.surface,
       appBar: AppBar(
-        title: const Text('Albüm önizleme'),
+        title: const Text('Albüm Önizleme'),
         backgroundColor: Colors.transparent,
         actions: [
           IconButton(
@@ -197,8 +332,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
             tooltip: _autoPlay ? 'Durdur' : 'Otomatik oynat',
             icon: Icon(
               _autoPlay
-                  ? Icons.pause_circle_outline
-                  : Icons.play_circle_outline,
+                  ? Icons.pause_circle_outline_rounded
+                  : Icons.play_circle_outline_rounded,
             ),
           ),
           const SizedBox(width: 6),
@@ -210,7 +345,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
             Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(22, 2, 22, 14),
+                  padding: const EdgeInsets.fromLTRB(22, 2, 22, 12),
                   child: Row(
                     children: [
                       Expanded(
@@ -222,17 +357,19 @@ class _PreviewScreenState extends State<PreviewScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 20,
+                                fontSize: 19,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
-                            Text(
-                              _current == 0
-                                  ? 'Kapak'
-                                  : 'Sayfa $_current / ${widget.album.pages.length}',
-                              style: const TextStyle(
-                                color: Color(0xFF9B8F84),
-                                fontSize: 12,
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 180),
+                              child: Text(
+                                _positionLabel(),
+                                key: ValueKey(_current),
+                                style: TextStyle(
+                                  color: colors.onSurfaceVariant,
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
                           ],
@@ -240,76 +377,135 @@ class _PreviewScreenState extends State<PreviewScreen> {
                       ),
                       FilledButton.icon(
                         onPressed: _exportAndShare,
-                        icon: const Icon(Icons.ios_share_rounded),
-                        label: const Text('MP4 paylaş'),
+                        icon: const Icon(Icons.ios_share_rounded, size: 18),
+                        label: const Text('MP4 Paylaş'),
                       ),
                     ],
                   ),
                 ),
                 Expanded(
-                  child: PageView.builder(
-                    controller: _pageController,
-                    itemCount: slideCount,
-                    onPageChanged: (index) => setState(() => _current = index),
-                    itemBuilder: (context, index) => AnimatedBuilder(
-                      animation: _pageController,
-                      builder: (context, child) {
-                        var delta = 0.0;
-                        if (_pageController.hasClients &&
-                            _pageController.position.haveDimensions) {
-                          delta =
-                              (_pageController.page ?? _current.toDouble()) -
-                              index;
-                        }
-                        final angle = delta.clamp(-1.0, 1.0) * -0.16;
-                        return Transform(
-                          alignment: delta > 0
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          transform: Matrix4.identity()
-                            ..setEntry(3, 2, 0.0012)
-                            ..rotateY(angle),
-                          child: child,
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
-                        child: Center(
-                          child: AspectRatio(
-                            aspectRatio: 9 / 14,
-                            child: index == 0
-                                ? AlbumCover(album: widget.album)
-                                : AlbumPageCanvas(
-                                    page: widget.album.pages[index - 1],
-                                    theme: theme,
-                                  ),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: RadialGradient(
+                            center: const Alignment(0, -0.2),
+                            radius: 1.08,
+                            colors: [
+                              albumTheme.coverEnd.withValues(alpha: 0.16),
+                              colors.surface,
+                              Color.lerp(colors.surface, Colors.black, 0.16)!,
+                            ],
+                            stops: const [0, 0.64, 1],
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(22, 0, 22, 18),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      for (var index = 0; index < slideCount; index++)
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 220),
-                          width: index == _current ? 20 : 6,
-                          height: 6,
-                          margin: const EdgeInsets.symmetric(horizontal: 3),
-                          decoration: BoxDecoration(
-                            color: index == _current
-                                ? theme.accent
-                                : Colors.white24,
-                            borderRadius: BorderRadius.circular(99),
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onHorizontalDragStart: (_) => _dragDistance = 0,
+                        onHorizontalDragUpdate: (details) {
+                          _dragDistance += details.delta.dx;
+                        },
+                        onHorizontalDragEnd: _handleDragEnd,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(10, 10, 10, 30),
+                          child: _buildBookPreview(),
+                        ),
+                      ),
+                      Positioned(
+                        left: 14,
+                        top: 0,
+                        bottom: 20,
+                        child: Center(
+                          child: _PageArrow(
+                            icon: Icons.chevron_left_rounded,
+                            tooltip: 'Önceki sayfa',
+                            enabled: _current > 0 && _target == null,
+                            onTap: () => _goTo(_current - 1),
                           ),
                         ),
+                      ),
+                      Positioned(
+                        right: 14,
+                        top: 0,
+                        bottom: 20,
+                        child: Center(
+                          child: _PageArrow(
+                            icon: Icons.chevron_right_rounded,
+                            tooltip: 'Sonraki sayfa',
+                            enabled:
+                                _current < previewCount - 1 && _target == null,
+                            onTap: () => _goTo(_current + 1),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 4,
+                        child: Center(
+                          child: Text(
+                            _reduceMotion
+                                ? 'Oklarla gez · azaltılmış hareket'
+                                : 'Kaydır veya oklarla sayfaları çevir',
+                            style: TextStyle(
+                              color: colors.onSurfaceVariant.withValues(
+                                alpha: 0.68,
+                              ),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
+                SizedBox(
+                  height: 34,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        for (var index = 0; index < previewCount; index++)
+                          Semantics(
+                            label: index == 0
+                                ? 'Kapak'
+                                : 'Kitap görünümü $index',
+                            selected: index == _current,
+                            button: true,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(99),
+                              onTap: _target == null
+                                  ? () => _goTo(
+                                      index,
+                                      animate: (index - _current).abs() == 1,
+                                    )
+                                  : null,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 220),
+                                width: index == _current ? 22 : 7,
+                                height: 7,
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: index == _current
+                                      ? albumTheme.accent
+                                      : colors.onSurface.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(99),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
               ],
             ),
             if (_exporting)
@@ -342,10 +538,10 @@ class _PreviewScreenState extends State<PreviewScreen> {
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 4),
-                        const Text(
+                        Text(
                           'Uygulamayı kapatma',
                           style: TextStyle(
-                            color: Color(0xFF9B8F84),
+                            color: colors.onSurfaceVariant,
                             fontSize: 12,
                           ),
                         ),
@@ -355,6 +551,51 @@ class _PreviewScreenState extends State<PreviewScreen> {
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BookPosition {
+  const _BookPosition({
+    required this.left,
+    required this.right,
+    this.closed = false,
+  });
+
+  final int left;
+  final int right;
+  final bool closed;
+}
+
+class _PageArrow extends StatelessWidget {
+  const _PageArrow({
+    required this.icon,
+    required this.tooltip,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: enabled ? 1 : 0.2,
+      duration: const Duration(milliseconds: 180),
+      child: Material(
+        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.76),
+        shape: const CircleBorder(),
+        elevation: enabled ? 4 : 0,
+        child: IconButton(
+          onPressed: enabled ? onTap : null,
+          tooltip: tooltip,
+          visualDensity: VisualDensity.compact,
+          icon: Icon(icon),
         ),
       ),
     );
@@ -375,10 +616,13 @@ class _ExportSlide extends StatelessWidget {
       height: 480,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [theme.coverEnd, const Color(0xFF151210)],
+          gradient: RadialGradient(
+            center: const Alignment(0, -0.2),
+            radius: 1.2,
+            colors: [
+              theme.coverEnd.withValues(alpha: 0.65),
+              const Color(0xFF151210),
+            ],
           ),
         ),
         child: Center(

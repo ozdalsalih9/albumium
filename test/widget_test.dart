@@ -18,4 +18,23 @@ void main() {
     expect(find.text('Hangi hikâyeyi anlatıyoruz?'), findsOneWidget);
     expect(find.byType(TextField), findsOneWidget);
   });
+
+  testWidgets('app palette changes without leaving the theme sheet', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(const AlbumiumApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Uygulama temasını değiştir'));
+    await tester.pumpAndSettle();
+    expect(find.text('Uygulama görünümü'), findsOneWidget);
+
+    await tester.tap(find.text('Gül Pembesi'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Uygulama görünümü'), findsOneWidget);
+    expect(find.text('Gül Pembesi temasını kullan'), findsOneWidget);
+    expect(find.text('ALBUMIUM'), findsOneWidget);
+  });
 }

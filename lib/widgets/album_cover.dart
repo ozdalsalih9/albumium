@@ -1,122 +1,282 @@
 import 'package:flutter/material.dart';
 
 import '../models/album_models.dart';
+import '../themes/album_themes.dart';
 
 class AlbumCover extends StatelessWidget {
-  const AlbumCover({super.key, required this.album, this.compact = false});
+  const AlbumCover({
+    super.key,
+    required this.album,
+    this.compact = false,
+    this.onTap,
+  });
 
   final AlbumModel album;
   final bool compact;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final title = album.title.trim().isEmpty
+        ? 'İsimsiz Albüm'
+        : album.title.trim();
     final theme = themeById(album.themeId);
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [theme.coverStart, theme.coverEnd],
-        ),
-        borderRadius: BorderRadius.circular(compact ? 12 : 7),
-        boxShadow: [
-          BoxShadow(
-            color: theme.coverEnd.withValues(alpha: 0.45),
-            blurRadius: 22,
-            offset: const Offset(7, 10),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _CoverPatternPainter(
-                Colors.white.withValues(alpha: 0.055),
+    final subtitle = theme.subtitle;
+
+    final Widget coverWidget = theme.coverAsset != null
+        ? _OrnateAssetCover(
+            assetPath: theme.coverAsset!,
+            title: title,
+            theme: theme,
+            onTap: onTap,
+          )
+        : switch (album.themeId) {
+            'animals' => AnimalsCover(
+              title: title,
+              subtitle: subtitle,
+              onTap: onTap,
+            ),
+            'soft_romance' => SoftRomanceCover(
+              title: title,
+              subtitle: subtitle,
+              onTap: onTap,
+            ),
+            'vintage_diary' => VintageDiaryCover(
+              title: title,
+              subtitle: subtitle,
+              onTap: onTap,
+            ),
+            'travel_postcard' => TravelPostcardCover(
+              title: title,
+              subtitle: subtitle,
+              onTap: onTap,
+            ),
+            'best_friends' => BestFriendsCover(
+              title: title,
+              subtitle: subtitle,
+              emoji: theme.emoji,
+              onTap: onTap,
+            ),
+            'minimal_editorial' => MinimalEditorialCover(
+              title: title,
+              subtitle: subtitle,
+              onTap: onTap,
+            ),
+            'dark_leather' => DarkLeatherCover(
+              title: title,
+              subtitle: subtitle,
+              onTap: onTap,
+            ),
+            _ => SoftRomanceCover(
+              title: title,
+              subtitle: subtitle,
+              onTap: onTap,
+            ),
+          };
+
+    if (compact) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: SizedBox(
+              width: constraints.maxWidth,
+              height: constraints.maxHeight,
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(width: 300, height: 440, child: coverWidget),
               ),
             ),
-          ),
-          Positioned(
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: compact ? 10 : 18,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.horizontal(
-                  left: Radius.circular(compact ? 12 : 7),
+          );
+        },
+      );
+    }
+
+    return coverWidget;
+  }
+}
+
+/// Uses the generated cover art as a material texture, then draws all variable
+/// text in Flutter so album names stay crisp, localisable and accessible.
+class _OrnateAssetCover extends StatelessWidget {
+  const _OrnateAssetCover({
+    required this.assetPath,
+    required this.title,
+    required this.theme,
+    this.onTap,
+  });
+
+  final String assetPath;
+  final String title;
+  final AlbumThemePreset theme;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final gold = Color.lerp(theme.accent, const Color(0xFFFFE4A8), 0.38)!;
+    return Semantics(
+      button: onTap != null,
+      label: '$title albümü',
+      child: GestureDetector(
+        onTap: onTap,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [theme.coverStart, theme.coverEnd],
+                  ),
                 ),
               ),
-            ),
-          ),
-          Center(
-            child: Padding(
-              padding: EdgeInsets.all(compact ? 14 : 28),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    theme.emoji,
-                    style: TextStyle(fontSize: compact ? 21 : 36),
+              Image.asset(
+                assetPath,
+                fit: BoxFit.fill,
+                filterQuality: FilterQuality.high,
+                errorBuilder: (_, _, _) => const SizedBox.shrink(),
+              ),
+              const _CoverMaterialLighting(),
+              Positioned(
+                left: 51,
+                right: 31,
+                top: 163,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Color.lerp(
+                      theme.coverEnd,
+                      Colors.black,
+                      0.44,
+                    )!.withValues(alpha: 0.88),
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(color: gold.withValues(alpha: 0.82)),
+                    boxShadow: [
+                      const BoxShadow(
+                        color: Color(0x88000000),
+                        blurRadius: 12,
+                        offset: Offset(0, 6),
+                      ),
+                      BoxShadow(
+                        color: gold.withValues(alpha: 0.16),
+                        blurRadius: 9,
+                      ),
+                    ],
                   ),
-                  SizedBox(height: compact ? 8 : 18),
-                  Text(
-                    album.title.trim().isEmpty ? 'İsimsiz Albüm' : album.title,
-                    textAlign: TextAlign.center,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: compact ? 15 : 28,
-                      height: 1.05,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: compact ? -0.2 : -0.8,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'ALBUMIUM',
+                          style: TextStyle(
+                            color: gold.withValues(alpha: 0.84),
+                            fontSize: 7.5,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 2.7,
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        Container(
+                          height: 0.7,
+                          color: gold.withValues(alpha: 0.6),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          title,
+                          textAlign: TextAlign.center,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: const Color(0xFFFFF4DD),
+                            fontFamily: 'serif',
+                            fontSize: 24,
+                            height: 0.98,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.2,
+                            shadows: const [
+                              Shadow(
+                                color: Color(0xCC000000),
+                                blurRadius: 3,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          height: 0.7,
+                          color: gold.withValues(alpha: 0.6),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          theme.name.toUpperCase(),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: gold.withValues(alpha: 0.78),
+                            fontSize: 6.8,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.8,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  if (!compact) ...[
-                    const SizedBox(height: 14),
-                    Container(width: 42, height: 1, color: Colors.white54),
-                    const SizedBox(height: 10),
-                    Text(
-                      theme.name.toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 9,
-                        letterSpacing: 2.4,
+                ),
+              ),
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.13),
+                        width: 0.8,
                       ),
                     ),
-                  ],
-                ],
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _CoverPatternPainter extends CustomPainter {
-  const _CoverPatternPainter(this.color);
-
-  final Color color;
+class _CoverMaterialLighting extends StatelessWidget {
+  const _CoverMaterialLighting();
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 0.7;
-    for (double x = -size.height; x < size.width; x += 13) {
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x + size.height, size.height),
-        paint,
-      );
-    }
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: -1.25, end: 1.25),
+        duration: const Duration(milliseconds: 2600),
+        curve: Curves.easeInOutCubic,
+        builder: (context, value, _) {
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment(value - 0.7, -1),
+                end: Alignment(value + 0.7, 1),
+                colors: const [
+                  Colors.transparent,
+                  Color(0x0AFFFFFF),
+                  Color(0x26FFFFFF),
+                  Color(0x06000000),
+                  Colors.transparent,
+                ],
+                stops: const [0, 0.39, 0.48, 0.57, 1],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant _CoverPatternPainter oldDelegate) =>
-      oldDelegate.color != color;
 }
