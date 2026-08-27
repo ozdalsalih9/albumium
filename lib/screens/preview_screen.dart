@@ -11,9 +11,16 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../models/album_models.dart';
+import '../themes/theme_image_helper.dart';
 import '../widgets/album_cover.dart';
 import '../widgets/album_page_canvas.dart';
 import '../widgets/physical_book_spread.dart';
+
+const _exportLogicalWidth = 270.0;
+const _exportLogicalHeight = 480.0;
+const _exportVideoWidth = 720;
+const _exportVideoHeight = 1280;
+const _exportPixelRatio = _exportVideoWidth / _exportLogicalWidth;
 
 class PreviewScreen extends StatefulWidget {
   const PreviewScreen({super.key, required this.album});
@@ -154,76 +161,111 @@ class _PreviewScreenState extends State<PreviewScreen>
     }
   }
 
+  Future<void> _precacheExportSlideImages(int index) async {
+    final sources = <String>[];
+    if (index == 0) {
+      final coverAsset = themeById(widget.album.themeId).coverAsset;
+      if (coverAsset != null) sources.add(coverAsset);
+    } else {
+      sources.addAll(
+        widget.album.pages[index - 1].elements
+            .where((element) => element.type == AlbumElementType.photo)
+            .map((element) => element.content)
+            .where((source) => source.trim().isNotEmpty),
+      );
+    }
+
+    Object? loadError;
+    for (final source in sources.toSet()) {
+      await precacheImage(
+        themeImageProvider(source),
+        context,
+        size: const Size(720, 1280),
+        onError: (error, stackTrace) => loadError ??= error,
+      );
+      if (loadError != null) {
+        throw StateError('Fotoğraf okunamadı: $source ($loadError)');
+      }
+    }
+  }
+
   Future<Uint8List> _captureExportSlide(int index) async {
+    await _precacheExportSlideImages(index);
+    if (!mounted) throw StateError('Dışa aktarma iptal edildi.');
     setState(() => _exportSlide = index);
     await WidgetsBinding.instance.endOfFrame;
-    await Future<void>.delayed(const Duration(milliseconds: 50));
+    await Future<void>.delayed(const Duration(milliseconds: 24));
     final boundary =
         _exportBoundary.currentContext!.findRenderObject()!
             as RenderRepaintBoundary;
-    final image = await boundary.toImage(pixelRatio: 4 / 3);
+    final image = await boundary.toImage(pixelRatio: _exportPixelRatio);
     final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
     image.dispose();
     if (data == null) throw StateError('Görüntü karesi üretilemedi.');
-    return data.buffer.asUint8List();
+    return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
   }
 
   Uint8List _pageTurnTransition(
     Uint8List currentFrame,
     Uint8List nextFrame,
     double progress, {
-    int width = 360,
-    int height = 640,
+    int width = _exportVideoWidth,
+    int height = _exportVideoHeight,
   }) {
+    final expectedLength = width * height * 4;
+    if (currentFrame.length != expectedLength ||
+        nextFrame.length != expectedLength) {
+      throw StateError('Video karesi beklenen HD boyutta değil.');
+    }
     final output = Uint8List(currentFrame.length);
     final eased = Curves.easeInOutCubic.transform(progress);
     final splitX = (width * (1.0 - eased)).round().clamp(0, width);
+    final highlightWidth = math.max(1, (22 * width / 360).round());
+    final shadowWidth = math.max(1, (46 * width / 360).round());
 
     for (var y = 0; y < height; y++) {
       final rowOffset = y * width * 4;
-      for (var x = 0; x < width; x++) {
+      final splitOffset = rowOffset + splitX * 4;
+      final rowEnd = rowOffset + width * 4;
+      output.setRange(rowOffset, splitOffset, currentFrame, rowOffset);
+      output.setRange(splitOffset, rowEnd, nextFrame, splitOffset);
+
+      for (var x = math.max(0, splitX - highlightWidth); x < splitX; x++) {
         final pixelIndex = rowOffset + x * 4;
-        if (x < splitX) {
-          // Outgoing Page (curling to the left)
-          var r = currentFrame[pixelIndex];
-          var g = currentFrame[pixelIndex + 1];
-          var b = currentFrame[pixelIndex + 2];
+        final distance = splitX - x;
+        final highlight =
+            (math.sin(
+                      (highlightWidth - distance) /
+                          highlightWidth *
+                          math.pi *
+                          0.5,
+                    ) *
+                    36)
+                .round();
+        output[pixelIndex] = (output[pixelIndex] + highlight).clamp(0, 255);
+        output[pixelIndex + 1] = (output[pixelIndex + 1] + highlight).clamp(
+          0,
+          255,
+        );
+        output[pixelIndex + 2] = (output[pixelIndex + 2] + highlight).clamp(
+          0,
+          255,
+        );
+        output[pixelIndex + 3] = 255;
+      }
 
-          // Crease lighting near the folding edge
-          final distFromEdge = splitX - x;
-          if (distFromEdge < 22) {
-            final highlight =
-                (math.sin((22 - distFromEdge) / 22 * math.pi * 0.5) * 36).round();
-            r = (r + highlight).clamp(0, 255);
-            g = (g + highlight).clamp(0, 255);
-            b = (b + highlight).clamp(0, 255);
-          }
-
-          output[pixelIndex] = r;
-          output[pixelIndex + 1] = g;
-          output[pixelIndex + 2] = b;
-          output[pixelIndex + 3] = 255;
-        } else {
-          // Incoming Page (revealed underneath from right to left)
-          var r = nextFrame[pixelIndex];
-          var g = nextFrame[pixelIndex + 1];
-          var b = nextFrame[pixelIndex + 2];
-
-          // Drop shadow cast by the turning page onto the revealed page
-          final shadowDist = x - splitX;
-          if (shadowDist < 46) {
-            final shadowFactor =
-                math.sin((46 - shadowDist) / 46 * math.pi * 0.5) * 0.54;
-            r = (r * (1.0 - shadowFactor)).round().clamp(0, 255);
-            g = (g * (1.0 - shadowFactor)).round().clamp(0, 255);
-            b = (b * (1.0 - shadowFactor)).round().clamp(0, 255);
-          }
-
-          output[pixelIndex] = r;
-          output[pixelIndex + 1] = g;
-          output[pixelIndex + 2] = b;
-          output[pixelIndex + 3] = 255;
-        }
+      for (var x = splitX; x < math.min(width, splitX + shadowWidth); x++) {
+        final pixelIndex = rowOffset + x * 4;
+        final distance = x - splitX;
+        final shadowFactor =
+            math.sin((shadowWidth - distance) / shadowWidth * math.pi * 0.5) *
+            0.54;
+        output[pixelIndex] = (output[pixelIndex] * (1 - shadowFactor)).round();
+        output[pixelIndex + 1] = (output[pixelIndex + 1] * (1 - shadowFactor))
+            .round();
+        output[pixelIndex + 2] = (output[pixelIndex + 2] * (1 - shadowFactor))
+            .round();
+        output[pixelIndex + 3] = 255;
       }
     }
     return output;
@@ -246,67 +288,69 @@ class _PreviewScreenState extends State<PreviewScreen>
       _exportStatus = 'Sayfalar hazırlanıyor…';
     });
 
+    var encoderStarted = false;
     try {
-      final frames = <Uint8List>[];
       final count = singleSlideCount;
-      for (var index = 0; index < count; index++) {
-        frames.add(await _captureExportSlide(index));
-        if (!mounted) return;
-        setState(() => _exportProgress = (index + 1) / count * 0.24);
-      }
-
       final directory = await getTemporaryDirectory();
       final path =
           '${directory.path}${Platform.pathSeparator}${_safeFilename(widget.album.title)}_${DateTime.now().millisecondsSinceEpoch}.mp4';
       await FlutterQuickVideoEncoder.setLogLevel(LogLevel.error);
       await FlutterQuickVideoEncoder.setup(
-        width: 360,
-        height: 640,
-        fps: 12,
-        videoBitrate: 2000000,
+        width: _exportVideoWidth,
+        height: _exportVideoHeight,
+        fps: 24,
+        videoBitrate: 8000000,
         profileLevel: ProfileLevel.baselineAutoLevel,
         audioChannels: 0,
         audioBitrate: 0,
         sampleRate: 0,
         filepath: path,
       );
+      encoderStarted = true;
 
-      const holdFrames = 22; // ~1.85 seconds per slide at 12 fps
-      const transitionFrames = 8; // ~0.67 seconds per page turn
-      final total =
-          frames.length * holdFrames + (frames.length - 1) * transitionFrames;
+      const holdFrames = 42; // 1.75 seconds per slide at 24 fps
+      const transitionFrames = 16; // ~0.67 seconds per page turn
+      final total = count * holdFrames + (count - 1) * transitionFrames;
       var completed = 0;
-      setState(() => _exportStatus = 'MP4 oluşturuluyor…');
-      for (var index = 0; index < frames.length; index++) {
+      var currentFrame = await _captureExportSlide(0);
+      for (var index = 0; index < count; index++) {
+        Uint8List? nextFrame;
+        if (index < count - 1) {
+          if (mounted) {
+            setState(() => _exportStatus = 'Fotoğraflar HD hazırlanıyor…');
+          }
+          nextFrame = await _captureExportSlide(index + 1);
+        }
+        if (mounted) setState(() => _exportStatus = 'HD MP4 oluşturuluyor…');
         for (var frame = 0; frame < holdFrames; frame++) {
-          await FlutterQuickVideoEncoder.appendVideoFrame(frames[index]);
+          await FlutterQuickVideoEncoder.appendVideoFrame(currentFrame);
           completed++;
-          if (mounted && completed % 4 == 0) {
-            setState(() => _exportProgress = 0.24 + completed / total * 0.72);
+          if (mounted && completed % 8 == 0) {
+            setState(() => _exportProgress = completed / total * 0.96);
           }
         }
-        if (index < frames.length - 1) {
+        if (nextFrame != null) {
           for (
             var transition = 1;
             transition <= transitionFrames;
             transition++
           ) {
             final turned = _pageTurnTransition(
-              frames[index],
-              frames[index + 1],
+              currentFrame,
+              nextFrame,
               transition / (transitionFrames + 1),
-              width: 360,
-              height: 640,
             );
             await FlutterQuickVideoEncoder.appendVideoFrame(turned);
             completed++;
             if (mounted && completed % 3 == 0) {
-              setState(() => _exportProgress = 0.24 + completed / total * 0.72);
+              setState(() => _exportProgress = completed / total * 0.96);
             }
           }
+          currentFrame = nextFrame;
         }
       }
       await FlutterQuickVideoEncoder.finish();
+      encoderStarted = false;
       if (!mounted) return;
       setState(() {
         _exportProgress = 1;
@@ -322,9 +366,11 @@ class _PreviewScreenState extends State<PreviewScreen>
         ),
       );
     } catch (error) {
-      try {
-        await FlutterQuickVideoEncoder.finish();
-      } catch (_) {}
+      if (encoderStarted) {
+        try {
+          await FlutterQuickVideoEncoder.finish();
+        } catch (_) {}
+      }
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -667,8 +713,8 @@ class _ExportSlide extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = themeById(album.themeId);
     return SizedBox(
-      width: 270,
-      height: 480,
+      width: _exportLogicalWidth,
+      height: _exportLogicalHeight,
       child: DecoratedBox(
         decoration: BoxDecoration(
           gradient: RadialGradient(
