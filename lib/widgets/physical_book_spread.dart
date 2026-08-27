@@ -25,6 +25,8 @@ class PhysicalBookSpread extends StatelessWidget {
     this.turnProgress = 0,
     this.turningForward = true,
     this.interactive = false,
+    this.focusedPageIndex,
+    this.companionPageFraction = 0.11,
     this.activePageIndex,
     this.selectedElementId,
     this.onSelectPage,
@@ -45,6 +47,13 @@ class PhysicalBookSpread extends StatelessWidget {
   final double turnProgress;
   final bool turningForward;
   final bool interactive;
+
+  /// When set, keeps this page at its natural portrait ratio and reveals only
+  /// a narrow strip of the companion page. The binding remains visible between
+  /// them. Editors use this on phones; previews and tablet editors leave it
+  /// null to show the complete spread.
+  final int? focusedPageIndex;
+  final double companionPageFraction;
   final int? activePageIndex;
   final String? selectedElementId;
   final ValueChanged<int>? onSelectPage;
@@ -60,6 +69,13 @@ class PhysicalBookSpread extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        if (interactive &&
+            focusedPageIndex != null &&
+            !closed &&
+            !_hasTransition) {
+          return _buildFocusedEditor(constraints: constraints, theme: theme);
+        }
+
         var width = constraints.maxWidth;
         var height = width / 1.5;
         if (height > constraints.maxHeight) {
@@ -82,6 +98,68 @@ class PhysicalBookSpread extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildFocusedEditor({
+    required BoxConstraints constraints,
+    required AlbumThemePreset theme,
+  }) {
+    const pageAspectRatio = 9 / 14;
+    final companion = companionPageFraction.clamp(0.08, 0.18);
+    final pageWidthFromViewport = math.max(
+      1.0,
+      (constraints.maxWidth - 32) / (1 + companion),
+    );
+    final pageWidthFromHeight = math.max(
+      1.0,
+      (constraints.maxHeight - 24) * pageAspectRatio,
+    );
+    final pageWidth = math.min(pageWidthFromViewport, pageWidthFromHeight);
+    final virtualWidth = pageWidth * 2 + 32;
+    final virtualHeight = pageWidth / pageAspectRatio + 24;
+    final viewportWidth = math.min(
+      constraints.maxWidth,
+      pageWidth * (1 + companion) + 32,
+    );
+    final focusedLeft =
+        focusedPageIndex == leftPageIndex || rightPageIndex == blankPageIndex;
+    final left = focusedLeft ? 0.0 : viewportWidth - virtualWidth;
+
+    return Center(
+      child: Semantics(
+        label:
+            'Odaklı sayfa görünümü, karşı sayfanın yüzde ${(companion * 100).round()} kadarı görünür',
+        container: true,
+        explicitChildNodes: true,
+        child: SizedBox(
+          key: const ValueKey('focused-book-viewport'),
+          width: viewportWidth,
+          height: virtualHeight,
+          child: ClipRect(
+            child: Stack(
+              clipBehavior: Clip.hardEdge,
+              children: [
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 320),
+                  curve: Curves.easeOutCubic,
+                  left: left,
+                  top: 0,
+                  width: virtualWidth,
+                  height: virtualHeight,
+                  child: RepaintBoundary(
+                    child: _buildOpenBook(
+                      theme: theme,
+                      leftIndex: leftPageIndex,
+                      rightIndex: rightPageIndex,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

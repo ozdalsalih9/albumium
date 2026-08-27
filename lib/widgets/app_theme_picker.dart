@@ -26,116 +26,125 @@ class _AppThemePicker extends StatelessWidget {
       animation: controller,
       builder: (context, _) {
         final colorScheme = Theme.of(context).colorScheme;
-        return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 2, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        final tablet = MediaQuery.sizeOf(context).shortestSide >= 600;
+        return Align(
+          alignment: Alignment.bottomCenter,
+          widthFactor: 1,
+          heightFactor: 1,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 2, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 43,
-                    height: 43,
-                    decoration: BoxDecoration(
-                      color: colorScheme.primary.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(
-                      Icons.palette_outlined,
-                      color: colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Uygulama görünümü',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                          ),
+                  Row(
+                    children: [
+                      Container(
+                        width: 43,
+                        height: 43,
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(14),
                         ),
-                        SizedBox(height: 2),
-                        Text(
-                          'Albüm tasarımlarından bağımsızdır.',
-                          style: TextStyle(fontSize: 12),
+                        child: Icon(
+                          Icons.palette_outlined,
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Uygulama görünümü',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Albüm tasarımlarından bağımsızdır.',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: AlbumiumAppTheme.options.length,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: tablet ? 4 : 2,
+                      childAspectRatio: 1.13,
+                      crossAxisSpacing: 11,
+                      mainAxisSpacing: 11,
+                    ),
+                    itemBuilder: (context, index) {
+                      final option = AlbumiumAppTheme.options[index];
+                      return _ThemeChoice(
+                        option: option,
+                        selected: option.id == controller.themeId,
+                        onTap: () => controller.setTheme(option.id),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 22),
+                  const Text(
+                    'Parlaklık',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 9),
+                  SizedBox(
+                    width: double.infinity,
+                    child: SegmentedButton<ThemeMode>(
+                      segments: const [
+                        ButtonSegment(
+                          value: ThemeMode.dark,
+                          icon: Icon(Icons.dark_mode_outlined),
+                          label: Text('Koyu'),
+                        ),
+                        ButtonSegment(
+                          value: ThemeMode.light,
+                          icon: Icon(Icons.light_mode_outlined),
+                          label: Text('Açık'),
+                        ),
+                        ButtonSegment(
+                          value: ThemeMode.system,
+                          icon: Icon(Icons.settings_suggest_outlined),
+                          label: Text('Sistem'),
                         ),
                       ],
+                      selected: {controller.themeMode},
+                      onSelectionChanged: (selection) {
+                        controller.setThemeMode(selection.first);
+                      },
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close_rounded),
+                  const SizedBox(height: 22),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.check_rounded),
+                      label: Text(
+                        '${controller.selectedOption.name} temasını kullan',
+                      ),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: AlbumiumAppTheme.options.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 1.13,
-                  crossAxisSpacing: 11,
-                  mainAxisSpacing: 11,
-                ),
-                itemBuilder: (context, index) {
-                  final option = AlbumiumAppTheme.options[index];
-                  return _ThemeChoice(
-                    option: option,
-                    selected: option.id == controller.themeId,
-                    onTap: () => controller.setTheme(option.id),
-                  );
-                },
-              ),
-              const SizedBox(height: 22),
-              const Text(
-                'Parlaklık',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 9),
-              SizedBox(
-                width: double.infinity,
-                child: SegmentedButton<ThemeMode>(
-                  segments: const [
-                    ButtonSegment(
-                      value: ThemeMode.dark,
-                      icon: Icon(Icons.dark_mode_outlined),
-                      label: Text('Koyu'),
-                    ),
-                    ButtonSegment(
-                      value: ThemeMode.light,
-                      icon: Icon(Icons.light_mode_outlined),
-                      label: Text('Açık'),
-                    ),
-                    ButtonSegment(
-                      value: ThemeMode.system,
-                      icon: Icon(Icons.settings_suggest_outlined),
-                      label: Text('Sistem'),
-                    ),
-                  ],
-                  selected: {controller.themeMode},
-                  onSelectionChanged: (selection) {
-                    controller.setThemeMode(selection.first);
-                  },
-                ),
-              ),
-              const SizedBox(height: 22),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.check_rounded),
-                  label: Text(
-                    '${controller.selectedOption.name} temasını kullan',
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         );
       },
