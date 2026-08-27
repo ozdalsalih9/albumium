@@ -11,9 +11,17 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../models/album_models.dart';
+import '../theme/book_theme.dart';
 import '../widgets/album_cover.dart';
 import '../widgets/album_page_canvas.dart';
-import '../widgets/physical_book_spread.dart';
+import '../widgets/motion.dart';
+import '../widgets/page_flip_view.dart';
+
+/// Dışa aktarılan videodaki tek bir sayfanın ekranda kaldığı kare sayısı.
+const _holdFrames = 12;
+
+/// İki sayfa arasındaki çevirme hareketinin kaç kareye yayılacağı.
+const _flipFrames = 5;
 
 class PreviewScreen extends StatefulWidget {
   const PreviewScreen({super.key, required this.album});
@@ -24,140 +32,105 @@ class PreviewScreen extends StatefulWidget {
   State<PreviewScreen> createState() => _PreviewScreenState();
 }
 
-class _PreviewScreenState extends State<PreviewScreen>
-    with SingleTickerProviderStateMixin {
+class _PreviewScreenState extends State<PreviewScreen> {
+  final _flip = PageFlipController();
   final _exportBoundary = GlobalKey();
-  late final AnimationController _turnController;
-
   int _current = 0;
-  int? _target;
-  bool _turningForward = true;
-  bool _autoPlay = false;
-  bool _exporting = false;
-  bool _reduceMotion = false;
-  double _dragDistance = 0;
   int _exportSlide = 0;
+  double _exportFlip = 0;
+  bool _autoPlay = false;
+  bool _chromeVisible = true;
+  bool _exporting = false;
   double _exportProgress = 0;
   String _exportStatus = '';
   Timer? _timer;
 
-  int get singleSlideCount => widget.album.pages.length + 1;
-
-  /// Cover + inside title spread + the remaining two-page spreads.
-  int get previewCount => 2 + widget.album.pages.length ~/ 2;
+  int get slideCount => widget.album.pages.length + 1;
 
   @override
   void initState() {
     super.initState();
-    _turnController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 940),
+    // Uygulamanın geri kalanı dikey kilitlidir; okuma ekranı ise yatay
+    // tutulduğunda iki sayfalı açık kitaba geçebilmeli.
+    unawaited(
+      SystemChrome.setPreferredOrientations(const [
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]),
     );
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _reduceMotion = MediaQuery.disableAnimationsOf(context);
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _turnController.dispose();
+    // Ekrandan çıkarken kilidi geri koy, yoksa albüm listesi de yan dönerdi.
+    unawaited(
+      SystemChrome.setPreferredOrientations(const [
+        DeviceOrientation.portraitUp,
+      ]),
+    );
     super.dispose();
   }
 
-  _BookPosition _positionFor(int previewIndex) {
-    if (previewIndex == 0) {
-      return const _BookPosition(
-        left: PhysicalBookSpread.titlePageIndex,
-        right: PhysicalBookSpread.blankPageIndex,
-        closed: true,
-      );
-    }
-
-    final spread = previewIndex - 1;
-    if (spread == 0) {
-      return _BookPosition(
-        left: PhysicalBookSpread.titlePageIndex,
-        right: widget.album.pages.isEmpty
-            ? PhysicalBookSpread.blankPageIndex
-            : 0,
-      );
-    }
-
-    final left = spread * 2 - 1;
-    final right = left + 1;
-    return _BookPosition(
-      left: left < widget.album.pages.length
-          ? left
-          : PhysicalBookSpread.blankPageIndex,
-      right: right < widget.album.pages.length
-          ? right
-          : PhysicalBookSpread.blankPageIndex,
-    );
-  }
-
-  Future<void> _goTo(int target, {bool animate = true}) async {
-    if (_target != null || target == _current) return;
-    if (target < 0 || target >= previewCount) return;
-
-    if (_reduceMotion || !animate) {
-      setState(() => _current = target);
-      return;
-    }
-
-    setState(() {
-      _target = target;
-      _turningForward = target > _current;
-    });
-    HapticFeedback.selectionClick();
-
-    try {
-      await _turnController.forward(from: 0).orCancel;
-    } on TickerCanceled {
-      return;
-    }
-    if (!mounted) return;
-    setState(() {
-      _current = target;
-      _target = null;
-    });
-    _turnController.value = 0;
-  }
-
   void _toggleAutoPlay() {
+    // Son sayfadayken oynatmaya basıldığında baştan başla.
+    if (!_autoPlay && _current >= slideCount - 1) _flip.jumpTo(0);
     setState(() => _autoPlay = !_autoPlay);
     _timer?.cancel();
     if (!_autoPlay) return;
-
-    _timer = Timer.periodic(const Duration(milliseconds: 2750), (_) {
-      if (!mounted || !_autoPlay || _target != null) return;
-      if (_current == previewCount - 1) {
-        _goTo(0, animate: false);
-      } else {
-        _goTo(_current + 1);
+    _timer = Timer.periodic(const Duration(milliseconds: 2400), (_) {
+      if (!mounted || !_autoPlay) return;
+      if (_current >= slideCount - 1) {
+        _timer?.cancel();
+        setState(() => _autoPlay = false);
+        return;
       }
+      _flip.next();
     });
   }
 
-  void _handleDragEnd(DragEndDetails details) {
-    final velocity = details.primaryVelocity ?? 0;
-    final wantsNext = _dragDistance < -34 || velocity < -360;
-    final wantsPrevious = _dragDistance > 34 || velocity > 360;
-    _dragDistance = 0;
-    if (wantsNext) {
-      _goTo(_current + 1);
-    } else if (wantsPrevious) {
-      _goTo(_current - 1);
+  void _stopAutoPlay() {
+    if (!_autoPlay) return;
+    _timer?.cancel();
+    setState(() => _autoPlay = false);
+  }
+
+  /// Kitabın dış kenarlarına dokunmak sayfa çevirir, ortasına dokunmak
+  /// kontrolleri gizleyip gösterir — okurken arayüz yoldan çekilsin diye.
+  ///
+  /// Dokunulan dikey nokta kıvrıma aktarılır: alt köşeye dokunulduğunda
+  /// yaprak alt köşeden, üste dokunulduğunda üstten kıvrılır.
+  void _handleTap(TapUpDetails details, BoxConstraints constraints) {
+    final x = details.localPosition.dx / constraints.maxWidth;
+    final grabY = (details.localPosition.dy / constraints.maxHeight).clamp(
+      0.0,
+      1.0,
+    );
+    if (x > 0.62) {
+      _stopAutoPlay();
+      _flip.next(grabY: grabY);
+    } else if (x < 0.28) {
+      _stopAutoPlay();
+      _flip.previous(grabY: grabY);
+    } else {
+      setState(() => _chromeVisible = !_chromeVisible);
     }
   }
 
-  Future<Uint8List> _captureExportSlide(int index) async {
-    setState(() => _exportSlide = index);
+  Widget _slide(int index) {
+    final theme = themeById(widget.album.themeId);
+    if (index == 0) return AlbumCover(album: widget.album);
+    return AlbumPageCanvas(page: widget.album.pages[index - 1], theme: theme);
+  }
+
+  Future<Uint8List> _captureExportFrame(int index, double flip) async {
+    setState(() {
+      _exportSlide = index;
+      _exportFlip = flip;
+    });
     await WidgetsBinding.instance.endOfFrame;
-    await Future<void>.delayed(const Duration(milliseconds: 50));
+    await Future<void>.delayed(const Duration(milliseconds: 40));
     final boundary =
         _exportBoundary.currentContext!.findRenderObject()!
             as RenderRepaintBoundary;
@@ -166,67 +139,6 @@ class _PreviewScreenState extends State<PreviewScreen>
     image.dispose();
     if (data == null) throw StateError('Görüntü karesi üretilemedi.');
     return data.buffer.asUint8List();
-  }
-
-  Uint8List _pageTurnTransition(
-    Uint8List currentFrame,
-    Uint8List nextFrame,
-    double progress, {
-    int width = 360,
-    int height = 640,
-  }) {
-    final output = Uint8List(currentFrame.length);
-    final eased = Curves.easeInOutCubic.transform(progress);
-    final splitX = (width * (1.0 - eased)).round().clamp(0, width);
-
-    for (var y = 0; y < height; y++) {
-      final rowOffset = y * width * 4;
-      for (var x = 0; x < width; x++) {
-        final pixelIndex = rowOffset + x * 4;
-        if (x < splitX) {
-          // Outgoing Page (curling to the left)
-          var r = currentFrame[pixelIndex];
-          var g = currentFrame[pixelIndex + 1];
-          var b = currentFrame[pixelIndex + 2];
-
-          // Crease lighting near the folding edge
-          final distFromEdge = splitX - x;
-          if (distFromEdge < 22) {
-            final highlight =
-                (math.sin((22 - distFromEdge) / 22 * math.pi * 0.5) * 36).round();
-            r = (r + highlight).clamp(0, 255);
-            g = (g + highlight).clamp(0, 255);
-            b = (b + highlight).clamp(0, 255);
-          }
-
-          output[pixelIndex] = r;
-          output[pixelIndex + 1] = g;
-          output[pixelIndex + 2] = b;
-          output[pixelIndex + 3] = 255;
-        } else {
-          // Incoming Page (revealed underneath from right to left)
-          var r = nextFrame[pixelIndex];
-          var g = nextFrame[pixelIndex + 1];
-          var b = nextFrame[pixelIndex + 2];
-
-          // Drop shadow cast by the turning page onto the revealed page
-          final shadowDist = x - splitX;
-          if (shadowDist < 46) {
-            final shadowFactor =
-                math.sin((46 - shadowDist) / 46 * math.pi * 0.5) * 0.54;
-            r = (r * (1.0 - shadowFactor)).round().clamp(0, 255);
-            g = (g * (1.0 - shadowFactor)).round().clamp(0, 255);
-            b = (b * (1.0 - shadowFactor)).round().clamp(0, 255);
-          }
-
-          output[pixelIndex] = r;
-          output[pixelIndex + 1] = g;
-          output[pixelIndex + 2] = b;
-          output[pixelIndex + 3] = 255;
-        }
-      }
-    }
-    return output;
   }
 
   String _safeFilename(String value) {
@@ -238,23 +150,16 @@ class _PreviewScreenState extends State<PreviewScreen>
 
   Future<void> _exportAndShare() async {
     if (_exporting) return;
-    _timer?.cancel();
+    _stopAutoPlay();
     setState(() {
-      _autoPlay = false;
       _exporting = true;
       _exportProgress = 0;
+      _exportSlide = 0;
+      _exportFlip = 0;
       _exportStatus = 'Sayfalar hazırlanıyor…';
     });
 
     try {
-      final frames = <Uint8List>[];
-      final count = singleSlideCount;
-      for (var index = 0; index < count; index++) {
-        frames.add(await _captureExportSlide(index));
-        if (!mounted) return;
-        setState(() => _exportProgress = (index + 1) / count * 0.24);
-      }
-
       final directory = await getTemporaryDirectory();
       final path =
           '${directory.path}${Platform.pathSeparator}${_safeFilename(widget.album.title)}_${DateTime.now().millisecondsSinceEpoch}.mp4';
@@ -262,8 +167,8 @@ class _PreviewScreenState extends State<PreviewScreen>
       await FlutterQuickVideoEncoder.setup(
         width: 360,
         height: 640,
-        fps: 12,
-        videoBitrate: 2000000,
+        fps: 10,
+        videoBitrate: 1600000,
         profileLevel: ProfileLevel.baselineAutoLevel,
         audioChannels: 0,
         audioBitrate: 0,
@@ -271,41 +176,35 @@ class _PreviewScreenState extends State<PreviewScreen>
         filepath: path,
       );
 
-      const holdFrames = 22; // ~1.85 seconds per slide at 12 fps
-      const transitionFrames = 8; // ~0.67 seconds per page turn
-      final total =
-          frames.length * holdFrames + (frames.length - 1) * transitionFrames;
+      final total = slideCount * _holdFrames + (slideCount - 1) * _flipFrames;
       var completed = 0;
+      if (!mounted) return;
       setState(() => _exportStatus = 'MP4 oluşturuluyor…');
-      for (var index = 0; index < frames.length; index++) {
-        for (var frame = 0; frame < holdFrames; frame++) {
-          await FlutterQuickVideoEncoder.appendVideoFrame(frames[index]);
+
+      // Kareler tek tek yakalanıp anında kodlanır; böylece uzun albümlerde
+      // tüm video belleğe yığılmaz.
+      for (var index = 0; index < slideCount; index++) {
+        final still = await _captureExportFrame(index, 0);
+        for (var frame = 0; frame < _holdFrames; frame++) {
+          await FlutterQuickVideoEncoder.appendVideoFrame(still);
           completed++;
-          if (mounted && completed % 4 == 0) {
-            setState(() => _exportProgress = 0.24 + completed / total * 0.72);
-          }
         }
-        if (index < frames.length - 1) {
-          for (
-            var transition = 1;
-            transition <= transitionFrames;
-            transition++
-          ) {
-            final turned = _pageTurnTransition(
-              frames[index],
-              frames[index + 1],
-              transition / (transitionFrames + 1),
-              width: 360,
-              height: 640,
-            );
-            await FlutterQuickVideoEncoder.appendVideoFrame(turned);
-            completed++;
-            if (mounted && completed % 3 == 0) {
-              setState(() => _exportProgress = 0.24 + completed / total * 0.72);
-            }
-          }
+        if (!mounted) return;
+        setState(() => _exportProgress = completed / total);
+
+        if (index == slideCount - 1) break;
+        for (var step = 1; step <= _flipFrames; step++) {
+          final frame = await _captureExportFrame(
+            index,
+            step / (_flipFrames + 1),
+          );
+          await FlutterQuickVideoEncoder.appendVideoFrame(frame);
+          completed++;
         }
+        if (!mounted) return;
+        setState(() => _exportProgress = completed / total);
       }
+
       await FlutterQuickVideoEncoder.finish();
       if (!mounted) return;
       setState(() {
@@ -335,276 +234,241 @@ class _PreviewScreenState extends State<PreviewScreen>
     }
   }
 
-  String _positionLabel() {
-    if (_current == 0) return 'Kapak · ${widget.album.bindingType.title}';
-    if (_current == 1) {
-      return widget.album.pages.isEmpty ? 'İç kapak' : 'İç kapak · Sayfa 1';
-    }
-    final position = _positionFor(_current);
-    final visible = [
-      position.left,
-      position.right,
-    ].where((index) => index >= 0).map((index) => index + 1).toList();
-    return visible.length == 1
-        ? 'Sayfa ${visible.first}'
-        : 'Sayfalar ${visible.first}–${visible.last}';
-  }
-
-  Widget _buildBookPreview() {
-    final current = _positionFor(_current);
-    return AnimatedBuilder(
-      animation: _turnController,
-      builder: (context, _) {
-        final target = _target == null ? null : _positionFor(_target!);
-        return PhysicalBookSpread(
-          album: widget.album,
-          leftPageIndex: current.left,
-          rightPageIndex: current.right,
-          closed: current.closed,
-          nextLeftPageIndex: target?.left,
-          nextRightPageIndex: target?.right,
-          nextClosed: target?.closed ?? false,
-          turnProgress: _turnController.value,
-          turningForward: _turningForward,
-        );
-      },
+  @override
+  Widget build(BuildContext context) {
+    final theme = themeById(widget.album.themeId);
+    // Okuma yüzeyi açık renktir; sistem simgeleri de koyuya döner.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: BookTheme.chrome,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+      child: Scaffold(
+        backgroundColor: BookTheme.ground,
+        body: Stack(
+          children: [
+            // Zemin: ortada açık, kenarlara doğru koyulaşarak kitabı toplar.
+            const Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    radius: 0.95,
+                    colors: [BookTheme.ground, BookTheme.groundEdge],
+                  ),
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: SafeArea(
+                child: LayoutBuilder(
+                  builder: (context, constraints) =>
+                      _buildBook(constraints, theme),
+                ),
+              ),
+            ),
+            _buildChrome(theme),
+            if (_exporting) _buildExportOverlay(),
+          ],
+        ),
+      ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final albumTheme = themeById(widget.album.themeId);
-    final colors = Theme.of(context).colorScheme;
+  /// Kitabı ekrana yerleştirir. Yeterince geniş bir yatay ekranda iki sayfalı
+  /// açık kitap, aksi hâlde tek yaprak gösterilir.
+  Widget _buildBook(BoxConstraints constraints, AlbumThemePreset theme) {
+    final spread =
+        constraints.maxWidth > constraints.maxHeight &&
+        constraints.maxWidth >= BookTheme.spreadMinWidth;
+    final available =
+        constraints.maxHeight -
+        BookTheme.topChromeHeight -
+        BookTheme.bottomChromeHeight;
+    final margin =
+        math.min(constraints.maxWidth, math.max(0.0, available)) *
+        BookTheme.marginRatio;
+    return Padding(
+      padding:
+          const EdgeInsets.only(
+            top: BookTheme.topChromeHeight,
+            bottom: BookTheme.bottomChromeHeight,
+          ) +
+          EdgeInsets.all(margin),
+      child: Center(
+        child: AspectRatio(
+          aspectRatio: spread ? BookTheme.pageAspect * 2 : BookTheme.pageAspect,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(BookTheme.pageRadius),
+              boxShadow: BookTheme.bookShadow,
+            ),
+            child: spread ? _spread(theme) : _leaf(theme),
+          ),
+        ),
+      ),
+    );
+  }
 
-    return Scaffold(
-      backgroundColor: colors.surface,
-      appBar: AppBar(
-        title: const Text('Albüm Önizleme'),
-        backgroundColor: Colors.transparent,
-        actions: [
-          IconButton(
-            onPressed: _toggleAutoPlay,
-            tooltip: _autoPlay ? 'Durdur' : 'Otomatik oynat',
-            icon: Icon(
-              _autoPlay
-                  ? Icons.pause_circle_outline_rounded
-                  : Icons.play_circle_outline_rounded,
+  /// Çevrilen yaprak. Dokunma bölgeleri ve sürükleme burada toplanır.
+  Widget _leaf(AlbumThemePreset theme) {
+    return LayoutBuilder(
+      builder: (context, constraints) => GestureDetector(
+        onTapUp: (details) => _handleTap(details, constraints),
+        child: BookFrame(
+          paperColor: theme.pageColor,
+          remainingPages: slideCount - _current - 1,
+          borderRadius: BookTheme.pageRadius,
+          child: RepaintBoundary(
+            child: PageFlipView(
+              controller: _flip,
+              itemCount: slideCount,
+              paperColor: theme.pageColor,
+              borderRadius: BookTheme.pageRadius,
+              onPageChanged: (index) => setState(() => _current = index),
+              itemBuilder: (context, index) => _slide(index),
             ),
           ),
-          const SizedBox(width: 6),
-        ],
+        ),
       ),
-      body: SafeArea(
-        child: Stack(
+    );
+  }
+
+  /// Açık kitap: solda az önce çevrilen sayfa, sağda çevrilecek yaprak.
+  ///
+  /// Sol sayfa yaprak yerine oturana kadar değişmez — gerçek bir kitapta da
+  /// öyledir.
+  Widget _spread(AlbumThemePreset theme) {
+    return Row(
+      children: [
+        Expanded(
+          child: _FacingPage(
+            paperColor: theme.pageColor,
+            child: _current > 0 ? _slide(_current - 1) : null,
+          ),
+        ),
+        Expanded(child: _leaf(theme)),
+      ],
+    );
+  }
+
+  /// Dokununca beliren üst ve alt kontroller.
+  Widget _buildChrome(AlbumThemePreset theme) {
+    return IgnorePointer(
+      ignoring: !_chromeVisible,
+      child: AnimatedOpacity(
+        opacity: _chromeVisible ? 1 : 0,
+        duration: Motion.medium,
+        curve: Motion.curve,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(22, 2, 22, 12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.album.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 19,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 180),
-                              child: Text(
-                                _positionLabel(),
-                                key: ValueKey(_current),
-                                style: TextStyle(
-                                  color: colors.onSurfaceVariant,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      FilledButton.icon(
-                        onPressed: _exportAndShare,
-                        icon: const Icon(Icons.ios_share_rounded, size: 18),
-                        label: const Text('MP4 Paylaş'),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: RadialGradient(
-                            center: const Alignment(0, -0.2),
-                            radius: 1.08,
-                            colors: [
-                              albumTheme.coverEnd.withValues(alpha: 0.16),
-                              colors.surface,
-                              Color.lerp(colors.surface, Colors.black, 0.16)!,
-                            ],
-                            stops: const [0, 0.64, 1],
-                          ),
-                        ),
-                      ),
-                      GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onHorizontalDragStart: (_) => _dragDistance = 0,
-                        onHorizontalDragUpdate: (details) {
-                          _dragDistance += details.delta.dx;
-                        },
-                        onHorizontalDragEnd: _handleDragEnd,
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(10, 10, 10, 30),
-                          child: _buildBookPreview(),
-                        ),
-                      ),
-                      Positioned(
-                        left: 14,
-                        top: 0,
-                        bottom: 20,
-                        child: Center(
-                          child: _PageArrow(
-                            icon: Icons.chevron_left_rounded,
-                            tooltip: 'Önceki sayfa',
-                            enabled: _current > 0 && _target == null,
-                            onTap: () => _goTo(_current - 1),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        right: 14,
-                        top: 0,
-                        bottom: 20,
-                        child: Center(
-                          child: _PageArrow(
-                            icon: Icons.chevron_right_rounded,
-                            tooltip: 'Sonraki sayfa',
-                            enabled:
-                                _current < previewCount - 1 && _target == null,
-                            onTap: () => _goTo(_current + 1),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 4,
-                        child: Center(
-                          child: Text(
-                            _reduceMotion
-                                ? 'Oklarla gez · azaltılmış hareket'
-                                : 'Kaydır veya oklarla sayfaları çevir',
-                            style: TextStyle(
-                              color: colors.onSurfaceVariant.withValues(
-                                alpha: 0.68,
-                              ),
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(
-                  height: 34,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        for (var index = 0; index < previewCount; index++)
-                          Semantics(
-                            label: index == 0
-                                ? 'Kapak'
-                                : 'Kitap görünümü $index',
-                            selected: index == _current,
-                            button: true,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(99),
-                              onTap: _target == null
-                                  ? () => _goTo(
-                                      index,
-                                      animate: (index - _current).abs() == 1,
-                                    )
-                                  : null,
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 220),
-                                width: index == _current ? 22 : 7,
-                                height: 7,
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: index == _current
-                                      ? albumTheme.accent
-                                      : colors.onSurface.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(99),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-              ],
+            _ReaderTopBar(
+              title: widget.album.title,
+              autoPlay: _autoPlay,
+              onToggleAutoPlay: _toggleAutoPlay,
+              onExport: _exportAndShare,
             ),
-            if (_exporting)
-              Positioned.fill(
-                child: ColoredBox(
-                  color: const Color(0xED12100F),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        RepaintBoundary(
-                          key: _exportBoundary,
-                          child: _ExportSlide(
-                            album: widget.album,
-                            index: _exportSlide,
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-                        SizedBox(
-                          width: 270,
-                          child: LinearProgressIndicator(
-                            value: _exportProgress,
-                            minHeight: 7,
-                            borderRadius: BorderRadius.circular(99),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          _exportStatus,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Uygulamayı kapatma',
-                          style: TextStyle(
-                            color: colors.onSurfaceVariant,
-                            fontSize: 12,
-                          ),
-                        ),
+            _ReaderBottomBar(
+              current: _current,
+              count: slideCount,
+              accent: theme.accent,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExportOverlay() {
+    return Positioned.fill(
+      child: ColoredBox(
+        color: const Color(0xF2141110),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RepaintBoundary(
+                key: _exportBoundary,
+                child: _ExportSlide(
+                  album: widget.album,
+                  index: _exportSlide,
+                  flip: _exportFlip,
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: 270,
+                child: LinearProgressIndicator(
+                  value: _exportProgress,
+                  minHeight: 7,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                _exportStatus,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Uygulamayı kapatma',
+                style: TextStyle(color: Color(0xFF9B8F84), fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Açık kitabın sol sayfası. Çevrilecek yaprak sağdadır; bu sayfa yalnızca
+/// cilt payını ve kâğıdı taşır.
+class _FacingPage extends StatelessWidget {
+  const _FacingPage({required this.paperColor, this.child});
+
+  final Color paperColor;
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: const BorderRadius.horizontal(
+        left: Radius.circular(BookTheme.pageRadius),
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(color: paperColor),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ?child,
+            // Cilt payı sağ kenarda: iki sayfa ortada birleşir.
+            Align(
+              alignment: Alignment.centerRight,
+              child: FractionallySizedBox(
+                widthFactor: 0.09,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        Colors.black.withValues(alpha: 0),
+                        Colors.black.withValues(alpha: 0.10),
+                        Colors.black.withValues(alpha: 0.30),
                       ],
+                      stops: const [0, 0.55, 1],
                     ),
                   ),
                 ),
               ),
+            ),
           ],
         ),
       ),
@@ -612,82 +476,246 @@ class _PreviewScreenState extends State<PreviewScreen>
   }
 }
 
-class _BookPosition {
-  const _BookPosition({
-    required this.left,
-    required this.right,
-    this.closed = false,
+/// Okuma ekranının üst kontrolleri: geri, başlık ve eylemler.
+class _ReaderTopBar extends StatelessWidget {
+  const _ReaderTopBar({
+    required this.title,
+    required this.autoPlay,
+    required this.onToggleAutoPlay,
+    required this.onExport,
   });
 
-  final int left;
-  final int right;
-  final bool closed;
-}
-
-class _PageArrow extends StatelessWidget {
-  const _PageArrow({
-    required this.icon,
-    required this.tooltip,
-    required this.enabled,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final bool enabled;
-  final VoidCallback onTap;
+  final String title;
+  final bool autoPlay;
+  final VoidCallback onToggleAutoPlay;
+  final VoidCallback onExport;
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedOpacity(
-      opacity: enabled ? 1 : 0.2,
-      duration: const Duration(milliseconds: 180),
-      child: Material(
-        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.76),
-        shape: const CircleBorder(),
-        elevation: enabled ? 4 : 0,
-        child: IconButton(
-          onPressed: enabled ? onTap : null,
-          tooltip: tooltip,
-          visualDensity: VisualDensity.compact,
-          icon: Icon(icon),
+    return _ChromeSurface(
+      edge: VerticalDirection.up,
+      padding: const EdgeInsets.fromLTRB(4, 6, 10, 6),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: () => Navigator.of(context).maybePop(),
+            icon: const Icon(Icons.arrow_back_rounded),
+            color: BookTheme.ink,
+            tooltip: 'Geri',
+          ),
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: BookTheme.ink,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: onToggleAutoPlay,
+            color: BookTheme.ink,
+            tooltip: autoPlay ? 'Durdur' : 'Otomatik oynat',
+            icon: AnimatedSwitcher(
+              duration: Motion.fast,
+              transitionBuilder: (child, animation) =>
+                  ScaleTransition(scale: animation, child: child),
+              child: Icon(
+                autoPlay
+                    ? Icons.pause_circle_outline
+                    : Icons.play_circle_outline,
+                key: ValueKey(autoPlay),
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: onExport,
+            color: BookTheme.ink,
+            tooltip: 'MP4 paylaş',
+            icon: const Icon(Icons.ios_share_rounded),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Okuma ekranının alt göstergesi.
+///
+/// Sayfa sayısı azken noktalar, çoğaldığında ince bir ilerleme çubuğu gösterir;
+/// yüzlerce nokta okumayı böler.
+class _ReaderBottomBar extends StatelessWidget {
+  const _ReaderBottomBar({
+    required this.current,
+    required this.count,
+    required this.accent,
+  });
+
+  final int current;
+  final int count;
+  final Color accent;
+
+  static const _dotLimit = 12;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ChromeSurface(
+      edge: VerticalDirection.down,
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (count <= _dotLimit)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (var index = 0; index < count; index++)
+                  AnimatedContainer(
+                    duration: Motion.medium,
+                    curve: Motion.curve,
+                    width: index == current ? 18 : 6,
+                    height: 6,
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    decoration: BoxDecoration(
+                      color: index == current
+                          ? accent
+                          : BookTheme.inkSoft.withValues(alpha: 0.32),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+              ],
+            )
+          else
+            ClipRRect(
+              borderRadius: BorderRadius.circular(99),
+              child: LinearProgressIndicator(
+                value: count <= 1 ? 1 : current / (count - 1),
+                minHeight: 3,
+                backgroundColor: BookTheme.inkSoft.withValues(alpha: 0.22),
+                valueColor: AlwaysStoppedAnimation(accent),
+              ),
+            ),
+          const SizedBox(height: 8),
+          Text(
+            current == 0 ? 'Kapak' : 'Sayfa $current / ${count - 1}',
+            style: const TextStyle(
+              color: BookTheme.inkSoft,
+              fontSize: 11,
+              letterSpacing: 0.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Kontrol çubuklarının ortak zemini.
+class _ChromeSurface extends StatelessWidget {
+  const _ChromeSurface({
+    required this.child,
+    required this.padding,
+    required this.edge,
+  });
+
+  final Widget child;
+  final EdgeInsets padding;
+
+  /// Çubuğun hangi kenarda durduğu. Güvenli alan yalnızca o kenarda bırakılır;
+  /// aksi hâlde içerik durum çubuğunun ya da hareket çubuğunun altında kalır.
+  final VerticalDirection edge;
+
+  @override
+  Widget build(BuildContext context) {
+    final top = edge == VerticalDirection.up;
+    return Material(
+      color: BookTheme.chrome,
+      child: SafeArea(
+        top: top,
+        bottom: !top,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border(
+              top: top
+                  ? BorderSide.none
+                  : const BorderSide(color: Color(0x14000000)),
+              bottom: top
+                  ? const BorderSide(color: Color(0x14000000))
+                  : BorderSide.none,
+            ),
+          ),
+          child: Padding(padding: padding, child: child),
         ),
       ),
     );
   }
 }
 
+/// Videoya yazılan tek kare.
+///
+/// Ekrandaki [PageFlipView] ile aynı [FlipFrame] çizimini kullanır; bu yüzden
+/// paylaşılan MP4 uygulamadaki hareketin birebir aynısını gösterir.
 class _ExportSlide extends StatelessWidget {
-  const _ExportSlide({required this.album, required this.index});
+  const _ExportSlide({
+    required this.album,
+    required this.index,
+    required this.flip,
+  });
 
   final AlbumModel album;
   final int index;
+  final double flip;
+
+  static const _pageWidth = 205.0;
+  static const _pageHeight = _pageWidth * 14 / 9;
+
+  Widget _slide(int position, AlbumThemePreset theme) {
+    if (position == 0) return AlbumCover(album: album);
+    return AlbumPageCanvas(page: album.pages[position - 1], theme: theme);
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = themeById(album.themeId);
+    final slideCount = album.pages.length + 1;
+    final next = (index + 1).clamp(0, slideCount - 1);
     return SizedBox(
       width: 270,
       height: 480,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          gradient: RadialGradient(
-            center: const Alignment(0, -0.2),
-            radius: 1.2,
-            colors: [
-              theme.coverEnd.withValues(alpha: 0.65),
-              const Color(0xFF151210),
-            ],
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [theme.coverEnd, const Color(0xFF151210)],
           ),
         ),
-        child: Center(
-          child: SizedBox(
-            width: 240,
-            height: 373.333,
-            child: index == 0
-                ? AlbumCover(album: album)
-                : AlbumPageCanvas(page: album.pages[index - 1], theme: theme),
-          ),
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            Positioned(
+              left: 45,
+              top: (480 - _pageHeight) / 2,
+              width: _pageWidth,
+              height: _pageHeight,
+              child: BookFrame(
+                paperColor: theme.pageColor,
+                remainingPages: slideCount - index - 1,
+                child: flip <= 0
+                    ? _slide(index, theme)
+                    : FlipFrame(
+                        progress: flip,
+                        paperColor: theme.pageColor,
+                        borderRadius: BookTheme.pageRadius,
+                        front: _slide(index, theme),
+                        back: _slide(next, theme),
+                      ),
+              ),
+            ),
+          ],
         ),
       ),
     );

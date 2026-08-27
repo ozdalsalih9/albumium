@@ -1,11 +1,11 @@
 import 'package:albumium/models/album_models.dart';
 import 'package:albumium/screens/preview_screen.dart';
-import 'package:albumium/widgets/physical_book_spread.dart';
+import 'package:albumium/widgets/page_flip_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('preview keeps one book while its pages turn', (tester) async {
+  testWidgets('önizleme sayfalar çevrilirken tek kitabı korur', (tester) async {
     tester.view.physicalSize = const Size(900, 1600);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.resetPhysicalSize);
@@ -33,20 +33,29 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(PhysicalBookSpread), findsOneWidget);
+    // Kitap tek bir görünüm olarak yaşar ve bir karusel değildir; sayfalar
+    // yaprak olarak çevrilir.
+    expect(find.byType(PageFlipView), findsOneWidget);
     expect(find.byType(PageView), findsNothing);
-    expect(find.textContaining('Kapak ·'), findsOneWidget);
+    expect(find.text('Kapak'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Sonraki sayfa'));
-    await tester.pump(const Duration(milliseconds: 470));
-    expect(find.byType(PhysicalBookSpread), findsOneWidget);
+    final book = find.byType(BookFrame);
+    final size = tester.getSize(book);
+    final topLeft = tester.getTopLeft(book);
+    final rightSide = topLeft + Offset(size.width * 0.8, size.height / 2);
+
+    await tester.tapAt(rightSide);
+    // Çevirmenin ortasında kitap hâlâ tek olmalı: yeniden yaratılırsa
+    // yaprağın durumu ve sayfa indeksi bozulur.
+    await tester.pump(const Duration(milliseconds: 380));
+    expect(find.byType(PageFlipView), findsOneWidget);
 
     await tester.pumpAndSettle();
-    expect(find.text('İç kapak · Sayfa 1'), findsOneWidget);
+    expect(find.text('Sayfa 1 / 3'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Sonraki sayfa'));
+    await tester.tapAt(rightSide);
     await tester.pumpAndSettle();
-    expect(find.byType(PhysicalBookSpread), findsOneWidget);
-    expect(find.text('Sayfalar 2–3'), findsOneWidget);
+    expect(find.byType(PageFlipView), findsOneWidget);
+    expect(find.text('Sayfa 2 / 3'), findsOneWidget);
   });
 }
