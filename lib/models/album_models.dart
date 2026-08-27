@@ -168,6 +168,25 @@ AlbumThemePreset themeById(String id) => albumThemes.firstWhere(
   orElse: () => albumThemes.first,
 );
 
+/// Bozuk alt kayıtları atlayarak bir listeyi kurtarır.
+///
+/// Kullanıcı verisinde tek bir bozuk öğe, onu içeren sayfanın ya da albümün
+/// tamamının kaybedilmesine yol açmamalı. Kaybedilen tek şey okunamayan
+/// kaydın kendisi olur.
+List<T> _recoverList<T>(Object? raw, T Function(Map<String, dynamic>) parse) {
+  if (raw is! List) return <T>[];
+  final recovered = <T>[];
+  for (final item in raw) {
+    if (item is! Map<String, dynamic>) continue;
+    try {
+      recovered.add(parse(item));
+    } catch (_) {
+      // Okunamayan kaydı atla; listenin geri kalanı kurtarılır.
+    }
+  }
+  return recovered;
+}
+
 class AlbumElementModel {
   AlbumElementModel({
     required this.id,
@@ -255,12 +274,7 @@ class AlbumPageModel {
   factory AlbumPageModel.fromJson(Map<String, dynamic> json) => AlbumPageModel(
     id: json['id'] as String,
     backgroundColor: json['backgroundColor'] as int,
-    elements: (json['elements'] as List<dynamic>)
-        .map(
-          (element) =>
-              AlbumElementModel.fromJson(element as Map<String, dynamic>),
-        )
-        .toList(),
+    elements: _recoverList(json['elements'], AlbumElementModel.fromJson),
   );
 }
 
@@ -305,10 +319,23 @@ class AlbumModel {
         : AlbumBindingType.spiral,
     createdAt: DateTime.parse(json['createdAt'] as String),
     updatedAt: DateTime.parse(json['updatedAt'] as String),
-    pages: (json['pages'] as List<dynamic>)
-        .map((page) => AlbumPageModel.fromJson(page as Map<String, dynamic>))
-        .toList(),
+    pages: _recoverList(json['pages'], AlbumPageModel.fromJson),
   );
 }
 
-String newId() => DateTime.now().microsecondsSinceEpoch.toString();
+/// Aynı süreç içinde bir daha üretilmeyecek bir kimlik döndürür.
+///
+/// Yalnızca zaman damgası yetmiyor: `microsecondsSinceEpoch` tek bir senkron
+/// blok boyunca ilerlemeyebiliyor. Bir sayfa çoğaltıldığında ya da çoklu
+/// fotoğraf eklendiğinde tüm öğeler aynı kimliği alıyor, bu da aynı `Stack`
+/// içinde özdeş `ValueKey`'lere ve Flutter assertion hatasına yol açıyordu.
+/// Artan sayaç bu çakışmayı imkânsız kılar.
+///
+/// Eski kayıtlardaki saf sayısal kimlikler geçerli kalır; kimlikler yalnızca
+/// karşılaştırılır, çözümlenmez.
+String newId() {
+  final sequence = (_idSequence++).toRadixString(36);
+  return '${DateTime.now().microsecondsSinceEpoch}-$sequence';
+}
+
+int _idSequence = 0;

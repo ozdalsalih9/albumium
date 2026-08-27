@@ -4,11 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'screens/home_screen.dart';
+import 'services/error_reporter.dart';
 import 'services/theme_controller.dart';
 import 'theme/albumium_app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Kancalar her şeyden önce kurulur; başlangıç sırasında oluşan bir hata da
+  // yakalansın.
+  ErrorReporter.install();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
   final themeController = ThemeController();
