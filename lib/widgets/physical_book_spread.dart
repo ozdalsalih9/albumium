@@ -25,7 +25,9 @@ class PhysicalBookSpread extends StatelessWidget {
     this.turnProgress = 0,
     this.turningForward = true,
     this.interactive = false,
+    this.activePageIndex,
     this.selectedElementId,
+    this.onSelectPage,
     this.onSelectElement,
     this.onChanged,
   });
@@ -43,7 +45,9 @@ class PhysicalBookSpread extends StatelessWidget {
   final double turnProgress;
   final bool turningForward;
   final bool interactive;
+  final int? activePageIndex;
   final String? selectedElementId;
+  final ValueChanged<int>? onSelectPage;
   final ValueChanged<String?>? onSelectElement;
   final VoidCallback? onChanged;
 
@@ -403,7 +407,10 @@ class PhysicalBookSpread extends StatelessWidget {
         theme: theme,
         interactive: interactive,
         selectedId: selectedElementId,
-        onSelect: onSelectElement,
+        onSelect: (id) {
+          onSelectPage?.call(index);
+          onSelectElement?.call(id);
+        },
         onChanged: onChanged,
       );
     }
@@ -441,6 +448,20 @@ class PhysicalBookSpread extends StatelessWidget {
                 ),
               ),
             ),
+            if (interactive && activePageIndex == index)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: theme.accent.withValues(alpha: 0.82),
+                        width: 2,
+                      ),
+                      borderRadius: radius,
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -448,13 +469,17 @@ class PhysicalBookSpread extends StatelessWidget {
   }
 
   Widget _buildBindingOverlay(AlbumBindingType binding) {
-    return switch (binding) {
-      AlbumBindingType.spiral => const _SpiralBinding(),
-      AlbumBindingType.stitched => const _StitchedBinding(),
-      AlbumBindingType.leatherStrap => const _LeatherStrapBinding(),
-      AlbumBindingType.hardcover => const _HardcoverCrease(),
-      AlbumBindingType.vintageCord => const _VintageCordBinding(),
-    };
+    return Semantics(
+      label: 'Cilt merkezi: ${binding.title}',
+      image: true,
+      child: switch (binding) {
+        AlbumBindingType.spiral => const _SpiralBinding(),
+        AlbumBindingType.stitched => const _StitchedBinding(),
+        AlbumBindingType.leatherStrap => const _LeatherStrapBinding(),
+        AlbumBindingType.hardcover => const _HardcoverCrease(),
+        AlbumBindingType.vintageCord => const _VintageCordBinding(),
+      },
+    );
   }
 
   double _lerp(double start, double end, double amount) =>

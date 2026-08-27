@@ -1,6 +1,30 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 
+const themeImageCacheWidth = 1600;
+
+/// Returns the same bounded decode provider everywhere an album image is used.
+/// Keeping the provider key stable lets MP4 export warm the exact image that
+/// [ThemeImage] paints, while the decode cap prevents a few camera photos from
+/// evicting one another from Flutter's image cache.
+ImageProvider<Object> themeImageProvider(
+  String url, {
+  int? cacheWidth = themeImageCacheWidth,
+}) {
+  final ImageProvider<Object> provider;
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    provider = NetworkImage(url);
+  } else if (url.startsWith('assets/')) {
+    provider = AssetImage(url);
+  } else {
+    final file = File(url);
+    provider = file.existsSync() || url.contains('/') || url.contains('\\')
+        ? FileImage(file)
+        : AssetImage(url);
+  }
+  return ResizeImage.resizeIfNeeded(cacheWidth, null, provider);
+}
+
 /// Helper widget to display images from local file paths, asset paths, or network URLs
 /// with automatic fallbacks and graceful error handling.
 class ThemeImage extends StatelessWidget {
@@ -11,6 +35,7 @@ class ThemeImage extends StatelessWidget {
     this.height,
     this.fit = BoxFit.cover,
     this.placeholderIcon = Icons.photo_outlined,
+    this.cacheWidth = themeImageCacheWidth,
   });
 
   final String url;
@@ -18,53 +43,20 @@ class ThemeImage extends StatelessWidget {
   final double? height;
   final BoxFit fit;
   final IconData placeholderIcon;
+  final int? cacheWidth;
 
   @override
   Widget build(BuildContext context) {
     if (url.trim().isEmpty) {
       return _placeholder();
     }
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return Image.network(
-        url,
-        width: width,
-        height: height,
-        fit: fit,
-        errorBuilder: (_, _, _) => _placeholder(),
-      );
-    }
-    if (url.startsWith('assets/')) {
-      return Image.asset(
-        url,
-        width: width,
-        height: height,
-        fit: fit,
-        errorBuilder: (_, _, _) => _placeholder(),
-      );
-    }
-    final file = File(url);
-    if (file.existsSync() || url.contains('/') || url.contains('\\')) {
-      return Image.file(
-        file,
-        width: width,
-        height: height,
-        fit: fit,
-        errorBuilder: (_, _, _) {
-          return Image.asset(
-            url,
-            width: width,
-            height: height,
-            fit: fit,
-            errorBuilder: (_, _, _) => _placeholder(),
-          );
-        },
-      );
-    }
-    return Image.asset(
-      url,
+    return Image(
+      image: themeImageProvider(url, cacheWidth: cacheWidth),
       width: width,
       height: height,
       fit: fit,
+      filterQuality: FilterQuality.high,
+      gaplessPlayback: true,
       errorBuilder: (_, _, _) => _placeholder(),
     );
   }

@@ -9,6 +9,7 @@ import '../widgets/album_page_canvas.dart';
 import '../widgets/font_selector_dialog.dart';
 import '../widgets/handwriting_painter.dart';
 import '../widgets/occasion_cards.dart';
+import '../widgets/physical_book_spread.dart';
 import '../widgets/sticker_packs.dart';
 import 'preview_screen.dart';
 
@@ -60,6 +61,24 @@ class _EditorScreenState extends State<EditorScreen> {
 
   AlbumModel get album => widget.album;
   AlbumPageModel get page => album.pages[_pageIndex];
+  int get _spreadIndex => _pageIndex ~/ 2;
+  int get _spreadCount => (album.pages.length + 1) ~/ 2;
+  int get _spreadLeftPageIndex => _spreadIndex * 2;
+  int get _spreadRightPageIndex {
+    final index = _spreadLeftPageIndex + 1;
+    return index < album.pages.length
+        ? index
+        : PhysicalBookSpread.blankPageIndex;
+  }
+
+  String get _spreadLabel {
+    final left = _spreadLeftPageIndex + 1;
+    final rightIndex = _spreadRightPageIndex;
+    return rightIndex >= 0
+        ? 'Sayfalar $left–${rightIndex + 1} / ${album.pages.length}'
+        : 'Sayfa $left / ${album.pages.length}';
+  }
+
   AlbumElementModel? get selectedElement {
     if (_selectedId == null) return null;
     for (final element in page.elements) {
@@ -313,6 +332,24 @@ class _EditorScreenState extends State<EditorScreen> {
       _selectedId = null;
     });
     _changed();
+  }
+
+  void _selectPage(int index) {
+    if (index < 0 || index >= album.pages.length) return;
+    setState(() {
+      _pageIndex = index;
+      _selectedId = null;
+    });
+  }
+
+  void _goToPreviousSpread() {
+    if (_spreadIndex == 0) return;
+    _selectPage((_spreadIndex - 1) * 2);
+  }
+
+  void _goToNextSpread() {
+    if (_spreadIndex >= _spreadCount - 1) return;
+    _selectPage((_spreadIndex + 1) * 2);
   }
 
   void _duplicatePage() {
@@ -609,7 +646,6 @@ class _EditorScreenState extends State<EditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = themeById(album.themeId);
     return PopScope(
       onPopInvokedWithResult: (_, _) =>
           unawaited(AlbumStorage.instance.saveAlbum(album)),
@@ -651,62 +687,51 @@ class _EditorScreenState extends State<EditorScreen> {
           child: Column(
             children: [
               _PageNavigator(
-                current: _pageIndex,
-                total: album.pages.length,
-                onPrevious: _pageIndex == 0
+                label: _spreadLabel,
+                onPrevious: _spreadIndex == 0 ? null : _goToPreviousSpread,
+                onNext: _spreadIndex >= _spreadCount - 1
                     ? null
-                    : () => setState(() {
-                        _pageIndex--;
-                        _selectedId = null;
-                      }),
-                onNext: _pageIndex == album.pages.length - 1
-                    ? null
-                    : () => setState(() {
-                        _pageIndex++;
-                        _selectedId = null;
-                      }),
+                    : _goToNextSpread,
                 onAdd: _addPage,
                 onMore: () => _showPageMenu(context),
               ),
               Expanded(
                 child: Center(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(28, 6, 28, 10),
-                    child: AspectRatio(
-                      aspectRatio: 9 / 14,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Positioned.fill(
-                            child: AlbumPageCanvas(
-                              key: ValueKey(page.id),
-                              page: page,
-                              theme: theme,
-                              interactive: true,
-                              selectedId: _selectedId,
-                              onSelect: (id) =>
-                                  setState(() => _selectedId = id),
-                              onChanged: _changed,
-                            ),
+                    padding: const EdgeInsets.fromLTRB(8, 4, 8, 10),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: PhysicalBookSpread(
+                            album: album,
+                            leftPageIndex: _spreadLeftPageIndex,
+                            rightPageIndex: _spreadRightPageIndex,
+                            interactive: true,
+                            activePageIndex: _pageIndex,
+                            selectedElementId: _selectedId,
+                            onSelectPage: _selectPage,
+                            onSelectElement: (id) =>
+                                setState(() => _selectedId = id),
+                            onChanged: _changed,
                           ),
-                          if (_importing)
-                            const Positioned.fill(
-                              child: ColoredBox(
-                                color: Color(0x99000000),
-                                child: Center(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      CircularProgressIndicator(),
-                                      SizedBox(height: 12),
-                                      Text('Fotoğraflar hazırlanıyor…'),
-                                    ],
-                                  ),
+                        ),
+                        if (_importing)
+                          const Positioned.fill(
+                            child: ColoredBox(
+                              color: Color(0x99000000),
+                              child: Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    CircularProgressIndicator(),
+                                    SizedBox(height: 12),
+                                    Text('Fotoğraflar hazırlanıyor…'),
+                                  ],
                                 ),
                               ),
                             ),
-                        ],
-                      ),
+                          ),
+                      ],
                     ),
                   ),
                 ),
@@ -783,16 +808,14 @@ class _EditorScreenState extends State<EditorScreen> {
 
 class _PageNavigator extends StatelessWidget {
   const _PageNavigator({
-    required this.current,
-    required this.total,
+    required this.label,
     required this.onPrevious,
     required this.onNext,
     required this.onAdd,
     required this.onMore,
   });
 
-  final int current;
-  final int total;
+  final String label;
   final VoidCallback? onPrevious;
   final VoidCallback? onNext;
   final VoidCallback onAdd;
@@ -818,7 +841,7 @@ class _PageNavigator extends StatelessWidget {
               border: Border.all(color: colors.outlineVariant),
             ),
             child: Text(
-              'Sayfa ${current + 1} / $total',
+              label,
               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
             ),
           ),

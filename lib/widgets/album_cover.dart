@@ -136,6 +136,7 @@ class _OrnateAssetCover extends StatelessWidget {
                   assetPath,
                   fit: BoxFit.fill,
                   filterQuality: FilterQuality.high,
+                  cacheWidth: themeImageCacheWidth,
                   errorBuilder: (_, _, _) => const SizedBox.shrink(),
                 ),
                 const _CoverMaterialLighting(),
