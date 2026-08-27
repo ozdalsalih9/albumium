@@ -11,6 +11,7 @@ import 'handwriting_painter.dart';
 import 'occasion_cards.dart';
 import 'physical_book_spread.dart';
 import 'sticker_packs.dart';
+import 'theme_page_decoration.dart';
 
 const albumPhotoFrameLabels = <String>[
   'Temiz kenar',
@@ -125,6 +126,12 @@ class AlbumPageCanvas extends StatelessWidget {
                 child: Stack(
                   clipBehavior: Clip.hardEdge,
                   children: [
+                    Positioned.fill(
+                      child: ThemePageDecoration(
+                        theme: theme,
+                        paperColor: background,
+                      ),
+                    ),
                     for (final element in page.elements)
                       _AlbumElementView(
                         key: ValueKey(element.id),
