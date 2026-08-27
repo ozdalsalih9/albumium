@@ -1,9 +1,49 @@
 import 'package:albumium/widgets/album_page_canvas.dart';
 import 'package:albumium/widgets/sticker_packs.dart';
+import 'package:albumium/models/album_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('every album theme paints a distinct page style layer', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: Wrap(
+              children: [
+                for (final theme in albumThemes)
+                  SizedBox(
+                    width: 180,
+                    height: 280,
+                    child: AlbumPageCanvas(
+                      page: AlbumPageModel(
+                        id: 'page-${theme.id}',
+                        backgroundColor: theme.pageColor.toARGB32(),
+                      ),
+                      theme: theme,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    for (final theme in albumThemes) {
+      expect(
+        find.byKey(ValueKey('page-style-${theme.id}')),
+        findsOneWidget,
+        reason: '${theme.name} needs its own page decoration layer',
+      );
+    }
+    expect(tester.takeException(), isNull);
+  });
+
   test('photo frame catalogue exposes unique, labelled styles', () {
     expect(albumPhotoFrameCount, greaterThanOrEqualTo(12));
     expect(albumPhotoFrameLabels.toSet(), hasLength(albumPhotoFrameCount));
