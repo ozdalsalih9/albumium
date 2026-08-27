@@ -49,11 +49,58 @@ void main() {
     expect(spread.leftPageIndex, 0);
     expect(spread.rightPageIndex, 1);
     expect(spread.activePageIndex, 0);
+    expect(spread.focusedPageIndex, 0);
+    expect(spread.companionPageFraction, closeTo(0.11, 0.001));
+    expect(find.byKey(const ValueKey('focused-book-viewport')), findsOneWidget);
 
-    await tester.tap(find.byType(AlbumPageCanvas).at(1));
+    final viewportRect = tester.getRect(
+      find.byKey(const ValueKey('focused-book-viewport')),
+    );
+    await tester.tapAt(Offset(viewportRect.right - 6, viewportRect.center.dy));
     await tester.pump();
 
     spread = tester.widget<PhysicalBookSpread>(find.byType(PhysicalBookSpread));
     expect(spread.activePageIndex, 1);
+    expect(spread.focusedPageIndex, 1);
+  });
+
+  testWidgets('tablet editor keeps the complete two-page spread', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final now = DateTime(2026);
+    final album = AlbumModel(
+      id: 'tablet-spread',
+      title: 'Tablet Albümü',
+      themeId: 'midnight_atlas',
+      bindingType: AlbumBindingType.hardcover,
+      createdAt: now,
+      updatedAt: now,
+      pages: [
+        AlbumPageModel(id: 'tablet-left', backgroundColor: 0xFFF2EADB),
+        AlbumPageModel(id: 'tablet-right', backgroundColor: 0xFFF2EADB),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: EditorScreen(album: album),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final spread = tester.widget<PhysicalBookSpread>(
+      find.byType(PhysicalBookSpread),
+    );
+    expect(spread.focusedPageIndex, isNull);
+    expect(find.byType(AlbumPageCanvas), findsNWidgets(2));
+    expect(find.byKey(const ValueKey('focused-book-viewport')), findsNothing);
+    expect(find.bySemanticsLabel('Cilt merkezi: Sert Kapak'), findsOneWidget);
   });
 }

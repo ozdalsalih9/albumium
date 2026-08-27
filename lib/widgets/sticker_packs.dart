@@ -212,6 +212,7 @@ class _StickerPackPickerSheetState extends State<StickerPackPickerSheet>
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final tablet = MediaQuery.sizeOf(context).shortestSide >= 600;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
@@ -293,7 +294,9 @@ class _StickerPackPickerSheetState extends State<StickerPackPickerSheet>
                     GridView.builder(
                       padding: const EdgeInsets.only(top: 2, bottom: 8),
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: pack.illustrated ? 3 : 5,
+                        crossAxisCount: pack.illustrated
+                            ? (tablet ? 5 : 3)
+                            : (tablet ? 8 : 5),
                         mainAxisSpacing: 10,
                         crossAxisSpacing: 10,
                         childAspectRatio: pack.illustrated ? 0.86 : 1,

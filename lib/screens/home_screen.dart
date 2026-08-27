@@ -101,6 +101,15 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).extension<AlbumiumThemeColors>()!;
+    final viewportWidth = MediaQuery.sizeOf(context).width;
+    final horizontalInset = viewportWidth > 1244
+        ? (viewportWidth - 1200) / 2 + 22
+        : 22.0;
+    final albumColumns = viewportWidth >= 1100
+        ? 4
+        : viewportWidth >= 700
+        ? 3
+        : 2;
     return Scaffold(
       body: SafeArea(
         child: CustomScrollView(
@@ -108,7 +117,12 @@ class _HomeScreenState extends State<HomeScreen> {
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(22, 18, 14, 10),
+                padding: EdgeInsets.fromLTRB(
+                  horizontalInset,
+                  18,
+                  horizontalInset,
+                  10,
+                ),
                 child: Row(
                   children: [
                     Container(
@@ -173,13 +187,18 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(22, 13, 22, 27),
+                padding: EdgeInsets.fromLTRB(
+                  horizontalInset,
+                  13,
+                  horizontalInset,
+                  27,
+                ),
                 child: _HeroPanel(onCreate: _createAlbum),
               ),
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 22),
+                padding: EdgeInsets.symmetric(horizontal: horizontalInset),
                 child: Row(
                   children: [
                     Text(
@@ -236,10 +255,15 @@ class _HomeScreenState extends State<HomeScreen> {
               )
             else
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(22, 19, 22, 112),
+                padding: EdgeInsets.fromLTRB(
+                  horizontalInset,
+                  19,
+                  horizontalInset,
+                  112,
+                ),
                 sliver: SliverGrid.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: albumColumns,
                     childAspectRatio: 0.61,
                     crossAxisSpacing: 17,
                     mainAxisSpacing: 23,

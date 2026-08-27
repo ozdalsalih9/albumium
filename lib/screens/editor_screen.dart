@@ -699,39 +699,48 @@ class _EditorScreenState extends State<EditorScreen> {
                 child: Center(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(8, 4, 8, 10),
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: PhysicalBookSpread(
-                            album: album,
-                            leftPageIndex: _spreadLeftPageIndex,
-                            rightPageIndex: _spreadRightPageIndex,
-                            interactive: true,
-                            activePageIndex: _pageIndex,
-                            selectedElementId: _selectedId,
-                            onSelectPage: _selectPage,
-                            onSelectElement: (id) =>
-                                setState(() => _selectedId = id),
-                            onChanged: _changed,
-                          ),
-                        ),
-                        if (_importing)
-                          const Positioned.fill(
-                            child: ColoredBox(
-                              color: Color(0x99000000),
-                              child: Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    CircularProgressIndicator(),
-                                    SizedBox(height: 12),
-                                    Text('Fotoğraflar hazırlanıyor…'),
-                                  ],
-                                ),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final phoneLayout =
+                            MediaQuery.sizeOf(context).shortestSide < 600;
+                        return Stack(
+                          children: [
+                            Positioned.fill(
+                              child: PhysicalBookSpread(
+                                album: album,
+                                leftPageIndex: _spreadLeftPageIndex,
+                                rightPageIndex: _spreadRightPageIndex,
+                                interactive: true,
+                                focusedPageIndex: phoneLayout
+                                    ? _pageIndex
+                                    : null,
+                                activePageIndex: _pageIndex,
+                                selectedElementId: _selectedId,
+                                onSelectPage: _selectPage,
+                                onSelectElement: (id) =>
+                                    setState(() => _selectedId = id),
+                                onChanged: _changed,
                               ),
                             ),
-                          ),
-                      ],
+                            if (_importing)
+                              const Positioned.fill(
+                                child: ColoredBox(
+                                  color: Color(0x99000000),
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        CircularProgressIndicator(),
+                                        SizedBox(height: 12),
+                                        Text('Fotoğraflar hazırlanıyor…'),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -1174,6 +1183,7 @@ class _PhotoFramePicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final tablet = MediaQuery.sizeOf(context).shortestSide >= 600;
     return SafeArea(
       child: SizedBox(
         height: MediaQuery.sizeOf(context).height * 0.68,
@@ -1222,8 +1232,8 @@ class _PhotoFramePicker extends StatelessWidget {
               Expanded(
                 child: GridView.builder(
                   padding: const EdgeInsets.only(bottom: 8),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: tablet ? 5 : 3,
                     mainAxisSpacing: 10,
                     crossAxisSpacing: 10,
                     childAspectRatio: 0.92,
