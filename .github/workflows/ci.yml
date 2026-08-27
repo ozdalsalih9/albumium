@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Aynı dal için üst üste tetiklenen çalıştırmalarda yalnızca sonuncusu koşsun.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # pubspec.lock Flutter >=3.38.4 istiyor. Sürüm sabitlenir ki CI ile
+          # geliştirici makinesi aynı araç zincirini kullansın; yükseltme
+          # bilinçli bir commit olsun.
+          flutter-version: '3.47.1'
+          channel: stable
+          cache: true
+
+      - name: Bağımlılıklar
+        run: flutter pub get
+
+      - name: Statik analiz
+        run: flutter analyze
+
+      - name: Testler
+        run: flutter test
+
+# Not: `dart format --set-exit-if-changed` kapısı bilerek eklenmedi. Bugün iki
+# dosya (lib/screens/preview_screen.dart, lib/widgets/occasion_cards.dart)
+# dart format çıktısından farklı; kapıyı eklemek onları yeniden biçimlendirmeyi
+# gerektirir ve bu bir stil kararıdır. İstenirse ayrı bir commit'te açılabilir.
