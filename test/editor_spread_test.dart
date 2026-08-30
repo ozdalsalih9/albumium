@@ -154,6 +154,10 @@ void main() {
     expect(spread.nextLeftPageIndex, 2);
     expect(spread.nextRightPageIndex, 3);
     expect(find.byType(PageCurl), findsOneWidget);
+    expect(
+      tester.widget<PageCurl>(find.byType(PageCurl)).surface,
+      PageCurlSurface.front,
+    );
 
     await tester.pumpAndSettle();
     spread = tester.widget<PhysicalBookSpread>(find.byType(PhysicalBookSpread));
@@ -165,6 +169,10 @@ void main() {
     await tester.tap(find.byTooltip('Önceki sayfa'));
     await tester.pump(const Duration(milliseconds: 260));
     expect(find.byType(PageCurl), findsOneWidget);
+    expect(
+      tester.widget<PageCurl>(find.byType(PageCurl)).surface,
+      PageCurlSurface.front,
+    );
     await tester.pumpAndSettle();
     spread = tester.widget<PhysicalBookSpread>(find.byType(PhysicalBookSpread));
     expect(spread.activePageIndex, 1);

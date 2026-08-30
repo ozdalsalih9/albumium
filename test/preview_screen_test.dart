@@ -48,6 +48,10 @@ void main() {
     await tester.tap(find.byTooltip('Sonraki sayfa'));
     await tester.pump(const Duration(milliseconds: 260));
     expect(find.byType(PageCurl), findsOneWidget);
+    expect(
+      tester.widget<PageCurl>(find.byType(PageCurl)).surface,
+      PageCurlSurface.front,
+    );
     await tester.pumpAndSettle();
     expect(find.byType(PhysicalBookSpread), findsOneWidget);
     expect(find.text('Sayfalar 2–3'), findsOneWidget);

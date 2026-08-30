@@ -99,6 +99,26 @@ void main() {
       final json = _album().toJson()..remove('bindingType');
       expect(AlbumModel.fromJson(json).bindingType, AlbumBindingType.spiral);
     });
+
+    test('özel gün kartı proje türü ve teması JSON turundan korunur', () {
+      final source = _album()
+        ..projectType = AlbumProjectType.occasionCard
+        ..cardThemeId = 'anniversary';
+      final restored = AlbumModel.fromJson(
+        jsonDecode(jsonEncode(source.toJson())) as Map<String, dynamic>,
+      );
+      expect(restored.projectType, AlbumProjectType.occasionCard);
+      expect(restored.cardThemeId, 'anniversary');
+    });
+
+    test('eski kayıtlarda yeni proje alanları güvenli varsayılana düşer', () {
+      final json = _album().toJson()
+        ..remove('projectType')
+        ..remove('cardThemeId');
+      final restored = AlbumModel.fromJson(json);
+      expect(restored.projectType, AlbumProjectType.album);
+      expect(restored.cardThemeId, 'birthday');
+    });
   });
 
   group('bozuk girdi', () {

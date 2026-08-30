@@ -1,4 +1,5 @@
 import 'package:albumium/main.dart';
+import 'package:albumium/screens/special_card_studio_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,11 +11,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('ALBUMIUM'), findsOneWidget);
-    expect(find.text('Albüm oluştur'), findsOneWidget);
+    expect(find.text('Tasarım oluştur'), findsOneWidget);
 
-    await tester.tap(find.text('Albüm oluştur'));
+    await tester.tap(find.text('Tasarım oluştur'));
     await tester.pumpAndSettle();
 
+    expect(find.text('Ne tasarlamak istersin?'), findsOneWidget);
+    await tester.tap(find.text('Fiziksel Albüm'));
+    await tester.pumpAndSettle();
     expect(find.text('Hangi hikâyeyi anlatıyoruz?'), findsOneWidget);
     expect(find.byType(TextField), findsOneWidget);
   });
@@ -36,5 +40,19 @@ void main() {
     expect(find.text('Uygulama görünümü'), findsOneWidget);
     expect(find.text('Gül Pembesi temasını kullan'), findsOneWidget);
     expect(find.text('ALBUMIUM'), findsOneWidget);
+  });
+
+  testWidgets('special day card opens in its dedicated studio', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final project = createSpecialCardProject();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SpecialCardStudioScreen(project: project),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Kart Teması'), findsOneWidget);
+    expect(find.text('Şekiller'), findsOneWidget);
   });
 }

@@ -13,7 +13,13 @@ Future<void> main() async {
   // Kancalar her şeyden önce kurulur; başlangıç sırasında oluşan bir hata da
   // yakalansın.
   ErrorReporter.install();
-  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  // Phone layouts remain portrait-first, while tablets can rotate to landscape
+  // so the two-page editor has enough horizontal room for a true book spread.
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
 
   final themeController = ThemeController();
   await themeController.initialize();

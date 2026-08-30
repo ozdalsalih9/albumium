@@ -3,8 +3,19 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 const _illustratedPrefix = 'albumium:';
+const _assetPrefix = 'albumium_asset:';
+const _shapePrefix = 'albumium_shape:';
 
-bool isIllustratedSticker(String value) => value.startsWith(_illustratedPrefix);
+bool isIllustratedSticker(String value) =>
+    value.startsWith(_illustratedPrefix) ||
+    value.startsWith(_assetPrefix) ||
+    value.startsWith(_shapePrefix);
+
+bool isAlbumStickerAsset(String value) => value.startsWith(_assetPrefix);
+bool isAlbumShape(String value) => value.startsWith(_shapePrefix);
+
+String albumStickerAssetPath(String value) =>
+    value.substring(_assetPrefix.length);
 
 String albumStickerLabel(String value) => switch (value) {
   'albumium:washi_blush' => 'Pudra washi bant',
@@ -24,8 +35,37 @@ String albumStickerLabel(String value) => switch (value) {
   'albumium:wax_gold' => 'Altın mum mühür',
   'albumium:vintage_ticket' => 'Vintage bilet',
   'albumium:star_doodle' => 'Yıldız çizimi',
+  'albumium_asset:assets/stickers/botanical_keepsake.png' =>
+    'Botanik hatıra buketi',
+  'albumium_asset:assets/stickers/celestial_keepsake.png' =>
+    'Gece göğü hatırası',
+  'albumium_asset:assets/stickers/travel_keepsake.png' =>
+    'Vintage seyahat hatırası',
+  'albumium_asset:assets/stickers/romance_keepsake.png' =>
+    'Kadife romantik hatıra',
+  'albumium_shape:circle_blush' => 'Pudra daire',
+  'albumium_shape:circle_navy' => 'Lacivert daire',
+  'albumium_shape:circle_gold' => 'Altın daire',
+  'albumium_shape:square_blush' => 'Pudra kare',
+  'albumium_shape:square_navy' => 'Lacivert kare',
+  'albumium_shape:square_obsidian' => 'Obsidyen kare',
+  'albumium_shape:heart_rose' => 'Gül kalp',
+  'albumium_shape:heart_blue' => 'Mavi kalp',
+  'albumium_shape:heart_gold' => 'Altın kalp',
   _ => value,
 };
+
+const albumShapeObjects = <String>[
+  'albumium_shape:circle_blush',
+  'albumium_shape:circle_navy',
+  'albumium_shape:circle_gold',
+  'albumium_shape:square_blush',
+  'albumium_shape:square_navy',
+  'albumium_shape:square_obsidian',
+  'albumium_shape:heart_rose',
+  'albumium_shape:heart_blue',
+  'albumium_shape:heart_gold',
+];
 
 class StickerCategory {
   const StickerCategory({
@@ -43,6 +83,16 @@ class StickerCategory {
 }
 
 const stickerPacks = <StickerCategory>[
+  StickerCategory(
+    name: 'Albumium Özel',
+    icon: Icons.diamond_outlined,
+    stickers: [
+      'albumium_asset:assets/stickers/botanical_keepsake.png',
+      'albumium_asset:assets/stickers/celestial_keepsake.png',
+      'albumium_asset:assets/stickers/travel_keepsake.png',
+      'albumium_asset:assets/stickers/romance_keepsake.png',
+    ],
+  ),
   StickerCategory(
     name: 'Kolaj Kiti',
     icon: Icons.auto_awesome_mosaic_outlined,
@@ -168,10 +218,34 @@ class AlbumStickerView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (isAlbumStickerAsset(content)) {
+      return Semantics(
+        image: true,
+        label: albumStickerLabel(content),
+        child: Image.asset(
+          albumStickerAssetPath(content),
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+          gaplessPlayback: true,
+        ),
+      );
+    }
+
     if (!isIllustratedSticker(content)) {
       return FittedBox(
         fit: BoxFit.contain,
         child: Text(content, textAlign: TextAlign.center),
+      );
+    }
+
+    if (isAlbumShape(content)) {
+      return Semantics(
+        image: true,
+        label: albumStickerLabel(content),
+        child: CustomPaint(
+          painter: _ShapeObjectPainter(content),
+          child: const SizedBox.expand(),
+        ),
       );
     }
 
@@ -184,6 +258,202 @@ class AlbumStickerView extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Albüm sayfasına fotoğraf ve yazılarla aynı hareket/ölçek davranışını
+/// paylaşan, emojiden bağımsız geometrik nesneler ekler.
+class ShapeObjectPickerSheet extends StatelessWidget {
+  const ShapeObjectPickerSheet({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final tablet = MediaQuery.sizeOf(context).shortestSide >= 600;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 4, 18, 22),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.interests_outlined, color: colors.primary),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Şekil Nesneleri',
+                        style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        'Daire, kare ve kalpleri büyüt, döndür ve katmanla',
+                        style: TextStyle(fontSize: 11.5),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              height: tablet ? 270 : 236,
+              child: GridView.builder(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: tablet ? 6 : 3,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 0.88,
+                ),
+                itemCount: albumShapeObjects.length,
+                itemBuilder: (context, index) {
+                  final shape = albumShapeObjects[index];
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () => Navigator.pop(context, shape),
+                    child: Ink(
+                      padding: const EdgeInsets.all(9),
+                      decoration: BoxDecoration(
+                        color: colors.surfaceContainerHigh,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: colors.outlineVariant),
+                      ),
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: AlbumStickerView(
+                              content: shape,
+                              preview: true,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            albumStickerLabel(shape),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShapeObjectPainter extends CustomPainter {
+  const _ShapeObjectPainter(this.id);
+
+  final String id;
+
+  Color get _base => switch (id) {
+    String value when value.endsWith('_blush') => const Color(0xFFD994A8),
+    String value when value.endsWith('_rose') => const Color(0xFFB83F68),
+    String value when value.endsWith('_navy') => const Color(0xFF294F83),
+    String value when value.endsWith('_blue') => const Color(0xFF5B8FCB),
+    String value when value.endsWith('_gold') => const Color(0xFFC7A45A),
+    _ => const Color(0xFF292A2E),
+  };
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final inset = math.min(size.width, size.height) * 0.08;
+    final target = rect.deflate(inset);
+    final base = _base;
+    final paint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color.lerp(base, Colors.white, 0.28)!,
+          base,
+          Color.lerp(base, Colors.black, 0.20)!,
+        ],
+      ).createShader(target);
+    final highlight = Paint()
+      ..color = Colors.white.withValues(alpha: 0.34)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(1.2, inset * 0.22);
+
+    Path path;
+    if (id.contains(':circle_')) {
+      path = Path()..addOval(target);
+    } else if (id.contains(':square_')) {
+      path = Path()
+        ..addRRect(
+          RRect.fromRectAndRadius(
+            target,
+            Radius.circular(math.min(target.width, target.height) * 0.16),
+          ),
+        );
+    } else {
+      final x = target.left;
+      final y = target.top;
+      final w = target.width;
+      final h = target.height;
+      path = Path()
+        ..moveTo(x + w * .5, y + h * .91)
+        ..cubicTo(
+          x + w * .43,
+          y + h * .82,
+          x + w * .06,
+          y + h * .59,
+          x + w * .06,
+          y + h * .31,
+        )
+        ..cubicTo(
+          x + w * .06,
+          y + h * .08,
+          x + w * .34,
+          y + h * .02,
+          x + w * .5,
+          y + h * .24,
+        )
+        ..cubicTo(
+          x + w * .66,
+          y + h * .02,
+          x + w * .94,
+          y + h * .08,
+          x + w * .94,
+          y + h * .31,
+        )
+        ..cubicTo(
+          x + w * .94,
+          y + h * .59,
+          x + w * .57,
+          y + h * .82,
+          x + w * .5,
+          y + h * .91,
+        )
+        ..close();
+    }
+    canvas.drawShadow(path, const Color(0x55000000), inset * .65, true);
+    canvas.drawPath(path, paint);
+    canvas.drawPath(path, highlight);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ShapeObjectPainter oldDelegate) =>
+      oldDelegate.id != id;
 }
 
 class StickerPackPickerSheet extends StatefulWidget {

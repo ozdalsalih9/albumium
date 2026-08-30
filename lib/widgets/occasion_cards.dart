@@ -251,10 +251,7 @@ class OccasionCardView extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
-                              t.emoji,
-                              style: const TextStyle(fontSize: 12),
-                            ),
+                            Text(t.emoji, style: const TextStyle(fontSize: 12)),
                             const SizedBox(width: 4),
                             Text(
                               badge,

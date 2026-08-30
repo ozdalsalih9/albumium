@@ -49,6 +49,10 @@ class _ThemePagePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (themeId.startsWith('special_card_')) {
+      _paintSpecialCard(canvas, size);
+      return;
+    }
     switch (themeId) {
       case 'soft_romance':
         _paintSoftRomance(canvas, size);
@@ -69,6 +73,47 @@ class _ThemePagePainter extends CustomPainter {
       default:
         _paintMinimalEditorial(canvas, size);
     }
+  }
+
+  void _paintSpecialCard(Canvas canvas, Size size) {
+    final s = size.shortestSide;
+    final ink = _ink;
+    _doubleBorder(canvas, size, ink, s * 0.052, radius: s * 0.055);
+    final fine = Paint()
+      ..color = ink.withValues(alpha: 0.22)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(0.8, s * 0.004);
+    final glow = Paint()..color = ink.withValues(alpha: 0.055);
+    canvas.drawCircle(
+      Offset(size.width * .08, size.height * .08),
+      s * .26,
+      glow,
+    );
+    canvas.drawCircle(
+      Offset(size.width * .92, size.height * .91),
+      s * .30,
+      glow,
+    );
+    for (final alignment in const [
+      Alignment(-.82, -.88),
+      Alignment(.82, -.88),
+      Alignment(-.82, .88),
+      Alignment(.82, .88),
+    ]) {
+      final center = alignment.alongSize(size);
+      canvas.drawCircle(
+        center,
+        s * .016,
+        Paint()..color = ink.withValues(alpha: .56),
+      );
+      canvas.drawCircle(center, s * .032, fine);
+    }
+    final dividerY = size.height * .74;
+    canvas.drawLine(
+      Offset(size.width * .28, dividerY),
+      Offset(size.width * .72, dividerY),
+      fine,
+    );
   }
 
   void _paintSoftRomance(Canvas canvas, Size size) {
