@@ -6,10 +6,15 @@ import '../services/album_storage.dart';
 import '../services/theme_controller.dart';
 import '../theme/albumium_app_theme.dart';
 import '../widgets/album_cover_3d.dart';
+import '../widgets/album_page_canvas.dart';
 import '../widgets/app_theme_picker.dart';
 import '../widgets/cinematic_album_opening.dart';
+import '../widgets/occasion_cards.dart';
 import 'editor_screen.dart';
+import 'special_card_studio_screen.dart';
 import 'theme_screen.dart';
+
+enum _CreationKind { album, occasionCard }
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.themeController});
@@ -48,8 +53,35 @@ class _HomeScreenState extends State<HomeScreen> {
     await _openAlbum(album);
   }
 
+  Future<void> _createProject() async {
+    HapticFeedback.selectionClick();
+    final kind = await showModalBottomSheet<_CreationKind>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => const _CreationPickerSheet(),
+    );
+    if (kind == null || !mounted) return;
+    if (kind == _CreationKind.album) {
+      await _createAlbum();
+      return;
+    }
+    final project = createSpecialCardProject();
+    await AlbumStorage.instance.saveAlbum(project);
+    if (!mounted) return;
+    await _openAlbum(project);
+  }
+
   Future<void> _openAlbum(AlbumModel album) async {
     HapticFeedback.lightImpact();
+    if (album.projectType == AlbumProjectType.occasionCard) {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => SpecialCardStudioScreen(project: album),
+        ),
+      );
+      await _reload();
+      return;
+    }
     await Navigator.of(context).push<void>(
       PageRouteBuilder<void>(
         transitionDuration: const Duration(milliseconds: 430),
@@ -79,7 +111,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Albüm silinsin mi?'),
+        title: Text(
+          album.projectType == AlbumProjectType.occasionCard
+              ? 'Kart silinsin mi?'
+              : 'Albüm silinsin mi?',
+        ),
         content: Text('“${album.title}” bu cihazdan kaldırılacak.'),
         actions: [
           TextButton(
@@ -193,7 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   horizontalInset,
                   27,
                 ),
-                child: _HeroPanel(onCreate: _createAlbum),
+                child: _HeroPanel(onCreate: _createProject),
               ),
             ),
             SliverToBoxAdapter(
@@ -202,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Row(
                   children: [
                     Text(
-                      'Albümlerin',
+                      'Tasarımların',
                       style: TextStyle(
                         color: colors.text,
                         fontSize: 22,
@@ -251,7 +287,7 @@ class _HomeScreenState extends State<HomeScreen> {
             else if (_albums.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
-                child: _EmptyState(onCreate: _createAlbum),
+                child: _EmptyState(onCreate: _createProject),
               )
             else
               SliverPadding(
@@ -286,9 +322,9 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: _albums.isEmpty
           ? null
           : FloatingActionButton.extended(
-              onPressed: _createAlbum,
+              onPressed: _createProject,
               icon: const Icon(Icons.add_rounded),
-              label: const Text('Yeni albüm'),
+              label: const Text('Yeni tasarım'),
             ),
     );
   }
@@ -405,7 +441,7 @@ class _HeroPanel extends StatelessWidget {
                 FilledButton.icon(
                   onPressed: onCreate,
                   icon: const Icon(Icons.add_rounded, size: 19),
-                  label: const Text('Yeni hikâye'),
+                  label: const Text('Yeni tasarım'),
                 ),
               ],
             ),
@@ -472,6 +508,7 @@ class _AlbumGridItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).extension<AlbumiumThemeColors>()!;
+    final isCard = album.projectType == AlbumProjectType.occasionCard;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: Duration(milliseconds: 460 + (index.clamp(0, 5) * 75)),
@@ -487,7 +524,9 @@ class _AlbumGridItem extends StatelessWidget {
       },
       child: Semantics(
         button: true,
-        label: '${album.title}, ${album.pages.length} sayfa',
+        label: isCard
+            ? '${album.title}, özel gün kartı'
+            : '${album.title}, ${album.pages.length} sayfa',
         child: InkWell(
           onTap: onTap,
           onLongPress: onLongPress,
@@ -498,7 +537,9 @@ class _AlbumGridItem extends StatelessWidget {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.only(right: 5, bottom: 3),
-                  child: AlbumCover3D(album: album, compact: true),
+                  child: isCard
+                      ? _SpecialCardThumbnail(project: album)
+                      : AlbumCover3D(album: album, compact: true),
                 ),
               ),
               const SizedBox(height: 9),
@@ -514,7 +555,9 @@ class _AlbumGridItem extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                '${album.pages.length} sayfa · ${album.bindingType.title}',
+                isCard
+                    ? 'Özel gün kartı · ${occasionTemplateById(album.cardThemeId).badge}'
+                    : '${album.pages.length} sayfa · ${album.bindingType.title}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(color: colors.mutedText, fontSize: 10.5),
@@ -557,7 +600,7 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 17),
             Text(
-              'İlk albümün burada yaşayacak',
+              'İlk tasarımın burada yaşayacak',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: colors.text,
@@ -567,7 +610,7 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 7),
             Text(
-              'Bir kapak seç; fotoğraflarını gerçek bir kitabın sayfalarına yerleştir.',
+              'Gerçek bir albüm oluştur veya temalı bir özel gün kartı tasarla.',
               textAlign: TextAlign.center,
               style: TextStyle(color: colors.mutedText, height: 1.35),
             ),
@@ -575,9 +618,213 @@ class _EmptyState extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onCreate,
               icon: const Icon(Icons.auto_awesome),
-              label: const Text('Albüm oluştur'),
+              label: const Text('Tasarım oluştur'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CreationPickerSheet extends StatelessWidget {
+  const _CreationPickerSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<AlbumiumThemeColors>()!;
+    final tablet = MediaQuery.sizeOf(context).shortestSide >= 600;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Ne tasarlamak istersin?',
+                style: TextStyle(
+                  color: colors.text,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -.4,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                'Her iki tasarım da kaydedilir; fotoğraf, yazı, süs ve şekillerle kişiselleştirilebilir.',
+                style: TextStyle(color: colors.mutedText, height: 1.35),
+              ),
+              const SizedBox(height: 17),
+              if (tablet)
+                Row(
+                  children: [
+                    Expanded(
+                      child: _CreationChoice(
+                        icon: Icons.auto_stories_rounded,
+                        title: 'Fiziksel Albüm',
+                        subtitle: 'Kapak, cilt ve gerçekçi çevrilen sayfalar',
+                        colors: [colors.primary, colors.secondary],
+                        onTap: () =>
+                            Navigator.pop(context, _CreationKind.album),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _CreationChoice(
+                        icon: Icons.mark_email_read_rounded,
+                        title: 'Özel Gün Kartı',
+                        subtitle: 'Tema seç, özgürce tasarla ve PNG paylaş',
+                        colors: const [Color(0xFFE9A4B5), Color(0xFF9C5270)],
+                        onTap: () =>
+                            Navigator.pop(context, _CreationKind.occasionCard),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Column(
+                  children: [
+                    _CreationChoice(
+                      icon: Icons.auto_stories_rounded,
+                      title: 'Fiziksel Albüm',
+                      subtitle: 'Kapak, cilt ve gerçekçi çevrilen sayfalar',
+                      colors: [colors.primary, colors.secondary],
+                      onTap: () => Navigator.pop(context, _CreationKind.album),
+                    ),
+                    const SizedBox(height: 11),
+                    _CreationChoice(
+                      icon: Icons.mark_email_read_rounded,
+                      title: 'Özel Gün Kartı',
+                      subtitle: 'Tema seç, özgürce tasarla ve PNG paylaş',
+                      colors: const [Color(0xFFE9A4B5), Color(0xFF9C5270)],
+                      onTap: () =>
+                          Navigator.pop(context, _CreationKind.occasionCard),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CreationChoice extends StatelessWidget {
+  const _CreationChoice({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.colors,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final List<Color> colors;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(22),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 112),
+        child: Ink(
+          padding: const EdgeInsets.all(17),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                colors.first.withValues(alpha: .24),
+                colors.last.withValues(alpha: .10),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: colors.first.withValues(alpha: .38)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: colors),
+                  borderRadius: BorderRadius.circular(17),
+                ),
+                child: Icon(icon, color: Colors.white, size: 28),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(fontSize: 11.5, height: 1.25),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SpecialCardThumbnail extends StatelessWidget {
+  const _SpecialCardThumbnail({required this.project});
+
+  final AlbumModel project;
+
+  @override
+  Widget build(BuildContext context) {
+    final template = occasionTemplateById(project.cardThemeId);
+    if (project.pages.isEmpty) {
+      return OccasionCardView(cardId: template.id);
+    }
+    return Center(
+      child: AspectRatio(
+        aspectRatio: 5 / 7,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x55000000),
+                blurRadius: 18,
+                offset: Offset(7, 12),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: IgnorePointer(
+              child: AlbumPageCanvas(
+                page: project.pages.first,
+                theme: specialCardThemeFor(template),
+                showPageNumber: false,
+              ),
+            ),
+          ),
         ),
       ),
     );

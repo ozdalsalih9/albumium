@@ -42,6 +42,7 @@ class AlbumPageCanvas extends StatelessWidget {
     this.selectedId,
     this.onSelect,
     this.onChanged,
+    this.showPageNumber = true,
   });
 
   final AlbumPageModel page;
@@ -50,6 +51,7 @@ class AlbumPageCanvas extends StatelessWidget {
   final String? selectedId;
   final ValueChanged<String?>? onSelect;
   final VoidCallback? onChanged;
+  final bool showPageNumber;
 
   TextStyle _getPageNumberStyle() {
     return switch (theme.id) {
@@ -143,14 +145,15 @@ class AlbumPageCanvas extends StatelessWidget {
                         onSelect: () => onSelect?.call(element.id),
                         onChanged: onChanged,
                       ),
-                    Positioned(
-                      right: 12,
-                      bottom: 8,
-                      child: Text(
-                        '${page.id.hashCode.abs() % 97 + 1}',
-                        style: _getPageNumberStyle(),
+                    if (showPageNumber)
+                      Positioned(
+                        right: 12,
+                        bottom: 8,
+                        child: Text(
+                          '${page.id.hashCode.abs() % 97 + 1}',
+                          style: _getPageNumberStyle(),
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -359,12 +362,10 @@ class _AlbumElementViewState extends State<_AlbumElementView> {
       case AlbumElementType.photo:
         return _photo(element);
       case AlbumElementType.text:
-        return Center(
-          child: Text(
-            element.content,
-            textAlign: TextAlign.center,
-            maxLines: 7,
-            overflow: TextOverflow.ellipsis,
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 3),
+          child: _FittedAlbumText(
+            text: element.content,
             style: _getTextStyle(element),
           ),
         );
@@ -763,6 +764,43 @@ class _PhotoTape extends StatelessWidget {
           color: color,
           border: const Border.symmetric(
             horizontal: BorderSide(color: Color(0x28FFFFFF)),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Keeps the complete text and its font ascenders inside the saved element
+/// rectangle. This matters for off-screen MP4 capture where a late Google Font
+/// swap previously changed the line metrics and clipped the last line.
+class _FittedAlbumText extends StatelessWidget {
+  const _FittedAlbumText({required this.text, required this.style});
+
+  final String text;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => Center(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.center,
+          child: SizedBox(
+            width: constraints.maxWidth,
+            child: Text(
+              text,
+              textAlign: TextAlign.center,
+              maxLines: 12,
+              softWrap: true,
+              overflow: TextOverflow.visible,
+              textHeightBehavior: const TextHeightBehavior(
+                applyHeightToFirstAscent: true,
+                applyHeightToLastDescent: true,
+              ),
+              style: style,
+            ),
           ),
         ),
       ),

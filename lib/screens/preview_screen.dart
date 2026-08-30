@@ -7,19 +7,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quick_video_encoder/flutter_quick_video_encoder.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../models/album_models.dart';
 import '../themes/theme_image_helper.dart';
-import '../widgets/album_cover.dart';
-import '../widgets/album_page_canvas.dart';
 import '../widgets/physical_book_spread.dart';
+import '../widgets/sticker_packs.dart';
 
-const _exportLogicalWidth = 270.0;
-const _exportLogicalHeight = 480.0;
-const _exportVideoWidth = 720;
-const _exportVideoHeight = 1280;
+const _exportLogicalWidth = 360.0;
+const _exportLogicalHeight = 640.0;
+const _exportVideoWidth = 1080;
+const _exportVideoHeight = 1920;
 const _exportPixelRatio = _exportVideoWidth / _exportLogicalWidth;
 
 class PreviewScreen extends StatefulWidget {
@@ -45,12 +45,14 @@ class _PreviewScreenState extends State<PreviewScreen>
   bool _draggingPage = false;
   double _dragDistance = 0;
   double _dragExtent = 1;
-  int _exportSlide = 0;
+  int _exportFrom = 0;
+  int? _exportTo;
+  double _exportTurnProgress = 0;
+  bool _exportTurningForward = true;
+  final Set<int> _preloadedExportPositions = <int>{};
   double _exportProgress = 0;
   String _exportStatus = '';
   Timer? _timer;
-
-  int get singleSlideCount => widget.album.pages.length + 1;
 
   /// Cover + inside title spread + the remaining two-page spreads.
   int get previewCount => 2 + widget.album.pages.length ~/ 2;
@@ -86,6 +88,8 @@ class _PreviewScreenState extends State<PreviewScreen>
     unawaited(
       SystemChrome.setPreferredOrientations(const [
         DeviceOrientation.portraitUp,
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
       ]),
     );
     super.dispose();
@@ -275,18 +279,26 @@ class _PreviewScreenState extends State<PreviewScreen>
     }
   }
 
-  Future<void> _precacheExportSlideImages(int index) async {
+  Future<void> _precacheExportPositionImages(int previewIndex) async {
+    if (!_preloadedExportPositions.add(previewIndex)) return;
     final sources = <String>[];
-    if (index == 0) {
+    final position = _positionFor(previewIndex);
+    if (position.closed) {
       final coverAsset = themeById(widget.album.themeId).coverAsset;
       if (coverAsset != null) sources.add(coverAsset);
-    } else {
-      sources.addAll(
-        widget.album.pages[index - 1].elements
-            .where((element) => element.type == AlbumElementType.photo)
-            .map((element) => element.content)
-            .where((source) => source.trim().isNotEmpty),
-      );
+    }
+
+    for (final pageIndex in {position.left, position.right}) {
+      if (pageIndex < 0 || pageIndex >= widget.album.pages.length) continue;
+      for (final element in widget.album.pages[pageIndex].elements) {
+        if (element.type == AlbumElementType.photo &&
+            element.content.trim().isNotEmpty) {
+          sources.add(element.content);
+        } else if (element.type == AlbumElementType.sticker &&
+            isAlbumStickerAsset(element.content)) {
+          sources.add(albumStickerAssetPath(element.content));
+        }
+      }
     }
 
     Object? loadError;
@@ -294,7 +306,7 @@ class _PreviewScreenState extends State<PreviewScreen>
       await precacheImage(
         themeImageProvider(source),
         context,
-        size: const Size(720, 1280),
+        size: const Size(1080, 1920),
         onError: (error, stackTrace) => loadError ??= error,
       );
       if (loadError != null) {
@@ -303,86 +315,38 @@ class _PreviewScreenState extends State<PreviewScreen>
     }
   }
 
-  Future<Uint8List> _captureExportSlide(int index) async {
-    await _precacheExportSlideImages(index);
+  Future<Uint8List> _captureExportBookFrame({
+    required int from,
+    int? to,
+    double progress = 0,
+  }) async {
+    await _precacheExportPositionImages(from);
+    if (to != null) await _precacheExportPositionImages(to);
     if (!mounted) throw StateError('Dışa aktarma iptal edildi.');
-    setState(() => _exportSlide = index);
+    setState(() {
+      _exportFrom = from;
+      _exportTo = to;
+      _exportTurnProgress = progress.clamp(0.0, 1.0);
+      _exportTurningForward = to == null || to > from;
+    });
+
+    // Build once to start every Google Font and asset decode, wait for those
+    // futures, then paint two stable frames. Capturing after only one frame was
+    // the source of intermittent fallback-font metrics and missing photos.
     await WidgetsBinding.instance.endOfFrame;
-    await Future<void>.delayed(const Duration(milliseconds: 24));
-    final boundary =
-        _exportBoundary.currentContext!.findRenderObject()!
-            as RenderRepaintBoundary;
+    await GoogleFonts.pendingFonts();
+    await Future<void>.delayed(const Duration(milliseconds: 18));
+    await WidgetsBinding.instance.endOfFrame;
+    final renderObject = _exportBoundary.currentContext?.findRenderObject();
+    if (renderObject is! RenderRepaintBoundary) {
+      throw StateError('Video sahnesi hazırlanamadı.');
+    }
+    final boundary = renderObject;
     final image = await boundary.toImage(pixelRatio: _exportPixelRatio);
     final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
     image.dispose();
     if (data == null) throw StateError('Görüntü karesi üretilemedi.');
     return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-  }
-
-  Uint8List _pageTurnTransition(
-    Uint8List currentFrame,
-    Uint8List nextFrame,
-    double progress, {
-    int width = _exportVideoWidth,
-    int height = _exportVideoHeight,
-  }) {
-    final expectedLength = width * height * 4;
-    if (currentFrame.length != expectedLength ||
-        nextFrame.length != expectedLength) {
-      throw StateError('Video karesi beklenen HD boyutta değil.');
-    }
-    final output = Uint8List(currentFrame.length);
-    final eased = Curves.easeInOutCubic.transform(progress);
-    final splitX = (width * (1.0 - eased)).round().clamp(0, width);
-    final highlightWidth = math.max(1, (22 * width / 360).round());
-    final shadowWidth = math.max(1, (46 * width / 360).round());
-
-    for (var y = 0; y < height; y++) {
-      final rowOffset = y * width * 4;
-      final splitOffset = rowOffset + splitX * 4;
-      final rowEnd = rowOffset + width * 4;
-      output.setRange(rowOffset, splitOffset, currentFrame, rowOffset);
-      output.setRange(splitOffset, rowEnd, nextFrame, splitOffset);
-
-      for (var x = math.max(0, splitX - highlightWidth); x < splitX; x++) {
-        final pixelIndex = rowOffset + x * 4;
-        final distance = splitX - x;
-        final highlight =
-            (math.sin(
-                      (highlightWidth - distance) /
-                          highlightWidth *
-                          math.pi *
-                          0.5,
-                    ) *
-                    36)
-                .round();
-        output[pixelIndex] = (output[pixelIndex] + highlight).clamp(0, 255);
-        output[pixelIndex + 1] = (output[pixelIndex + 1] + highlight).clamp(
-          0,
-          255,
-        );
-        output[pixelIndex + 2] = (output[pixelIndex + 2] + highlight).clamp(
-          0,
-          255,
-        );
-        output[pixelIndex + 3] = 255;
-      }
-
-      for (var x = splitX; x < math.min(width, splitX + shadowWidth); x++) {
-        final pixelIndex = rowOffset + x * 4;
-        final distance = x - splitX;
-        final shadowFactor =
-            math.sin((shadowWidth - distance) / shadowWidth * math.pi * 0.5) *
-            0.54;
-        output[pixelIndex] = (output[pixelIndex] * (1 - shadowFactor)).round();
-        output[pixelIndex + 1] = (output[pixelIndex + 1] * (1 - shadowFactor))
-            .round();
-        output[pixelIndex + 2] = (output[pixelIndex + 2] * (1 - shadowFactor))
-            .round();
-        output[pixelIndex + 3] = 255;
-      }
-    }
-    return output;
   }
 
   String _safeFilename(String value) {
@@ -401,10 +365,11 @@ class _PreviewScreenState extends State<PreviewScreen>
       _exportProgress = 0;
       _exportStatus = 'Sayfalar hazırlanıyor…';
     });
+    _preloadedExportPositions.clear();
 
     var encoderStarted = false;
     try {
-      final count = singleSlideCount;
+      final count = previewCount;
       final directory = await getTemporaryDirectory();
       final path =
           '${directory.path}${Platform.pathSeparator}${_safeFilename(widget.album.title)}_${DateTime.now().millisecondsSinceEpoch}.mp4';
@@ -413,7 +378,7 @@ class _PreviewScreenState extends State<PreviewScreen>
         width: _exportVideoWidth,
         height: _exportVideoHeight,
         fps: 24,
-        videoBitrate: 8000000,
+        videoBitrate: 14000000,
         profileLevel: ProfileLevel.baselineAutoLevel,
         audioChannels: 0,
         audioBitrate: 0,
@@ -422,19 +387,12 @@ class _PreviewScreenState extends State<PreviewScreen>
       );
       encoderStarted = true;
 
-      const holdFrames = 42; // 1.75 seconds per slide at 24 fps
-      const transitionFrames = 16; // ~0.67 seconds per page turn
+      const holdFrames = 38; // ~1.6 seconds per physical spread at 24 fps
+      const transitionFrames = 22; // same ~0.92 s cadence as live preview
       final total = count * holdFrames + (count - 1) * transitionFrames;
       var completed = 0;
-      var currentFrame = await _captureExportSlide(0);
+      var currentFrame = await _captureExportBookFrame(from: 0);
       for (var index = 0; index < count; index++) {
-        Uint8List? nextFrame;
-        if (index < count - 1) {
-          if (mounted) {
-            setState(() => _exportStatus = 'Fotoğraflar HD hazırlanıyor…');
-          }
-          nextFrame = await _captureExportSlide(index + 1);
-        }
         if (mounted) setState(() => _exportStatus = 'HD MP4 oluşturuluyor…');
         for (var frame = 0; frame < holdFrames; frame++) {
           await FlutterQuickVideoEncoder.appendVideoFrame(currentFrame);
@@ -443,16 +401,21 @@ class _PreviewScreenState extends State<PreviewScreen>
             setState(() => _exportProgress = completed / total * 0.96);
           }
         }
-        if (nextFrame != null) {
+        if (index < count - 1) {
+          if (mounted) {
+            setState(
+              () => _exportStatus = 'Gerçekçi sayfa hareketi işleniyor…',
+            );
+          }
           for (
             var transition = 1;
             transition <= transitionFrames;
             transition++
           ) {
-            final turned = _pageTurnTransition(
-              currentFrame,
-              nextFrame,
-              transition / (transitionFrames + 1),
+            final turned = await _captureExportBookFrame(
+              from: index,
+              to: index + 1,
+              progress: transition / transitionFrames,
             );
             await FlutterQuickVideoEncoder.appendVideoFrame(turned);
             completed++;
@@ -460,7 +423,7 @@ class _PreviewScreenState extends State<PreviewScreen>
               setState(() => _exportProgress = completed / total * 0.96);
             }
           }
-          currentFrame = nextFrame;
+          currentFrame = await _captureExportBookFrame(from: index + 1);
         }
       }
       await FlutterQuickVideoEncoder.finish();
@@ -560,42 +523,95 @@ class _PreviewScreenState extends State<PreviewScreen>
             Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(22, 2, 22, 12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.album.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 19,
-                                fontWeight: FontWeight.w800,
-                              ),
+                  padding: const EdgeInsets.fromLTRB(16, 2, 16, 12),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 320),
+                    curve: Curves.easeOutCubic,
+                    padding: const EdgeInsets.fromLTRB(14, 11, 11, 11),
+                    decoration: BoxDecoration(
+                      color: colors.surfaceContainerHigh.withValues(
+                        alpha: 0.82,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: albumTheme.accent.withValues(alpha: 0.24),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: albumTheme.coverEnd.withValues(alpha: 0.12),
+                          blurRadius: 24,
+                          offset: const Offset(0, 9),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: albumTheme.accent.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(13),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(9),
+                            child: Icon(
+                              Icons.auto_stories_rounded,
+                              size: 20,
+                              color: albumTheme.accent,
                             ),
-                            AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 180),
-                              child: Text(
-                                _positionLabel(),
-                                key: ValueKey(_current),
-                                style: TextStyle(
-                                  color: colors.onSurfaceVariant,
-                                  fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(width: 11),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.album.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
                                 ),
                               ),
-                            ),
-                          ],
+                              AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 220),
+                                transitionBuilder: (child, animation) =>
+                                    FadeTransition(
+                                      opacity: animation,
+                                      child: SlideTransition(
+                                        position: Tween<Offset>(
+                                          begin: const Offset(0, 0.18),
+                                          end: Offset.zero,
+                                        ).animate(animation),
+                                        child: child,
+                                      ),
+                                    ),
+                                child: Text(
+                                  _positionLabel(),
+                                  key: ValueKey(_current),
+                                  style: TextStyle(
+                                    color: colors.onSurfaceVariant,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      FilledButton.icon(
-                        onPressed: _exportAndShare,
-                        icon: const Icon(Icons.ios_share_rounded, size: 18),
-                        label: const Text('MP4 Paylaş'),
-                      ),
-                    ],
+                        const SizedBox(width: 8),
+                        FilledButton.icon(
+                          onPressed: _exportAndShare,
+                          icon: const Icon(Icons.ios_share_rounded, size: 18),
+                          label: const Text('MP4'),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 44),
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 Expanded(
@@ -752,11 +768,25 @@ class _PreviewScreenState extends State<PreviewScreen>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        RepaintBoundary(
-                          key: _exportBoundary,
-                          child: _ExportSlide(
-                            album: widget.album,
-                            index: _exportSlide,
+                        SizedBox(
+                          width: 216,
+                          height: 384,
+                          child: FittedBox(
+                            fit: BoxFit.contain,
+                            child: RepaintBoundary(
+                              key: _exportBoundary,
+                              child: _ExportBookFrame(
+                                album: widget.album,
+                                current: _positionFor(_exportFrom),
+                                target: _exportTo == null
+                                    ? null
+                                    : _positionFor(_exportTo!),
+                                turnProgress: _exportTurnProgress,
+                                turningForward: _exportTurningForward,
+                                position: _exportFrom,
+                                positionCount: previewCount,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 18),
@@ -838,11 +868,24 @@ class _PageArrow extends StatelessWidget {
   }
 }
 
-class _ExportSlide extends StatelessWidget {
-  const _ExportSlide({required this.album, required this.index});
+class _ExportBookFrame extends StatelessWidget {
+  const _ExportBookFrame({
+    required this.album,
+    required this.current,
+    required this.target,
+    required this.turnProgress,
+    required this.turningForward,
+    required this.position,
+    required this.positionCount,
+  });
 
   final AlbumModel album;
-  final int index;
+  final _BookPosition current;
+  final _BookPosition? target;
+  final double turnProgress;
+  final bool turningForward;
+  final int position;
+  final int positionCount;
 
   @override
   Widget build(BuildContext context) {
@@ -853,22 +896,99 @@ class _ExportSlide extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           gradient: RadialGradient(
-            center: const Alignment(0, -0.2),
-            radius: 1.2,
+            center: const Alignment(0, -0.12),
+            radius: 1.08,
             colors: [
-              theme.coverEnd.withValues(alpha: 0.65),
-              const Color(0xFF151210),
+              Color.lerp(theme.coverStart, Colors.white, 0.18)!,
+              Color.lerp(theme.coverEnd, const Color(0xFF171311), 0.46)!,
+              const Color(0xFF100E0D),
             ],
+            stops: const [0, 0.62, 1],
           ),
         ),
-        child: Center(
-          child: SizedBox(
-            width: 240,
-            height: 373.333,
-            child: index == 0
-                ? AlbumCover(album: album)
-                : AlbumPageCanvas(page: album.pages[index - 1], theme: theme),
-          ),
+        child: Stack(
+          children: [
+            Positioned(
+              left: 28,
+              right: 28,
+              top: 34,
+              child: Column(
+                children: [
+                  Text(
+                    album.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Text(
+                    current.closed
+                        ? 'ALBÜM KAPAĞI'
+                        : 'ANILAR · ${position + 1} / $positionCount',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.66),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 2.1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              left: 10,
+              right: 10,
+              top: 116,
+              bottom: 96,
+              child: PhysicalBookSpread(
+                album: album,
+                leftPageIndex: current.left,
+                rightPageIndex: current.right,
+                closed: current.closed,
+                nextLeftPageIndex: target?.left,
+                nextRightPageIndex: target?.right,
+                nextClosed: target?.closed ?? false,
+                turnProgress: turnProgress,
+                turningForward: turningForward,
+              ),
+            ),
+            Positioned(
+              left: 76,
+              right: 76,
+              bottom: 48,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: 1,
+                      color: Colors.white.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Icon(
+                      Icons.auto_stories_rounded,
+                      size: 15,
+                      color: theme.accent,
+                    ),
+                  ),
+                  Expanded(
+                    child: Container(
+                      height: 1,
+                      color: Colors.white.withValues(alpha: 0.2),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

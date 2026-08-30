@@ -120,7 +120,17 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   Size _stickerSize(String sticker) {
+    if (isAlbumShape(sticker)) {
+      return sticker.contains(':heart_')
+          ? const Size(0.27, 0.24)
+          : const Size(0.23, 0.23);
+    }
     if (!isIllustratedSticker(sticker)) return const Size(0.18, 0.13);
+    if (isAlbumStickerAsset(sticker)) {
+      if (sticker.contains('botanical_')) return const Size(0.28, 0.37);
+      if (sticker.contains('romance_')) return const Size(0.34, 0.28);
+      return const Size(0.32, 0.3);
+    }
     if (sticker.contains('washi_') ||
         sticker.endsWith(':film_strip') ||
         sticker.contains('ribbon_') ||
@@ -137,6 +147,8 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   double _stickerRotation(String sticker) {
+    if (isAlbumShape(sticker)) return 0;
+    if (isAlbumStickerAsset(sticker)) return -0.025;
     if (sticker.contains('washi_')) return -0.055;
     if (sticker.contains('postage_')) return 0.07;
     if (sticker.endsWith(':vintage_ticket')) return -0.04;
@@ -351,6 +363,31 @@ class _EditorScreenState extends State<EditorScreen>
         width: size.width,
         height: size.height,
         rotation: _stickerRotation(sticker),
+      );
+      page.elements.add(element);
+      _selectedId = element.id;
+    });
+    _changed();
+  }
+
+  Future<void> _addShape() async {
+    final shape = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => const ShapeObjectPickerSheet(),
+    );
+    if (shape == null || !mounted) return;
+    final size = _stickerSize(shape);
+    setState(() {
+      final element = AlbumElementModel(
+        id: newId(),
+        type: AlbumElementType.sticker,
+        content: shape,
+        x: 0.5 - size.width / 2,
+        y: 0.28,
+        width: size.width,
+        height: size.height,
       );
       page.elements.add(element);
       _selectedId = element.id;
@@ -846,6 +883,7 @@ class _EditorScreenState extends State<EditorScreen>
                 onDraw: _addHandwriting,
                 onCard: _addOccasionCard,
                 onSticker: _addSticker,
+                onShape: _addShape,
                 onBackground: _changeBackground,
                 onPage: _addPage,
               ),
@@ -971,6 +1009,7 @@ class _MainToolbar extends StatelessWidget {
     required this.onDraw,
     required this.onCard,
     required this.onSticker,
+    required this.onShape,
     required this.onBackground,
     required this.onPage,
   });
@@ -980,6 +1019,7 @@ class _MainToolbar extends StatelessWidget {
   final VoidCallback onDraw;
   final VoidCallback onCard;
   final VoidCallback onSticker;
+  final VoidCallback onShape;
   final VoidCallback onBackground;
   final VoidCallback onPage;
 
@@ -1020,6 +1060,11 @@ class _MainToolbar extends StatelessWidget {
               icon: Icons.auto_awesome_outlined,
               label: 'Süsler',
               onTap: onSticker,
+            ),
+            _Tool(
+              icon: Icons.interests_outlined,
+              label: 'Şekiller',
+              onTap: onShape,
             ),
             _Tool(
               icon: Icons.palette_outlined,

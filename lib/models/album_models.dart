@@ -4,6 +4,9 @@ import '../themes/album_themes.dart';
 
 enum AlbumElementType { photo, text, sticker, drawing, card }
 
+/// Kütüphanede albümler ile bağımsız özel gün kartlarını birlikte saklar.
+enum AlbumProjectType { album, occasionCard }
+
 enum AlbumBindingType {
   spiral(
     'Telli Spiral',
@@ -287,6 +290,8 @@ class AlbumModel {
     required this.createdAt,
     required this.updatedAt,
     required this.pages,
+    this.projectType = AlbumProjectType.album,
+    this.cardThemeId = 'birthday',
   });
 
   final String id;
@@ -296,6 +301,8 @@ class AlbumModel {
   final DateTime createdAt;
   DateTime updatedAt;
   final List<AlbumPageModel> pages;
+  AlbumProjectType projectType;
+  String cardThemeId;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -305,6 +312,8 @@ class AlbumModel {
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
     'pages': pages.map((page) => page.toJson()).toList(),
+    'projectType': projectType.name,
+    'cardThemeId': cardThemeId,
   };
 
   factory AlbumModel.fromJson(Map<String, dynamic> json) => AlbumModel(
@@ -320,6 +329,11 @@ class AlbumModel {
     createdAt: DateTime.parse(json['createdAt'] as String),
     updatedAt: DateTime.parse(json['updatedAt'] as String),
     pages: _recoverList(json['pages'], AlbumPageModel.fromJson),
+    projectType: AlbumProjectType.values.firstWhere(
+      (type) => type.name == json['projectType'],
+      orElse: () => AlbumProjectType.album,
+    ),
+    cardThemeId: json['cardThemeId'] as String? ?? 'birthday',
   );
 }
 

@@ -52,7 +52,27 @@ void main() {
     }
   });
 
-  testWidgets('every illustrated sticker paints without an image asset', (
+  test('shape objects contain circle, square and heart variants', () {
+    expect(albumShapeObjects, hasLength(9));
+    expect(
+      albumShapeObjects.where((value) => value.contains(':circle_')),
+      hasLength(3),
+    );
+    expect(
+      albumShapeObjects.where((value) => value.contains(':square_')),
+      hasLength(3),
+    );
+    expect(
+      albumShapeObjects.where((value) => value.contains(':heart_')),
+      hasLength(3),
+    );
+    for (final shape in albumShapeObjects) {
+      expect(isAlbumShape(shape), isTrue);
+      expect(albumStickerLabel(shape), isNotEmpty);
+    }
+  });
+
+  testWidgets('every illustrated sticker paints from bundled or vector art', (
     tester,
   ) async {
     final illustrated = stickerPacks

@@ -135,10 +135,11 @@ void main() {
       final raw = (await SharedPreferences.getInstance()).getString(_key)!;
       final envelope = jsonDecode(raw) as Map<String, dynamic>;
       expect(envelope['schemaVersion'], 2);
-      expect((await storage.loadAlbums()).map((e) => e.id).toSet(), {
-        'eski',
-        'yeni',
-      }, reason: 'Yükseltme eski albümleri düşürmemeli.');
+      expect(
+        (await storage.loadAlbums()).map((e) => e.id).toSet(),
+        {'eski', 'yeni'},
+        reason: 'Yükseltme eski albümleri düşürmemeli.',
+      );
     });
 
     test('sürüm 1 verisi karantinaya alınmaz', () async {
