@@ -1,5 +1,6 @@
 import 'package:albumium/models/album_models.dart';
 import 'package:albumium/screens/preview_screen.dart';
+import 'package:albumium/widgets/page_curl.dart';
 import 'package:albumium/widgets/physical_book_spread.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -45,6 +46,8 @@ void main() {
     expect(find.text('İç kapak · Sayfa 1'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Sonraki sayfa'));
+    await tester.pump(const Duration(milliseconds: 260));
+    expect(find.byType(PageCurl), findsOneWidget);
     await tester.pumpAndSettle();
     expect(find.byType(PhysicalBookSpread), findsOneWidget);
     expect(find.text('Sayfalar 2–3'), findsOneWidget);

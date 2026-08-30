@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/album_models.dart';
 import 'album_cover.dart';
 import 'album_page_canvas.dart';
+import 'page_curl.dart';
 
 /// A single, persistent physical book.
 ///
@@ -69,10 +70,7 @@ class PhysicalBookSpread extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (interactive &&
-            focusedPageIndex != null &&
-            !closed &&
-            !_hasTransition) {
+        if (interactive && focusedPageIndex != null && !closed) {
           return _buildFocusedEditor(constraints: constraints, theme: theme);
         }
 
@@ -125,6 +123,16 @@ class PhysicalBookSpread extends StatelessWidget {
     final focusedLeft =
         focusedPageIndex == leftPageIndex || rightPageIndex == blankPageIndex;
     final left = focusedLeft ? 0.0 : viewportWidth - virtualWidth;
+    final book = _hasTransition
+        ? _buildFocusedTransitionBook(
+            theme: theme,
+            progress: turnProgress.clamp(0.0, 1.0),
+          )
+        : _buildOpenBook(
+            theme: theme,
+            leftIndex: leftPageIndex,
+            rightIndex: rightPageIndex,
+          );
 
     return Center(
       child: Semantics(
@@ -147,18 +155,50 @@ class PhysicalBookSpread extends StatelessWidget {
                   top: 0,
                   width: virtualWidth,
                   height: virtualHeight,
-                  child: RepaintBoundary(
-                    child: _buildOpenBook(
-                      theme: theme,
-                      leftIndex: leftPageIndex,
-                      rightIndex: rightPageIndex,
-                    ),
-                  ),
+                  child: RepaintBoundary(child: book),
                 ),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// Telefon düzenleyicisinde bir seferde tek sayfa okunur. Bu yüzden çevrilen
+  /// yaprak, sıradaki gerçek sayfayı aynı odak alanında açığa çıkarır; hareket
+  /// tamamlanınca kitap yeni yaprağın ciltteki tarafına yumuşakça kayar.
+  Widget _buildFocusedTransitionBook({
+    required AlbumThemePreset theme,
+    required double progress,
+  }) {
+    if (turningForward) {
+      return _buildOpenBook(
+        theme: theme,
+        leftIndex: leftPageIndex,
+        rightIndex: nextLeftPageIndex!,
+        turningLeaf: _CurlingLeaf(
+          progress: progress,
+          forward: true,
+          paperColor: theme.pageColor,
+          front: _buildPageSide(
+            index: rightPageIndex,
+            isLeft: false,
+            theme: theme,
+          ),
+        ),
+      );
+    }
+
+    return _buildOpenBook(
+      theme: theme,
+      leftIndex: nextRightPageIndex!,
+      rightIndex: rightPageIndex,
+      turningLeaf: _CurlingLeaf(
+        progress: progress,
+        forward: false,
+        paperColor: theme.pageColor,
+        front: _buildPageSide(index: leftPageIndex, isLeft: true, theme: theme),
       ),
     );
   }
@@ -202,17 +242,13 @@ class PhysicalBookSpread extends StatelessWidget {
       theme: theme,
       leftIndex: turningForward ? leftPageIndex : nextLeftPageIndex!,
       rightIndex: turningForward ? nextRightPageIndex! : rightPageIndex,
-      turningLeaf: _TurningLeaf(
+      turningLeaf: _CurlingLeaf(
         progress: progress,
         forward: turningForward,
+        paperColor: theme.pageColor,
         front: _buildPageSide(
           index: turningForward ? rightPageIndex : leftPageIndex,
           isLeft: !turningForward,
-          theme: theme,
-        ),
-        back: _buildPageSide(
-          index: turningForward ? nextLeftPageIndex! : nextRightPageIndex!,
-          isLeft: turningForward,
           theme: theme,
         ),
       ),
@@ -564,83 +600,69 @@ class PhysicalBookSpread extends StatelessWidget {
       start + (end - start) * amount;
 }
 
-class _TurningLeaf extends StatelessWidget {
-  const _TurningLeaf({
+/// `feat/page-curl-engine` dalından gelen üçgen-ağ tabanlı [PageCurl]
+/// motorunu iki sayfalı fiziksel kitabın doğru yarısına yerleştirir.
+class _CurlingLeaf extends StatelessWidget {
+  const _CurlingLeaf({
     required this.progress,
     required this.forward,
     required this.front,
-    required this.back,
+    required this.paperColor,
   });
 
   final double progress;
   final bool forward;
   final Widget front;
-  final Widget back;
+  final Color paperColor;
 
   @override
   Widget build(BuildContext context) {
-    final eased = Curves.easeInOutCubicEmphasized.transform(progress);
-    final angle = (forward ? 1 : -1) * math.pi * eased;
-    final face = eased >= 0.5
-        ? Transform(
-            alignment: Alignment.center,
-            transform: Matrix4.rotationY(math.pi),
-            child: back,
-          )
-        : front;
+    final eased = Curves.easeInOutCubic.transform(progress);
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final halfWidth = constraints.maxWidth / 2;
+        final page = forward
+            ? front
+            : Transform.flip(flipX: true, child: front);
+        Widget curl = PageCurl(
+          key: const ValueKey('book-page-curl'),
+          progress: eased,
+          grabY: 0.64,
+          paperColor: paperColor,
+          borderRadius: 7,
+          child: page,
+        );
+        if (!forward) {
+          // PageCurl sağ dış köşeden cilde doğru kıvrılır. Sol yaprakta hem
+          // geometriyi hem de içeriği aynalayarak hareketi ters yönde üretir,
+          // fakat yazı ve fotoğraflar ekranda düz kalır.
+          curl = Transform.flip(flipX: true, child: curl);
+        }
+
         final leaf = SizedBox(
           width: halfWidth,
           height: constraints.maxHeight,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              face,
-              IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: forward
-                          ? Alignment.centerLeft
-                          : Alignment.centerRight,
-                      end: forward
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      colors: [
-                        Colors.black.withValues(
-                          alpha: 0.05 + math.sin(math.pi * eased).abs() * 0.35,
-                        ),
-                        Colors.transparent,
-                        Colors.white.withValues(alpha: 0.05),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+          child: curl,
         );
 
         return Stack(
           clipBehavior: Clip.none,
           children: [
             Positioned(
-              left: forward ? halfWidth - 4 : halfWidth - 28,
-              top: 4,
-              bottom: 4,
-              width: 32,
+              left: halfWidth - 18,
+              top: 3,
+              bottom: 3,
+              width: 36,
               child: IgnorePointer(
                 child: Opacity(
-                  opacity: math.sin(math.pi * eased).abs() * 0.62,
+                  opacity: math.sin(math.pi * eased).abs() * 0.48,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: forward
-                            ? const [Color(0x99000000), Colors.transparent]
-                            : const [Colors.transparent, Color(0x99000000)],
+                            ? const [Color(0x85000000), Colors.transparent]
+                            : const [Colors.transparent, Color(0x85000000)],
                       ),
                     ),
                   ),
@@ -652,16 +674,7 @@ class _TurningLeaf extends StatelessWidget {
               top: 0,
               width: halfWidth,
               bottom: 0,
-              child: Transform(
-                alignment: forward
-                    ? Alignment.centerLeft
-                    : Alignment.centerRight,
-                transform: Matrix4.identity()
-                  ..setEntry(3, 2, 0.0022)
-                  ..rotateY(angle),
-                filterQuality: FilterQuality.high,
-                child: leaf,
-              ),
+              child: leaf,
             ),
           ],
         );
