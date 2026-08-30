@@ -52,12 +52,17 @@ class EditorScreen extends StatefulWidget {
   State<EditorScreen> createState() => _EditorScreenState();
 }
 
-class _EditorScreenState extends State<EditorScreen> {
+class _EditorScreenState extends State<EditorScreen>
+    with SingleTickerProviderStateMixin {
   final _picker = ImagePicker();
+  late final AnimationController _pageTurnController;
   int _pageIndex = 0;
   String? _selectedId;
   bool _importing = false;
   Timer? _saveDebounce;
+  int? _nextSpreadLeftPageIndex;
+  int? _nextSpreadRightPageIndex;
+  bool _turningForward = true;
 
   AlbumModel get album => widget.album;
   AlbumPageModel get page => album.pages[_pageIndex];
@@ -69,6 +74,27 @@ class _EditorScreenState extends State<EditorScreen> {
     return index < album.pages.length
         ? index
         : PhysicalBookSpread.blankPageIndex;
+  }
+
+  bool get _isPageTurning => _nextSpreadLeftPageIndex != null;
+
+  bool get _usesFocusedPhoneLayout =>
+      MediaQuery.sizeOf(context).shortestSide < 600;
+
+  bool get _canGoPrevious {
+    if (_isPageTurning) return false;
+    if (_usesFocusedPhoneLayout && _pageIndex.isOdd) return true;
+    return _spreadIndex > 0;
+  }
+
+  bool get _canGoNext {
+    if (_isPageTurning) return false;
+    if (_usesFocusedPhoneLayout &&
+        _pageIndex.isEven &&
+        _spreadRightPageIndex >= 0) {
+      return true;
+    }
+    return _spreadIndex < _spreadCount - 1;
   }
 
   String get _spreadLabel {
@@ -118,8 +144,18 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _pageTurnController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 780),
+    );
+  }
+
+  @override
   void dispose() {
     _saveDebounce?.cancel();
+    _pageTurnController.dispose();
     unawaited(AlbumStorage.instance.saveAlbum(album));
     super.dispose();
   }
@@ -335,6 +371,7 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   void _selectPage(int index) {
+    if (_isPageTurning) return;
     if (index < 0 || index >= album.pages.length) return;
     setState(() {
       _pageIndex = index;
@@ -342,14 +379,55 @@ class _EditorScreenState extends State<EditorScreen> {
     });
   }
 
-  void _goToPreviousSpread() {
-    if (_spreadIndex == 0) return;
-    _selectPage((_spreadIndex - 1) * 2);
+  void _goToPreviousPage() {
+    if (!_canGoPrevious) return;
+    if (_usesFocusedPhoneLayout && _pageIndex.isOdd) {
+      _selectPage(_pageIndex - 1);
+      return;
+    }
+    unawaited(_turnSpread(forward: false));
   }
 
-  void _goToNextSpread() {
-    if (_spreadIndex >= _spreadCount - 1) return;
-    _selectPage((_spreadIndex + 1) * 2);
+  void _goToNextPage() {
+    if (!_canGoNext) return;
+    if (_usesFocusedPhoneLayout &&
+        _pageIndex.isEven &&
+        _spreadRightPageIndex >= 0) {
+      _selectPage(_spreadRightPageIndex);
+      return;
+    }
+    unawaited(_turnSpread(forward: true));
+  }
+
+  Future<void> _turnSpread({required bool forward}) async {
+    if (_isPageTurning || _pageTurnController.isAnimating) return;
+    final targetSpread = _spreadIndex + (forward ? 1 : -1);
+    if (targetSpread < 0 || targetSpread >= _spreadCount) return;
+
+    final nextLeft = targetSpread * 2;
+    final candidateRight = nextLeft + 1;
+    final nextRight = candidateRight < album.pages.length
+        ? candidateRight
+        : PhysicalBookSpread.blankPageIndex;
+    final targetPage = _usesFocusedPhoneLayout && !forward && nextRight >= 0
+        ? nextRight
+        : nextLeft;
+
+    setState(() {
+      _turningForward = forward;
+      _nextSpreadLeftPageIndex = nextLeft;
+      _nextSpreadRightPageIndex = nextRight;
+      _selectedId = null;
+    });
+
+    await _pageTurnController.forward(from: 0);
+    if (!mounted) return;
+    setState(() {
+      _pageIndex = targetPage;
+      _nextSpreadLeftPageIndex = null;
+      _nextSpreadRightPageIndex = null;
+    });
+    _pageTurnController.value = 0;
   }
 
   void _duplicatePage() {
@@ -688,10 +766,8 @@ class _EditorScreenState extends State<EditorScreen> {
             children: [
               _PageNavigator(
                 label: _spreadLabel,
-                onPrevious: _spreadIndex == 0 ? null : _goToPreviousSpread,
-                onNext: _spreadIndex >= _spreadCount - 1
-                    ? null
-                    : _goToNextSpread,
+                onPrevious: _canGoPrevious ? _goToPreviousPage : null,
+                onNext: _canGoNext ? _goToNextPage : null,
                 onAdd: _addPage,
                 onMore: () => _showPageMenu(context),
               ),
@@ -706,20 +782,31 @@ class _EditorScreenState extends State<EditorScreen> {
                         return Stack(
                           children: [
                             Positioned.fill(
-                              child: PhysicalBookSpread(
-                                album: album,
-                                leftPageIndex: _spreadLeftPageIndex,
-                                rightPageIndex: _spreadRightPageIndex,
-                                interactive: true,
-                                focusedPageIndex: phoneLayout
-                                    ? _pageIndex
-                                    : null,
-                                activePageIndex: _pageIndex,
-                                selectedElementId: _selectedId,
-                                onSelectPage: _selectPage,
-                                onSelectElement: (id) =>
-                                    setState(() => _selectedId = id),
-                                onChanged: _changed,
+                              child: AnimatedBuilder(
+                                animation: _pageTurnController,
+                                builder: (context, _) => IgnorePointer(
+                                  ignoring: _isPageTurning,
+                                  child: PhysicalBookSpread(
+                                    album: album,
+                                    leftPageIndex: _spreadLeftPageIndex,
+                                    rightPageIndex: _spreadRightPageIndex,
+                                    nextLeftPageIndex: _nextSpreadLeftPageIndex,
+                                    nextRightPageIndex:
+                                        _nextSpreadRightPageIndex,
+                                    turnProgress: _pageTurnController.value,
+                                    turningForward: _turningForward,
+                                    interactive: true,
+                                    focusedPageIndex: phoneLayout
+                                        ? _pageIndex
+                                        : null,
+                                    activePageIndex: _pageIndex,
+                                    selectedElementId: _selectedId,
+                                    onSelectPage: _selectPage,
+                                    onSelectElement: (id) =>
+                                        setState(() => _selectedId = id),
+                                    onChanged: _changed,
+                                  ),
+                                ),
                               ),
                             ),
                             if (_importing)
@@ -840,6 +927,7 @@ class _PageNavigator extends StatelessWidget {
         children: [
           IconButton(
             onPressed: onPrevious,
+            tooltip: 'Önceki sayfa',
             icon: const Icon(Icons.chevron_left_rounded),
           ),
           Container(
@@ -856,6 +944,7 @@ class _PageNavigator extends StatelessWidget {
           ),
           IconButton(
             onPressed: onNext,
+            tooltip: 'Sonraki sayfa',
             icon: const Icon(Icons.chevron_right_rounded),
           ),
           const Spacer(),
