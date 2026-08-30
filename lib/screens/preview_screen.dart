@@ -42,7 +42,9 @@ class _PreviewScreenState extends State<PreviewScreen>
   bool _autoPlay = false;
   bool _exporting = false;
   bool _reduceMotion = false;
+  bool _draggingPage = false;
   double _dragDistance = 0;
+  double _dragExtent = 1;
   int _exportSlide = 0;
   double _exportProgress = 0;
   String _exportStatus = '';
@@ -60,6 +62,15 @@ class _PreviewScreenState extends State<PreviewScreen>
       vsync: this,
       duration: const Duration(milliseconds: 940),
     );
+    // Immersive-reader dalındaki en değerli parçalardan biri: önizleme ekranı
+    // albümü yatay tutunca gerçek iki sayfalı bir kitap gibi kullanılabilir.
+    unawaited(
+      SystemChrome.setPreferredOrientations(const [
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]),
+    );
   }
 
   @override
@@ -72,6 +83,11 @@ class _PreviewScreenState extends State<PreviewScreen>
   void dispose() {
     _timer?.cancel();
     _turnController.dispose();
+    unawaited(
+      SystemChrome.setPreferredOrientations(const [
+        DeviceOrientation.portraitUp,
+      ]),
+    );
     super.dispose();
   }
 
@@ -149,15 +165,113 @@ class _PreviewScreenState extends State<PreviewScreen>
     });
   }
 
-  void _handleDragEnd(DragEndDetails details) {
-    final velocity = details.primaryVelocity ?? 0;
-    final wantsNext = _dragDistance < -34 || velocity < -360;
-    final wantsPrevious = _dragDistance > 34 || velocity > 360;
+  void _handleDragStart(DragStartDetails details) {
+    if (_target != null) return;
+    _draggingPage = true;
     _dragDistance = 0;
-    if (wantsNext) {
-      _goTo(_current + 1);
-    } else if (wantsPrevious) {
+    _dragExtent = math.max(180, context.size?.width ?? 1) * 0.72;
+  }
+
+  void _handleDragUpdate(DragUpdateDetails details) {
+    if (!_draggingPage) return;
+    _dragDistance += details.delta.dx;
+    if (_reduceMotion) return;
+
+    if (_target == null) {
+      if (_dragDistance.abs() < 3) return;
+      final forward = _dragDistance < 0;
+      final candidate = _current + (forward ? 1 : -1);
+      if (candidate < 0 || candidate >= previewCount) return;
+      setState(() {
+        _target = candidate;
+        _turningForward = forward;
+      });
+      HapticFeedback.selectionClick();
+    }
+
+    final directedDistance = _turningForward ? -_dragDistance : _dragDistance;
+    _turnController.value = (directedDistance / _dragExtent).clamp(0.0, 0.985);
+  }
+
+  void _handleDragEnd(DragEndDetails details) {
+    if (!_draggingPage) return;
+    _draggingPage = false;
+
+    final velocity = details.primaryVelocity ?? 0;
+    if (_reduceMotion) {
+      final wantsNext = _dragDistance < -34 || velocity < -360;
+      final wantsPrevious = _dragDistance > 34 || velocity > 360;
+      _dragDistance = 0;
+      if (wantsNext) {
+        _goTo(_current + 1);
+      } else if (wantsPrevious) {
+        _goTo(_current - 1);
+      }
+      return;
+    }
+
+    if (_target == null) {
+      _dragDistance = 0;
+      return;
+    }
+
+    final directedVelocity = _turningForward ? -velocity : velocity;
+    final complete = _turnController.value > 0.34 || directedVelocity > 360;
+    _dragDistance = 0;
+    unawaited(_settleDraggedPage(complete: complete));
+  }
+
+  void _handleDragCancel() {
+    if (!_draggingPage) return;
+    _draggingPage = false;
+    _dragDistance = 0;
+    if (_target != null) unawaited(_settleDraggedPage(complete: false));
+  }
+
+  Future<void> _settleDraggedPage({required bool complete}) async {
+    final target = _target;
+    if (target == null) return;
+    try {
+      if (complete) {
+        await _turnController
+            .animateTo(
+              1,
+              duration: Duration(
+                milliseconds: math.max(
+                  170,
+                  (520 * (1 - _turnController.value)).round(),
+                ),
+              ),
+              curve: Curves.easeOutCubic,
+            )
+            .orCancel;
+      } else {
+        await _turnController
+            .animateBack(
+              0,
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOutCubic,
+            )
+            .orCancel;
+      }
+    } on TickerCanceled {
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      if (complete) _current = target;
+      _target = null;
+    });
+    _turnController.value = 0;
+  }
+
+  void _handleBookTap(TapUpDetails details, BoxConstraints constraints) {
+    if (_target != null || constraints.maxWidth <= 0) return;
+    final position = details.localPosition.dx / constraints.maxWidth;
+    if (position <= 0.28) {
       _goTo(_current - 1);
+    } else if (position >= 0.72) {
+      _goTo(_current + 1);
     }
   }
 
@@ -502,16 +616,19 @@ class _PreviewScreenState extends State<PreviewScreen>
                           ),
                         ),
                       ),
-                      GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onHorizontalDragStart: (_) => _dragDistance = 0,
-                        onHorizontalDragUpdate: (details) {
-                          _dragDistance += details.delta.dx;
-                        },
-                        onHorizontalDragEnd: _handleDragEnd,
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(10, 10, 10, 30),
-                          child: _buildBookPreview(),
+                      LayoutBuilder(
+                        builder: (context, bookConstraints) => GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTapUp: (details) =>
+                              _handleBookTap(details, bookConstraints),
+                          onHorizontalDragStart: _handleDragStart,
+                          onHorizontalDragUpdate: _handleDragUpdate,
+                          onHorizontalDragEnd: _handleDragEnd,
+                          onHorizontalDragCancel: _handleDragCancel,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 10, 10, 30),
+                            child: _buildBookPreview(),
+                          ),
                         ),
                       ),
                       Positioned(
@@ -562,50 +679,68 @@ class _PreviewScreenState extends State<PreviewScreen>
                     ],
                   ),
                 ),
-                SizedBox(
-                  height: 34,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        for (var index = 0; index < previewCount; index++)
-                          Semantics(
-                            label: index == 0
-                                ? 'Kapak'
-                                : 'Kitap görünümü $index',
-                            selected: index == _current,
-                            button: true,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(99),
-                              onTap: _target == null
-                                  ? () => _goTo(
-                                      index,
-                                      animate: (index - _current).abs() == 1,
-                                    )
-                                  : null,
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 220),
-                                width: index == _current ? 22 : 7,
-                                height: 7,
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: index == _current
-                                      ? albumTheme.accent
-                                      : colors.onSurface.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(99),
+                if (previewCount > 12)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(36, 12, 36, 14),
+                    child: Semantics(
+                      label: 'Albüm ilerlemesi ${_current + 1} / $previewCount',
+                      child: LinearProgressIndicator(
+                        value: previewCount <= 1
+                            ? 1
+                            : _current / (previewCount - 1),
+                        minHeight: 6,
+                        borderRadius: BorderRadius.circular(99),
+                        color: albumTheme.accent,
+                      ),
+                    ),
+                  )
+                else
+                  SizedBox(
+                    height: 34,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          for (var index = 0; index < previewCount; index++)
+                            Semantics(
+                              label: index == 0
+                                  ? 'Kapak'
+                                  : 'Kitap görünümü $index',
+                              selected: index == _current,
+                              button: true,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(99),
+                                onTap: _target == null
+                                    ? () => _goTo(
+                                        index,
+                                        animate: (index - _current).abs() == 1,
+                                      )
+                                    : null,
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 220),
+                                  width: index == _current ? 22 : 7,
+                                  height: 7,
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: index == _current
+                                        ? albumTheme.accent
+                                        : colors.onSurface.withValues(
+                                            alpha: 0.2,
+                                          ),
+                                    borderRadius: BorderRadius.circular(99),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
                 const SizedBox(height: 8),
               ],
             ),
