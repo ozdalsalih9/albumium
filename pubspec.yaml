@@ -2,7 +2,7 @@ name: albumium
 description: "Anılarını etkileşimli dijital albümlere dönüştür."
 publish_to: 'none'
 
-version: 1.6.0+9
+version: 1.7.0+11
 
 environment:
   sdk: ^3.11.5
@@ -31,9 +31,15 @@ flutter:
     - assets/fonts/google/
     - assets/stickers/
   fonts:
-    - family: CraftQuicksand
+    - family: AlbumiumSans
       fonts:
-        - asset: assets/fonts/Quicksand-Variable.ttf
-    - family: CraftCaveat
+        - asset: assets/fonts/google/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/google/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/google/Inter-ExtraBold.ttf
+          weight: 800
+    - family: AlbumiumDisplay
       fonts:
-        - asset: assets/fonts/Caveat-Variable.ttf
+        - asset: assets/fonts/google/Marcellus-Regular.ttf
+          weight: 400

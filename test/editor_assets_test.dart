@@ -133,6 +133,18 @@ void main() {
     }
   });
 
+  test('legacy keepsake PNG identifiers resolve to optimized WebP assets', () {
+    const legacy = 'albumium_asset:assets/stickers/botanical_keepsake.png';
+    const optimized = 'albumium_asset:assets/stickers/botanical_keepsake.webp';
+
+    expect(
+      albumStickerAssetPath(legacy),
+      'assets/stickers/botanical_keepsake.webp',
+    );
+    expect(albumStickerLabel(legacy), albumStickerLabel(optimized));
+    expect(albumStickerAspectRatio(legacy), albumStickerAspectRatio(optimized));
+  });
+
   testWidgets('keepsake raster stickers retain their documented proportions', (
     tester,
   ) async {
@@ -143,7 +155,7 @@ void main() {
             width: 220,
             height: 220,
             child: AlbumStickerView(
-              content: 'albumium_asset:assets/stickers/botanical_keepsake.png',
+              content: 'albumium_asset:assets/stickers/botanical_keepsake.webp',
             ),
           ),
         ),
@@ -153,7 +165,7 @@ void main() {
     final artSize = tester.getSize(
       find.byKey(
         const ValueKey(
-          'sticker-art-albumium_asset:assets/stickers/botanical_keepsake.png',
+          'sticker-art-albumium_asset:assets/stickers/botanical_keepsake.webp',
         ),
       ),
     );
@@ -161,7 +173,7 @@ void main() {
   });
 
   test(
-    'every keepsake PNG has real transparency and its natural ratio',
+    'every keepsake raster asset has transparency and its natural ratio',
     () async {
       final keepsakes = stickerPacks
           .singleWhere((pack) => pack.name == 'Hatıra Koleksiyonu')

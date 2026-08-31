@@ -8,6 +8,7 @@ import 'screens/home_screen.dart';
 import 'services/error_reporter.dart';
 import 'services/theme_controller.dart';
 import 'theme/albumium_app_theme.dart';
+import 'widgets/albumium_launch_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,11 +33,22 @@ Future<void> main() async {
 }
 
 class AlbumiumApp extends StatefulWidget {
-  const AlbumiumApp({super.key, this.themeController});
+  const AlbumiumApp({
+    super.key,
+    this.themeController,
+    this.showLaunchAnimation = true,
+    this.launchAnimationDuration = const Duration(milliseconds: 920),
+  });
 
   /// Optional for tests and embedders. The app owns the controller it creates
   /// when this is null.
   final ThemeController? themeController;
+
+  /// Can be disabled by focused widget tests and embedders that provide their
+  /// own launch experience.
+  final bool showLaunchAnimation;
+
+  final Duration launchAnimationDuration;
 
   @override
   State<AlbumiumApp> createState() => _AlbumiumAppState();
@@ -45,12 +57,14 @@ class AlbumiumApp extends StatefulWidget {
 class _AlbumiumAppState extends State<AlbumiumApp> {
   late final ThemeController _themeController;
   late final bool _ownsThemeController;
+  late bool _showLaunchAnimation;
 
   @override
   void initState() {
     super.initState();
     _ownsThemeController = widget.themeController == null;
     _themeController = widget.themeController ?? ThemeController();
+    _showLaunchAnimation = widget.showLaunchAnimation;
     if (!_themeController.isInitialized) {
       unawaited(_themeController.initialize());
     }
@@ -93,7 +107,26 @@ class _AlbumiumAppState extends State<AlbumiumApp> {
               child: child ?? const SizedBox.shrink(),
             );
           },
-          home: HomeScreen(themeController: _themeController),
+          home: Stack(
+            children: [
+              Positioned.fill(
+                child: ExcludeSemantics(
+                  excluding: _showLaunchAnimation,
+                  child: HomeScreen(themeController: _themeController),
+                ),
+              ),
+              if (_showLaunchAnimation)
+                Positioned.fill(
+                  child: AlbumiumLaunchScreen(
+                    duration: widget.launchAnimationDuration,
+                    onFinished: () {
+                      if (!mounted) return;
+                      setState(() => _showLaunchAnimation = false);
+                    },
+                  ),
+                ),
+            ],
+          ),
         );
       },
     );
