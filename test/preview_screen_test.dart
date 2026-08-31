@@ -47,10 +47,18 @@ void main() {
 
     await tester.tap(find.byTooltip('Sonraki sayfa'));
     await tester.pump(const Duration(milliseconds: 260));
-    expect(find.byType(PageCurl), findsOneWidget);
+    expect(find.byType(PageCurl), findsNWidgets(2));
     expect(
-      tester.widget<PageCurl>(find.byType(PageCurl)).surface,
+      tester
+          .widget<PageCurl>(find.byKey(const ValueKey('book-page-curl-front')))
+          .surface,
       PageCurlSurface.front,
+    );
+    expect(
+      tester
+          .widget<PageCurl>(find.byKey(const ValueKey('book-page-curl-back')))
+          .surface,
+      PageCurlSurface.back,
     );
     await tester.pumpAndSettle();
     expect(find.byType(PhysicalBookSpread), findsOneWidget);
@@ -85,6 +93,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // Open the cover first; the next gesture then exercises the page mesh,
+    // rather than the separate hardcover opening animation.
+    await tester.tap(find.byTooltip('Sonraki sayfa'));
+    await tester.pumpAndSettle();
+
     final gesture = await tester.startGesture(
       tester.getCenter(find.byType(PhysicalBookSpread)),
     );
@@ -100,10 +113,20 @@ void main() {
     );
     expect(spread.nextLeftPageIndex, isNotNull);
     expect(spread.turnProgress, greaterThan(0));
+    final frontCurl = tester.widget<PageCurl>(
+      find.byKey(const ValueKey('book-page-curl-front')),
+    );
+    final backCurl = tester.widget<PageCurl>(
+      find.byKey(const ValueKey('book-page-curl-back')),
+    );
+    expect(frontCurl.surface, PageCurlSurface.front);
+    expect(backCurl.surface, PageCurlSurface.back);
+    expect(frontCurl.grabY, closeTo(.5, .12));
+    expect(backCurl.grabY, frontCurl.grabY);
 
     await gesture.up();
     await tester.pumpAndSettle();
-    expect(find.text('İç kapak · Sayfa 1'), findsOneWidget);
+    expect(find.text('Sayfalar 2–3'), findsOneWidget);
   });
 
   testWidgets('long albums use a compact progress bar', (tester) async {
@@ -136,5 +159,36 @@ void main() {
 
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
     expect(find.bySemanticsLabel('Albüm ilerlemesi 1 / 14'), findsOneWidget);
+  });
+
+  testWidgets('share menu exposes offline PNG and MP4 choices', (tester) async {
+    tester.view.physicalSize = const Size(900, 1600);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final now = DateTime(2026);
+    final album = AlbumModel(
+      id: 'share-preview',
+      title: 'Paylaşılacak Albüm',
+      themeId: 'vintage_diary',
+      createdAt: now,
+      updatedAt: now,
+      pages: [AlbumPageModel(id: 'share-page', backgroundColor: 0xFFF2E8D3)],
+    );
+
+    await tester.pumpWidget(MaterialApp(home: PreviewScreen(album: album)));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('preview_share_button')), findsOneWidget);
+    expect(find.text('Paylaş'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('preview_share_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Dışa Aktar & Paylaş'), findsOneWidget);
+    expect(find.byKey(const ValueKey('share_current_png')), findsOneWidget);
+    expect(find.byKey(const ValueKey('share_all_png')), findsOneWidget);
+    expect(find.byKey(const ValueKey('share_mp4')), findsOneWidget);
+    expect(find.textContaining('internet gerekmez'), findsOneWidget);
   });
 }

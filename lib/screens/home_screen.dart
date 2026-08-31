@@ -9,6 +9,7 @@ import '../widgets/album_cover_3d.dart';
 import '../widgets/album_page_canvas.dart';
 import '../widgets/app_theme_picker.dart';
 import '../widgets/cinematic_album_opening.dart';
+import '../widgets/handmade_craft.dart';
 import '../widgets/occasion_cards.dart';
 import 'editor_screen.dart';
 import 'special_card_studio_screen.dart';
@@ -58,6 +59,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final kind = await showModalBottomSheet<_CreationKind>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
+      useSafeArea: true,
       builder: (_) => const _CreationPickerSheet(),
     );
     if (kind == null || !mounted) return;
@@ -136,7 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<AlbumiumThemeColors>()!;
+    final colors = AlbumiumAppTheme.colorsOf(context);
     final viewportWidth = MediaQuery.sizeOf(context).width;
     final horizontalInset = viewportWidth > 1244
         ? (viewportWidth - 1200) / 2 + 22
@@ -147,176 +150,197 @@ class _HomeScreenState extends State<HomeScreen> {
         ? 3
         : 2;
     return Scaffold(
-      body: SafeArea(
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  horizontalInset,
-                  18,
-                  horizontalInset,
-                  10,
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 47,
-                      height: 47,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [colors.primary, colors.secondary],
+      backgroundColor: Colors.transparent,
+      body: CraftBackdrop(
+        variant: CraftBackdropVariant.cork,
+        baseColor: colors.background,
+        textureIntensity: .78,
+        child: SafeArea(
+          child: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    horizontalInset,
+                    18,
+                    horizontalInset,
+                    10,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: PaperPanel(
+                          rotationDegrees: -.7,
+                          borderRadius: BorderRadius.circular(6),
+                          padding: const EdgeInsets.fromLTRB(13, 11, 13, 10),
+                          tapePositions: const [CraftTapePosition.topLeft],
+                          tapeWidth: 43,
+                          tapeHeight: 15,
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF8EC),
+                                  border: Border.all(color: colors.border),
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x26000000),
+                                      blurRadius: 5,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: Image.asset(
+                                  'assets/branding/albumium_app_icon.png',
+                                  fit: BoxFit.cover,
+                                  filterQuality: FilterQuality.high,
+                                ),
+                              ),
+                              const SizedBox(width: 11),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'ALBUMIUM',
+                                      style: TextStyle(
+                                        color: colors.text,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 1.8,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Anılarını elle tutulur hikâyelere dönüştür',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: colors.mutedText,
+                                        fontSize: 10.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: [
-                          BoxShadow(
-                            color: colors.glow,
-                            blurRadius: 18,
-                            offset: const Offset(0, 7),
-                          ),
-                        ],
                       ),
-                      child: Icon(
-                        Icons.auto_stories_rounded,
-                        color: colors.onPrimary,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'ALBUMIUM',
-                            style: TextStyle(
-                              color: colors.text,
-                              fontSize: 19,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.5,
-                            ),
-                          ),
-                          Text(
-                            'Anılarını yaşayan kitaplara dönüştür',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: colors.mutedText,
-                              fontSize: 11.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    _PaletteButton(
-                      controller: widget.themeController,
-                      onTap: () => showAlbumiumThemePicker(
-                        context,
-                        widget.themeController,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  horizontalInset,
-                  13,
-                  horizontalInset,
-                  27,
-                ),
-                child: _HeroPanel(onCreate: _createProject),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: horizontalInset),
-                child: Row(
-                  children: [
-                    Text(
-                      'Tasarımların',
-                      style: TextStyle(
-                        color: colors.text,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    if (_albums.isNotEmpty) ...[
-                      const SizedBox(width: 9),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 9,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colors.glow,
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                        child: Text(
-                          '${_albums.length}',
-                          style: TextStyle(
-                            color: colors.primary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                          ),
+                      const SizedBox(width: 10),
+                      _PaletteButton(
+                        controller: widget.themeController,
+                        onTap: () => showAlbumiumThemePicker(
+                          context,
+                          widget.themeController,
                         ),
                       ),
                     ],
-                    const Spacer(),
-                    if (_albums.isNotEmpty)
-                      Text(
-                        'Silmek için basılı tut',
-                        style: TextStyle(
-                          color: colors.mutedText,
-                          fontSize: 10.5,
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    horizontalInset,
+                    13,
+                    horizontalInset,
+                    27,
+                  ),
+                  child: _HeroPanel(onCreate: _createProject),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: horizontalInset),
+                  child: Row(
+                    children: [
+                      TornPaperLabel(
+                        rotationDegrees: -.6,
+                        padding: const EdgeInsets.fromLTRB(15, 7, 15, 8),
+                        child: Text(
+                          'Tasarımların',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(color: colors.text, fontSize: 25),
                         ),
                       ),
-                  ],
-                ),
-              ),
-            ),
-            if (_loading)
-              const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (_albums.isEmpty)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: _EmptyState(onCreate: _createProject),
-              )
-            else
-              SliverPadding(
-                padding: EdgeInsets.fromLTRB(
-                  horizontalInset,
-                  19,
-                  horizontalInset,
-                  112,
-                ),
-                sliver: SliverGrid.builder(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: albumColumns,
-                    childAspectRatio: 0.61,
-                    crossAxisSpacing: 17,
-                    mainAxisSpacing: 23,
+                      if (_albums.isNotEmpty) ...[
+                        const SizedBox(width: 9),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colors.glow,
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                          child: Text(
+                            '${_albums.length}',
+                            style: TextStyle(
+                              color: colors.primary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                      const Spacer(),
+                      if (_albums.isNotEmpty)
+                        Text(
+                          'Silmek için basılı tut',
+                          style: TextStyle(
+                            color: colors.mutedText,
+                            fontSize: 10.5,
+                          ),
+                        ),
+                    ],
                   ),
-                  itemCount: _albums.length,
-                  itemBuilder: (context, index) {
-                    final album = _albums[index];
-                    return _AlbumGridItem(
-                      album: album,
-                      index: index,
-                      onTap: () => _openAlbum(album),
-                      onLongPress: () => _delete(album),
-                    );
-                  },
                 ),
               ),
-          ],
+              if (_loading)
+                const SliverFillRemaining(
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (_albums.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: _EmptyState(onCreate: _createProject),
+                )
+              else
+                SliverPadding(
+                  padding: EdgeInsets.fromLTRB(
+                    horizontalInset,
+                    19,
+                    horizontalInset,
+                    112,
+                  ),
+                  sliver: SliverGrid.builder(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: albumColumns,
+                      childAspectRatio: 0.61,
+                      crossAxisSpacing: 17,
+                      mainAxisSpacing: 23,
+                    ),
+                    itemCount: _albums.length,
+                    itemBuilder: (context, index) {
+                      final album = _albums[index];
+                      return _AlbumGridItem(
+                        album: album,
+                        index: index,
+                        onTap: () => _openAlbum(album),
+                        onLongPress: () => _delete(album),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
       floatingActionButton: _albums.isEmpty
@@ -337,117 +361,148 @@ class _HeroPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<AlbumiumThemeColors>()!;
-    return Container(
-      constraints: const BoxConstraints(minHeight: 174),
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [colors.heroStart, colors.heroEnd],
-        ),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: colors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -37,
-            top: -46,
-            child: Container(
-              width: 165,
-              height: 165,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colors.primary.withValues(alpha: 0.11),
-                boxShadow: [
-                  BoxShadow(
-                    color: colors.glow,
-                    blurRadius: 46,
-                    spreadRadius: 8,
+    final colors = AlbumiumAppTheme.colorsOf(context);
+    return PaperPanel(
+      color: colors.heroEnd,
+      rotationDegrees: .45,
+      borderRadius: BorderRadius.circular(7),
+      padding: EdgeInsets.zero,
+      tapePositions: const [
+        CraftTapePosition.topRight,
+        CraftTapePosition.bottomLeft,
+      ],
+      tapeColor: Color.lerp(colors.secondary, colors.elevatedSurface, .55),
+      tapeWidth: 55,
+      tapeHeight: 17,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 190),
+        child: Stack(
+          children: [
+            Positioned(
+              top: 16,
+              right: 12,
+              bottom: 12,
+              width: 92,
+              child: _MemoryScraps(colors: colors),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 21, 104, 21),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Bugün hangi\nhikâyeyi anlatalım?',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: colors.text,
+                      fontSize: 30,
+                    ),
+                  ),
+                  const SizedBox(height: 9),
+                  Text(
+                    'Fotoğraflarını, notlarını ve küçük hatıralarını kendi albümünde bir araya getir.',
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: colors.mutedText,
+                      fontSize: 11.5,
+                      height: 1.3,
+                    ),
+                  ),
+                  const SizedBox(height: 13),
+                  StitchedBorder(
+                    color: colors.onPrimary.withValues(alpha: .78),
+                    inset: 3,
+                    padding: EdgeInsets.zero,
+                    borderRadius: BorderRadius.circular(9),
+                    child: FilledButton.icon(
+                      onPressed: onCreate,
+                      icon: const Icon(Icons.add_rounded, size: 19),
+                      label: const Text('Yeni tasarım'),
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
-          Positioned(
-            right: 23,
-            top: 26,
-            child: Transform.rotate(
-              angle: 0.10,
-              child: Container(
-                width: 62,
-                height: 86,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [colors.primary, colors.secondary],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MemoryScraps extends StatelessWidget {
+  const _MemoryScraps({required this.colors});
+
+  final AlbumiumThemeColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          left: 10,
+          top: 17,
+          child: Transform.rotate(
+            angle: -.12,
+            child: Container(
+              width: 62,
+              height: 80,
+              padding: const EdgeInsets.fromLTRB(6, 6, 6, 18),
+              decoration: BoxDecoration(
+                color: colors.elevatedSurface,
+                border: Border.all(color: colors.border),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x33000000),
+                    blurRadius: 6,
+                    offset: Offset(3, 5),
                   ),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.22),
-                  ),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x66000000),
-                      blurRadius: 15,
-                      offset: Offset(7, 9),
-                    ),
-                  ],
-                ),
+                ],
+              ),
+              child: ColoredBox(
+                color: colors.primary.withValues(alpha: .17),
                 child: Icon(
-                  Icons.auto_awesome_rounded,
-                  color: colors.onPrimary.withValues(alpha: 0.86),
-                  size: 25,
+                  Icons.photo_camera_back_outlined,
+                  color: colors.primary,
+                  size: 23,
                 ),
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(21, 21, 86, 21),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Bir anı seç.\nBir kitaba dönüştür.',
-                  style: TextStyle(
-                    color: colors.text,
-                    fontSize: 24,
-                    height: 1.04,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.75,
-                  ),
+        ),
+        Positioned(
+          right: 0,
+          bottom: 7,
+          child: Transform.rotate(
+            angle: .10,
+            child: TornPaperLabel(
+              color: Color.lerp(colors.surface, colors.secondary, .12),
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+              edgeDepth: 2.3,
+              child: Text(
+                'anı\ndefteri',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: colors.text,
+                  fontSize: 18,
+                  height: .86,
                 ),
-                const SizedBox(height: 9),
-                Text(
-                  'Fotoğraf, not ve küçük detaylarla tamamen sana ait.',
-                  maxLines: 2,
-                  style: TextStyle(
-                    color: colors.mutedText,
-                    fontSize: 12,
-                    height: 1.3,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                FilledButton.icon(
-                  onPressed: onCreate,
-                  icon: const Icon(Icons.add_rounded, size: 19),
-                  label: const Text('Yeni tasarım'),
-                ),
-              ],
+              ),
             ),
           ),
-        ],
-      ),
+        ),
+        Positioned(
+          right: 10,
+          top: 0,
+          child: Icon(
+            Icons.push_pin_rounded,
+            color: colors.primary,
+            size: 23,
+            shadows: const [Shadow(color: Colors.black38, blurRadius: 3)],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -463,29 +518,35 @@ class _PaletteButton extends StatelessWidget {
     final option = controller.selectedOption;
     return Tooltip(
       message: 'Uygulama temasını değiştir',
-      child: IconButton.filledTonal(
-        onPressed: onTap,
-        icon: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            const Icon(Icons.palette_outlined),
-            Positioned(
-              right: -3,
-              bottom: -3,
-              child: Container(
-                width: 11,
-                height: 11,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: option.previewColors.first,
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.surface,
-                    width: 1.5,
+      child: PaperPanel(
+        rotationDegrees: .9,
+        padding: EdgeInsets.zero,
+        borderRadius: BorderRadius.circular(9),
+        textureIntensity: .18,
+        child: IconButton(
+          onPressed: onTap,
+          icon: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Icon(Icons.palette_outlined),
+              Positioned(
+                right: -3,
+                bottom: -3,
+                child: Container(
+                  width: 11,
+                  height: 11,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: option.previewColors.first,
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.surface,
+                      width: 1.5,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -507,7 +568,7 @@ class _AlbumGridItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<AlbumiumThemeColors>()!;
+    final colors = AlbumiumAppTheme.colorsOf(context);
     final isCard = album.projectType == AlbumProjectType.occasionCard;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
@@ -522,47 +583,56 @@ class _AlbumGridItem extends StatelessWidget {
           ),
         );
       },
-      child: Semantics(
-        button: true,
-        label: isCard
-            ? '${album.title}, özel gün kartı'
-            : '${album.title}, ${album.pages.length} sayfa',
-        child: InkWell(
-          onTap: onTap,
-          onLongPress: onLongPress,
-          borderRadius: BorderRadius.circular(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 5, bottom: 3),
-                  child: isCard
-                      ? _SpecialCardThumbnail(project: album)
-                      : AlbumCover3D(album: album, compact: true),
+      child: PaperPanel(
+        rotationDegrees: index.isEven ? -.8 : .75,
+        borderRadius: BorderRadius.circular(5),
+        padding: const EdgeInsets.fromLTRB(8, 13, 8, 9),
+        tapePositions: const [CraftTapePosition.topCenter],
+        tapeWidth: 44,
+        tapeHeight: 14,
+        textureIntensity: .2,
+        child: Semantics(
+          button: true,
+          label: isCard
+              ? '${album.title}, özel gün kartı'
+              : '${album.title}, ${album.pages.length} sayfa',
+          child: InkWell(
+            onTap: onTap,
+            onLongPress: onLongPress,
+            borderRadius: BorderRadius.circular(4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 3, bottom: 2),
+                    child: isCard
+                        ? _SpecialCardThumbnail(project: album)
+                        : AlbumCover3D(album: album, compact: true),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 9),
-              Text(
-                album.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: colors.text,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
+                const SizedBox(height: 7),
+                Text(
+                  album.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: colors.text,
+                    fontSize: 19,
+                    height: .95,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                isCard
-                    ? 'Özel gün kartı · ${occasionTemplateById(album.cardThemeId).badge}'
-                    : '${album.pages.length} sayfa · ${album.bindingType.title}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: colors.mutedText, fontSize: 10.5),
-              ),
-            ],
+                const SizedBox(height: 3),
+                Text(
+                  isCard
+                      ? 'Özel gün kartı · ${occasionTemplateById(album.cardThemeId).badge}'
+                      : '${album.pages.length} sayfa · ${album.bindingType.title}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: colors.mutedText, fontSize: 9.5),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -577,50 +647,68 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<AlbumiumThemeColors>()!;
+    final colors = AlbumiumAppTheme.colorsOf(context);
     return Center(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(40, 28, 40, 55),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: colors.glow,
-                shape: BoxShape.circle,
-                border: Border.all(color: colors.border),
-              ),
-              child: Icon(
-                Icons.collections_bookmark_outlined,
-                size: 34,
-                color: colors.primary,
-              ),
-            ),
-            const SizedBox(height: 17),
-            Text(
-              'İlk tasarımın burada yaşayacak',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: colors.text,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 7),
-            Text(
-              'Gerçek bir albüm oluştur veya temalı bir özel gün kartı tasarla.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: colors.mutedText, height: 1.35),
-            ),
-            const SizedBox(height: 20),
-            OutlinedButton.icon(
-              onPressed: onCreate,
-              icon: const Icon(Icons.auto_awesome),
-              label: const Text('Tasarım oluştur'),
-            ),
+        padding: const EdgeInsets.fromLTRB(34, 28, 34, 55),
+        child: PaperPanel(
+          rotationDegrees: -.65,
+          borderRadius: BorderRadius.circular(6),
+          padding: const EdgeInsets.fromLTRB(22, 18, 22, 17),
+          tapePositions: const [
+            CraftTapePosition.topLeft,
+            CraftTapePosition.bottomRight,
           ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 68,
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 15),
+                decoration: BoxDecoration(
+                  color: colors.elevatedSurface,
+                  border: Border.all(color: colors.border),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x29000000),
+                      blurRadius: 6,
+                      offset: Offset(3, 5),
+                    ),
+                  ],
+                ),
+                child: ColoredBox(
+                  color: colors.glow,
+                  child: Icon(
+                    Icons.collections_bookmark_outlined,
+                    size: 31,
+                    color: colors.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 11),
+              Text(
+                'İlk tasarımın burada yaşayacak',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: colors.text,
+                  fontSize: 24,
+                ),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: onCreate,
+                icon: const Icon(Icons.auto_awesome),
+                label: const Text('Tasarım oluştur'),
+              ),
+              const StitchedDivider(height: 12),
+              Text(
+                'Gerçek bir albüm oluştur veya temalı bir özel gün kartı tasarla.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.mutedText, height: 1.35),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -632,7 +720,7 @@ class _CreationPickerSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<AlbumiumThemeColors>()!;
+    final colors = AlbumiumAppTheme.colorsOf(context);
     final tablet = MediaQuery.sizeOf(context).shortestSide >= 600;
     return SafeArea(
       child: Padding(
@@ -643,13 +731,15 @@ class _CreationPickerSheet extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Ne tasarlamak istersin?',
-                style: TextStyle(
-                  color: colors.text,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -.4,
+              TornPaperLabel(
+                rotationDegrees: -.45,
+                padding: const EdgeInsets.fromLTRB(14, 7, 14, 8),
+                child: Text(
+                  'Ne tasarlamak istersin?',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: colors.text,
+                    fontSize: 28,
+                  ),
                 ),
               ),
               const SizedBox(height: 5),
@@ -730,59 +820,63 @@ class _CreationChoice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(22),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 112),
-        child: Ink(
-          padding: const EdgeInsets.all(17),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                colors.first.withValues(alpha: .24),
-                colors.last.withValues(alpha: .10),
+    return PaperPanel(
+      borderRadius: BorderRadius.circular(7),
+      padding: EdgeInsets.zero,
+      rotationDegrees: title == 'Fiziksel Albüm' ? -.35 : .35,
+      tapePositions: const [CraftTapePosition.topRight],
+      tapeColor: Color.lerp(colors.first, Colors.white, .52),
+      tapeWidth: 45,
+      tapeHeight: 14,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(7),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 112),
+          child: Padding(
+            padding: const EdgeInsets.all(17),
+            child: Row(
+              children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: colors.first.withValues(alpha: .18),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: colors.first.withValues(alpha: .52),
+                    ),
+                  ),
+                  child: Icon(icon, color: colors.first, size: 28),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontSize: 21,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(fontSize: 11.5, height: 1.25),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: colors.first,
+                  size: 16,
+                ),
               ],
             ),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: colors.first.withValues(alpha: .38)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 54,
-                height: 54,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: colors),
-                  borderRadius: BorderRadius.circular(17),
-                ),
-                child: Icon(icon, color: Colors.white, size: 28),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(fontSize: 11.5, height: 1.25),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.arrow_forward_ios_rounded, size: 16),
-            ],
           ),
         ),
       ),
@@ -871,7 +965,7 @@ class _CinematicOpeningScreenState extends State<_CinematicOpeningScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<AlbumiumThemeColors>()!;
+    final colors = AlbumiumAppTheme.colorsOf(context);
     return Scaffold(
       backgroundColor: colors.background,
       body: Stack(

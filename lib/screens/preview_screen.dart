@@ -12,7 +12,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../models/album_models.dart';
+import '../theme/albumium_app_theme.dart';
 import '../themes/theme_image_helper.dart';
+import '../widgets/handmade_craft.dart';
 import '../widgets/physical_book_spread.dart';
 import '../widgets/sticker_packs.dart';
 
@@ -21,6 +23,8 @@ const _exportLogicalHeight = 640.0;
 const _exportVideoWidth = 1080;
 const _exportVideoHeight = 1920;
 const _exportPixelRatio = _exportVideoWidth / _exportLogicalWidth;
+
+enum _ShareExportChoice { currentPng, allPng, mp4 }
 
 class PreviewScreen extends StatefulWidget {
   const PreviewScreen({super.key, required this.album});
@@ -45,6 +49,7 @@ class _PreviewScreenState extends State<PreviewScreen>
   bool _draggingPage = false;
   double _dragDistance = 0;
   double _dragExtent = 1;
+  double _turnGrabY = 0.64;
   int _exportFrom = 0;
   int? _exportTo;
   double _exportTurnProgress = 0;
@@ -138,11 +143,18 @@ class _PreviewScreenState extends State<PreviewScreen>
     setState(() {
       _target = target;
       _turningForward = target > _current;
+      _turnGrabY = 0.64;
     });
     HapticFeedback.selectionClick();
 
     try {
-      await _turnController.forward(from: 0).orCancel;
+      await _turnController
+          .animateTo(
+            1,
+            duration: _turnController.duration,
+            curve: Curves.easeInOutCubic,
+          )
+          .orCancel;
     } on TickerCanceled {
       return;
     }
@@ -169,11 +181,14 @@ class _PreviewScreenState extends State<PreviewScreen>
     });
   }
 
-  void _handleDragStart(DragStartDetails details) {
+  void _handleDragStart(DragStartDetails details, BoxConstraints constraints) {
     if (_target != null) return;
     _draggingPage = true;
     _dragDistance = 0;
-    _dragExtent = math.max(180, context.size?.width ?? 1) * 0.72;
+    _dragExtent = math.max(180, constraints.maxWidth) * 0.62;
+    _turnGrabY = constraints.maxHeight <= 0
+        ? 0.64
+        : (details.localPosition.dy / constraints.maxHeight).clamp(0.14, 0.86);
   }
 
   void _handleDragUpdate(DragUpdateDetails details) {
@@ -194,7 +209,7 @@ class _PreviewScreenState extends State<PreviewScreen>
     }
 
     final directedDistance = _turningForward ? -_dragDistance : _dragDistance;
-    _turnController.value = (directedDistance / _dragExtent).clamp(0.0, 0.985);
+    _turnController.value = (directedDistance / _dragExtent).clamp(0.0, 1.0);
   }
 
   void _handleDragEnd(DragEndDetails details) {
@@ -319,6 +334,7 @@ class _PreviewScreenState extends State<PreviewScreen>
     required int from,
     int? to,
     double progress = 0,
+    ui.ImageByteFormat format = ui.ImageByteFormat.rawRgba,
   }) async {
     await _precacheExportPositionImages(from);
     if (to != null) await _precacheExportPositionImages(to);
@@ -339,11 +355,11 @@ class _PreviewScreenState extends State<PreviewScreen>
     await WidgetsBinding.instance.endOfFrame;
     final renderObject = _exportBoundary.currentContext?.findRenderObject();
     if (renderObject is! RenderRepaintBoundary) {
-      throw StateError('Video sahnesi hazırlanamadı.');
+      throw StateError('Dışa aktarma sahnesi hazırlanamadı.');
     }
     final boundary = renderObject;
     final image = await boundary.toImage(pixelRatio: _exportPixelRatio);
-    final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final data = await image.toByteData(format: format);
     image.dispose();
     if (data == null) throw StateError('Görüntü karesi üretilemedi.');
     return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
@@ -356,7 +372,143 @@ class _PreviewScreenState extends State<PreviewScreen>
     return normalized.isEmpty ? 'albumium_album' : normalized;
   }
 
-  Future<void> _exportAndShare() async {
+  Future<void> _showShareOptions() async {
+    if (_exporting || _target != null) return;
+    _timer?.cancel();
+    if (_autoPlay && mounted) setState(() => _autoPlay = false);
+
+    final choice = await showModalBottomSheet<_ShareExportChoice>(
+      context: context,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (sheetContext) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Dışa Aktar & Paylaş',
+              style: Theme.of(sheetContext).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Her seçenek cihazında hazırlanır; internet gerekmez.',
+              style: Theme.of(sheetContext).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              key: const ValueKey('share_current_png'),
+              leading: const Icon(Icons.image_outlined),
+              title: const Text('Bu görünümü PNG paylaş'),
+              subtitle: const Text('Hızlı · 1080 × 1920 anı kartı'),
+              onTap: () =>
+                  Navigator.pop(sheetContext, _ShareExportChoice.currentPng),
+            ),
+            ListTile(
+              key: const ValueKey('share_all_png'),
+              leading: const Icon(Icons.collections_outlined),
+              title: const Text('Tüm albümü PNG paylaş'),
+              subtitle: const Text('Kapak ve bütün sayfa görünümleri'),
+              onTap: () =>
+                  Navigator.pop(sheetContext, _ShareExportChoice.allPng),
+            ),
+            ListTile(
+              key: const ValueKey('share_mp4'),
+              leading: const Icon(Icons.movie_outlined),
+              title: const Text('Albüm videosu MP4'),
+              subtitle: const Text('Sayfa çevirme animasyonlu HD video'),
+              onTap: () => Navigator.pop(sheetContext, _ShareExportChoice.mp4),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || choice == null) return;
+
+    switch (choice) {
+      case _ShareExportChoice.currentPng:
+        await _exportPngAndShare(allPositions: false);
+      case _ShareExportChoice.allPng:
+        await _exportPngAndShare(allPositions: true);
+      case _ShareExportChoice.mp4:
+        await _exportMp4AndShare();
+    }
+  }
+
+  Future<void> _exportPngAndShare({required bool allPositions}) async {
+    if (_exporting) return;
+    _timer?.cancel();
+    setState(() {
+      _autoPlay = false;
+      _exporting = true;
+      _exportProgress = 0;
+      _exportStatus = 'PNG görünümleri hazırlanıyor…';
+    });
+    _preloadedExportPositions.clear();
+
+    try {
+      final positions = allPositions
+          ? List<int>.generate(previewCount, (index) => index)
+          : <int>[_current];
+      final directory = await getTemporaryDirectory();
+      final safeTitle = _safeFilename(widget.album.title);
+      final stamp = DateTime.now().millisecondsSinceEpoch;
+      final files = <XFile>[];
+      final names = <String>[];
+
+      for (var index = 0; index < positions.length; index++) {
+        final position = positions[index];
+        if (mounted) {
+          setState(() {
+            _exportStatus = positions.length == 1
+                ? 'Anı kartı hazırlanıyor…'
+                : 'PNG ${index + 1} / ${positions.length} hazırlanıyor…';
+          });
+        }
+        final pngBytes = await _captureExportBookFrame(
+          from: position,
+          format: ui.ImageByteFormat.png,
+        );
+        final suffix = positions.length == 1
+            ? 'ani_karti'
+            : (position + 1).toString().padLeft(2, '0');
+        final displayName = '${safeTitle}_$suffix.png';
+        final path =
+            '${directory.path}${Platform.pathSeparator}${safeTitle}_${stamp}_$suffix.png';
+        await File(path).writeAsBytes(pngBytes, flush: true);
+        files.add(XFile(path, mimeType: 'image/png'));
+        names.add(displayName);
+        if (mounted) {
+          setState(() => _exportProgress = (index + 1) / positions.length);
+        }
+      }
+
+      if (!mounted) return;
+      setState(() => _exportStatus = 'Paylaşım menüsü açılıyor…');
+      await SharePlus.instance.share(
+        ShareParams(
+          files: files,
+          fileNameOverrides: names,
+          title: widget.album.title,
+          subject: '${widget.album.title} · Albumium',
+          text: allPositions
+              ? '“${widget.album.title}” albümümün sayfalarını Albumium ile hazırladım.'
+              : '“${widget.album.title}” albümümden bir anı kartı.',
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PNG paylaşımı hazırlanamadı: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  Future<void> _exportMp4AndShare() async {
     if (_exporting) return;
     _timer?.cancel();
     setState(() {
@@ -489,6 +641,7 @@ class _PreviewScreenState extends State<PreviewScreen>
           nextClosed: target?.closed ?? false,
           turnProgress: _turnController.value,
           turningForward: _turningForward,
+          turnGrabY: _turnGrabY,
         );
       },
     );
@@ -498,12 +651,13 @@ class _PreviewScreenState extends State<PreviewScreen>
   Widget build(BuildContext context) {
     final albumTheme = themeById(widget.album.themeId);
     final colors = Theme.of(context).colorScheme;
+    final craftColors = AlbumiumAppTheme.colorsOf(context);
 
     return Scaffold(
-      backgroundColor: colors.surface,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Albüm Önizleme'),
-        backgroundColor: Colors.transparent,
+        backgroundColor: craftColors.background,
         actions: [
           IconButton(
             onPressed: _toggleAutoPlay,
@@ -517,306 +671,327 @@ class _PreviewScreenState extends State<PreviewScreen>
           const SizedBox(width: 6),
         ],
       ),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 2, 16, 12),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 320),
-                    curve: Curves.easeOutCubic,
-                    padding: const EdgeInsets.fromLTRB(14, 11, 11, 11),
-                    decoration: BoxDecoration(
-                      color: colors.surfaceContainerHigh.withValues(
-                        alpha: 0.82,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: albumTheme.accent.withValues(alpha: 0.24),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: albumTheme.coverEnd.withValues(alpha: 0.12),
-                          blurRadius: 24,
-                          offset: const Offset(0, 9),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: albumTheme.accent.withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(13),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(9),
-                            child: Icon(
-                              Icons.auto_stories_rounded,
-                              size: 20,
-                              color: albumTheme.accent,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 11),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                widget.album.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 220),
-                                transitionBuilder: (child, animation) =>
-                                    FadeTransition(
-                                      opacity: animation,
-                                      child: SlideTransition(
-                                        position: Tween<Offset>(
-                                          begin: const Offset(0, 0.18),
-                                          end: Offset.zero,
-                                        ).animate(animation),
-                                        child: child,
-                                      ),
-                                    ),
-                                child: Text(
-                                  _positionLabel(),
-                                  key: ValueKey(_current),
-                                  style: TextStyle(
-                                    color: colors.onSurfaceVariant,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        FilledButton.icon(
-                          onPressed: _exportAndShare,
-                          icon: const Icon(Icons.ios_share_rounded, size: 18),
-                          label: const Text('MP4'),
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size(0, 44),
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: RadialGradient(
-                            center: const Alignment(0, -0.2),
-                            radius: 1.08,
-                            colors: [
-                              albumTheme.coverEnd.withValues(alpha: 0.16),
-                              colors.surface,
-                              Color.lerp(colors.surface, Colors.black, 0.16)!,
-                            ],
-                            stops: const [0, 0.64, 1],
-                          ),
-                        ),
-                      ),
-                      LayoutBuilder(
-                        builder: (context, bookConstraints) => GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTapUp: (details) =>
-                              _handleBookTap(details, bookConstraints),
-                          onHorizontalDragStart: _handleDragStart,
-                          onHorizontalDragUpdate: _handleDragUpdate,
-                          onHorizontalDragEnd: _handleDragEnd,
-                          onHorizontalDragCancel: _handleDragCancel,
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(10, 10, 10, 30),
-                            child: _buildBookPreview(),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 14,
-                        top: 0,
-                        bottom: 20,
-                        child: Center(
-                          child: _PageArrow(
-                            icon: Icons.chevron_left_rounded,
-                            tooltip: 'Önceki sayfa',
-                            enabled: _current > 0 && _target == null,
-                            onTap: () => _goTo(_current - 1),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        right: 14,
-                        top: 0,
-                        bottom: 20,
-                        child: Center(
-                          child: _PageArrow(
-                            icon: Icons.chevron_right_rounded,
-                            tooltip: 'Sonraki sayfa',
-                            enabled:
-                                _current < previewCount - 1 && _target == null,
-                            onTap: () => _goTo(_current + 1),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 4,
-                        child: Center(
-                          child: Text(
-                            _reduceMotion
-                                ? 'Oklarla gez · azaltılmış hareket'
-                                : 'Kaydır veya oklarla sayfaları çevir',
-                            style: TextStyle(
-                              color: colors.onSurfaceVariant.withValues(
-                                alpha: 0.68,
-                              ),
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (previewCount > 12)
+      body: CraftBackdrop(
+        variant: CraftBackdropVariant.cork,
+        baseColor: craftColors.background,
+        textureIntensity: .66,
+        child: SafeArea(
+          child: Stack(
+            children: [
+              Column(
+                children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(36, 12, 36, 14),
-                    child: Semantics(
-                      label: 'Albüm ilerlemesi ${_current + 1} / $previewCount',
-                      child: LinearProgressIndicator(
-                        value: previewCount <= 1
-                            ? 1
-                            : _current / (previewCount - 1),
-                        minHeight: 6,
-                        borderRadius: BorderRadius.circular(99),
-                        color: albumTheme.accent,
+                    padding: const EdgeInsets.fromLTRB(16, 2, 16, 12),
+                    child: PaperPanel(
+                      color: craftColors.surface,
+                      borderRadius: BorderRadius.circular(7),
+                      rotationDegrees: -.25,
+                      padding: const EdgeInsets.fromLTRB(14, 11, 11, 11),
+                      tapePositions: const [CraftTapePosition.topCenter],
+                      tapeColor: Color.lerp(
+                        albumTheme.accent,
+                        craftColors.elevatedSurface,
+                        .58,
                       ),
-                    ),
-                  )
-                else
-                  SizedBox(
-                    height: 34,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      tapeWidth: 48,
+                      tapeHeight: 14,
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          for (var index = 0; index < previewCount; index++)
-                            Semantics(
-                              label: index == 0
-                                  ? 'Kapak'
-                                  : 'Kitap görünümü $index',
-                              selected: index == _current,
-                              button: true,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(99),
-                                onTap: _target == null
-                                    ? () => _goTo(
-                                        index,
-                                        animate: (index - _current).abs() == 1,
-                                      )
-                                    : null,
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 220),
-                                  width: index == _current ? 22 : 7,
-                                  height: 7,
-                                  margin: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: index == _current
-                                        ? albumTheme.accent
-                                        : colors.onSurface.withValues(
-                                            alpha: 0.2,
-                                          ),
-                                    borderRadius: BorderRadius.circular(99),
-                                  ),
-                                ),
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: albumTheme.accent.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(13),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(9),
+                              child: Icon(
+                                Icons.auto_stories_rounded,
+                                size: 20,
+                                color: albumTheme.accent,
                               ),
                             ),
+                          ),
+                          const SizedBox(width: 11),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.album.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.titleLarge
+                                      ?.copyWith(
+                                        color: craftColors.text,
+                                        fontSize: 22,
+                                      ),
+                                ),
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 220),
+                                  transitionBuilder: (child, animation) =>
+                                      FadeTransition(
+                                        opacity: animation,
+                                        child: SlideTransition(
+                                          position: Tween<Offset>(
+                                            begin: const Offset(0, 0.18),
+                                            end: Offset.zero,
+                                          ).animate(animation),
+                                          child: child,
+                                        ),
+                                      ),
+                                  child: Text(
+                                    _positionLabel(),
+                                    key: ValueKey(_current),
+                                    style: TextStyle(
+                                      color: colors.onSurfaceVariant,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton.icon(
+                            key: const ValueKey('preview_share_button'),
+                            onPressed: _target == null && !_exporting
+                                ? _showShareOptions
+                                : null,
+                            icon: const Icon(Icons.ios_share_rounded, size: 18),
+                            label: const Text('Paylaş'),
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size(0, 44),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   ),
-                const SizedBox(height: 8),
-              ],
-            ),
-            if (_exporting)
-              Positioned.fill(
-                child: ColoredBox(
-                  color: const Color(0xED12100F),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
+                  Expanded(
+                    child: Stack(
+                      fit: StackFit.expand,
                       children: [
-                        SizedBox(
-                          width: 216,
-                          height: 384,
-                          child: FittedBox(
-                            fit: BoxFit.contain,
-                            child: RepaintBoundary(
-                              key: _exportBoundary,
-                              child: _ExportBookFrame(
-                                album: widget.album,
-                                current: _positionFor(_exportFrom),
-                                target: _exportTo == null
-                                    ? null
-                                    : _positionFor(_exportTo!),
-                                turnProgress: _exportTurnProgress,
-                                turningForward: _exportTurningForward,
-                                position: _exportFrom,
-                                positionCount: previewCount,
-                              ),
+                        DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: RadialGradient(
+                              center: const Alignment(0, -0.2),
+                              radius: 1.08,
+                              colors: [
+                                albumTheme.coverEnd.withValues(alpha: 0.16),
+                                Colors.transparent,
+                                Colors.black.withValues(alpha: .12),
+                              ],
+                              stops: const [0, 0.64, 1],
                             ),
                           ),
                         ),
-                        const SizedBox(height: 18),
-                        SizedBox(
-                          width: 270,
-                          child: LinearProgressIndicator(
-                            value: _exportProgress,
-                            minHeight: 7,
-                            borderRadius: BorderRadius.circular(99),
+                        LayoutBuilder(
+                          builder: (context, bookConstraints) =>
+                              GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTapUp: (details) =>
+                                    _handleBookTap(details, bookConstraints),
+                                onHorizontalDragStart: (details) =>
+                                    _handleDragStart(details, bookConstraints),
+                                onHorizontalDragUpdate: _handleDragUpdate,
+                                onHorizontalDragEnd: _handleDragEnd,
+                                onHorizontalDragCancel: _handleDragCancel,
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    10,
+                                    10,
+                                    10,
+                                    30,
+                                  ),
+                                  child: _buildBookPreview(),
+                                ),
+                              ),
+                        ),
+                        Positioned(
+                          left: 14,
+                          top: 0,
+                          bottom: 20,
+                          child: Center(
+                            child: _PageArrow(
+                              icon: Icons.chevron_left_rounded,
+                              tooltip: 'Önceki sayfa',
+                              enabled: _current > 0 && _target == null,
+                              onTap: () => _goTo(_current - 1),
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 10),
-                        Text(
-                          _exportStatus,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        Positioned(
+                          right: 14,
+                          top: 0,
+                          bottom: 20,
+                          child: Center(
+                            child: _PageArrow(
+                              icon: Icons.chevron_right_rounded,
+                              tooltip: 'Sonraki sayfa',
+                              enabled:
+                                  _current < previewCount - 1 &&
+                                  _target == null,
+                              onTap: () => _goTo(_current + 1),
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Uygulamayı kapatma',
-                          style: TextStyle(
-                            color: colors.onSurfaceVariant,
-                            fontSize: 12,
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 4,
+                          child: Center(
+                            child: TornPaperLabel(
+                              color: craftColors.surface.withValues(alpha: .92),
+                              rotationDegrees: .25,
+                              edgeDepth: 2,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 5,
+                              ),
+                              child: Text(
+                                _reduceMotion
+                                    ? 'Oklarla gez · azaltılmış hareket'
+                                    : 'Kaydır veya oklarla sayfaları çevir',
+                                style: TextStyle(
+                                  color: craftColors.mutedText,
+                                  fontSize: 10.5,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
+                  if (previewCount > 12)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(36, 12, 36, 14),
+                      child: Semantics(
+                        label:
+                            'Albüm ilerlemesi ${_current + 1} / $previewCount',
+                        child: LinearProgressIndicator(
+                          value: previewCount <= 1
+                              ? 1
+                              : _current / (previewCount - 1),
+                          minHeight: 6,
+                          borderRadius: BorderRadius.circular(99),
+                          color: albumTheme.accent,
+                        ),
+                      ),
+                    )
+                  else
+                    SizedBox(
+                      height: 34,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            for (var index = 0; index < previewCount; index++)
+                              Semantics(
+                                label: index == 0
+                                    ? 'Kapak'
+                                    : 'Kitap görünümü $index',
+                                selected: index == _current,
+                                button: true,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(99),
+                                  onTap: _target == null
+                                      ? () => _goTo(
+                                          index,
+                                          animate:
+                                              (index - _current).abs() == 1,
+                                        )
+                                      : null,
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 220),
+                                    width: index == _current ? 22 : 7,
+                                    height: 7,
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: index == _current
+                                          ? albumTheme.accent
+                                          : colors.onSurface.withValues(
+                                              alpha: 0.2,
+                                            ),
+                                      borderRadius: BorderRadius.circular(99),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                ],
               ),
-          ],
+              if (_exporting)
+                Positioned.fill(
+                  child: ColoredBox(
+                    color: const Color(0xED12100F),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 216,
+                            height: 384,
+                            child: FittedBox(
+                              fit: BoxFit.contain,
+                              child: RepaintBoundary(
+                                key: _exportBoundary,
+                                child: _ExportBookFrame(
+                                  album: widget.album,
+                                  current: _positionFor(_exportFrom),
+                                  target: _exportTo == null
+                                      ? null
+                                      : _positionFor(_exportTo!),
+                                  turnProgress: _exportTurnProgress,
+                                  turningForward: _exportTurningForward,
+                                  position: _exportFrom,
+                                  positionCount: previewCount,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          SizedBox(
+                            width: 270,
+                            child: LinearProgressIndicator(
+                              value: _exportProgress,
+                              minHeight: 7,
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            _exportStatus,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Uygulamayı kapatma',
+                            style: TextStyle(
+                              color: colors.onSurfaceVariant,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

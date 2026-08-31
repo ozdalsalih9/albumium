@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'screens/home_screen.dart';
 import 'services/error_reporter.dart';
@@ -10,6 +11,10 @@ import 'theme/albumium_app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Albumium is offline-first. Every Google Fonts variant used by the themes
+  // is bundled under assets/fonts/google, so rendering and exports never make
+  // a runtime font request.
+  GoogleFonts.config.allowRuntimeFetching = false;
   // Kancalar her şeyden önce kurulur; başlangıç sırasında oluşan bir hata da
   // yakalansın.
   ErrorReporter.install();

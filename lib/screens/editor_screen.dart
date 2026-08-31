@@ -5,8 +5,10 @@ import 'package:image_picker/image_picker.dart';
 
 import '../models/album_models.dart';
 import '../services/album_storage.dart';
+import '../theme/albumium_app_theme.dart';
 import '../widgets/album_page_canvas.dart';
 import '../widgets/font_selector_dialog.dart';
+import '../widgets/handmade_craft.dart';
 import '../widgets/handwriting_painter.dart';
 import '../widgets/occasion_cards.dart';
 import '../widgets/physical_book_spread.dart';
@@ -120,30 +122,46 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   Size _stickerSize(String sticker) {
-    if (isAlbumShape(sticker)) {
-      return sticker.contains(':heart_')
-          ? const Size(0.27, 0.24)
-          : const Size(0.23, 0.23);
-    }
     if (!isIllustratedSticker(sticker)) return const Size(0.18, 0.13);
     if (isAlbumStickerAsset(sticker)) {
       if (sticker.contains('botanical_')) return const Size(0.28, 0.37);
       if (sticker.contains('romance_')) return const Size(0.34, 0.28);
       return const Size(0.32, 0.3);
     }
+    Size proportional(double height, {double maxWidth = .64}) {
+      final pixelAspect = albumStickerAspectRatio(sticker);
+      // Page-relative coordinates live on a 9:14 canvas. Convert the desired
+      // pixel aspect back to normalized width/height before storing it.
+      var width = height * pixelAspect * (14 / 9);
+      if (width > maxWidth) {
+        height *= maxWidth / width;
+        width = maxWidth;
+      }
+      return Size(width, height);
+    }
+
+    if (isAlbumShape(sticker)) return proportional(.2, maxWidth: .38);
     if (sticker.contains('washi_') ||
         sticker.endsWith(':film_strip') ||
         sticker.contains('ribbon_') ||
         sticker.endsWith(':vintage_ticket')) {
-      return const Size(0.42, 0.105);
+      return proportional(.105);
     }
     if (sticker.contains('pressed_') ||
         sticker.endsWith(':fern') ||
         sticker.endsWith(':gold_branch')) {
-      return const Size(0.21, 0.3);
+      return proportional(.28, maxWidth: .42);
     }
-    if (sticker.contains('postage_')) return const Size(0.23, 0.2);
-    return const Size(0.19, 0.15);
+    if (sticker.contains('postage_')) return proportional(.19);
+    if (sticker.contains('cat_') || sticker.contains('monkey_')) {
+      return proportional(.25, maxWidth: .42);
+    }
+    if (sticker.contains('words_') ||
+        sticker.endsWith('fabric_lace') ||
+        sticker.endsWith('analog_negative')) {
+      return proportional(.105);
+    }
+    return proportional(.18, maxWidth: .42);
   }
 
   double _stickerRotation(String sticker) {
@@ -457,7 +475,11 @@ class _EditorScreenState extends State<EditorScreen>
       _selectedId = null;
     });
 
-    await _pageTurnController.forward(from: 0);
+    await _pageTurnController.animateTo(
+      1,
+      duration: _pageTurnController.duration,
+      curve: Curves.easeInOutCubic,
+    );
     if (!mounted) return;
     setState(() {
       _pageIndex = targetPage;
@@ -761,11 +783,14 @@ class _EditorScreenState extends State<EditorScreen>
 
   @override
   Widget build(BuildContext context) {
+    final colors = AlbumiumAppTheme.colorsOf(context);
     return PopScope(
       onPopInvokedWithResult: (_, _) =>
           unawaited(AlbumStorage.instance.saveAlbum(album)),
       child: Scaffold(
+        backgroundColor: Colors.transparent,
         appBar: AppBar(
+          backgroundColor: colors.background,
           titleSpacing: 0,
           title: GestureDetector(
             onTap: _editTitle,
@@ -798,96 +823,102 @@ class _EditorScreenState extends State<EditorScreen>
             const SizedBox(width: 4),
           ],
         ),
-        body: SafeArea(
-          child: Column(
-            children: [
-              _PageNavigator(
-                label: _spreadLabel,
-                onPrevious: _canGoPrevious ? _goToPreviousPage : null,
-                onNext: _canGoNext ? _goToNextPage : null,
-                onAdd: _addPage,
-                onMore: () => _showPageMenu(context),
-              ),
-              Expanded(
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 4, 8, 10),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final phoneLayout =
-                            MediaQuery.sizeOf(context).shortestSide < 600;
-                        return Stack(
-                          children: [
-                            Positioned.fill(
-                              child: AnimatedBuilder(
-                                animation: _pageTurnController,
-                                builder: (context, _) => IgnorePointer(
-                                  ignoring: _isPageTurning,
-                                  child: PhysicalBookSpread(
-                                    album: album,
-                                    leftPageIndex: _spreadLeftPageIndex,
-                                    rightPageIndex: _spreadRightPageIndex,
-                                    nextLeftPageIndex: _nextSpreadLeftPageIndex,
-                                    nextRightPageIndex:
-                                        _nextSpreadRightPageIndex,
-                                    turnProgress: _pageTurnController.value,
-                                    turningForward: _turningForward,
-                                    interactive: true,
-                                    focusedPageIndex: phoneLayout
-                                        ? _pageIndex
-                                        : null,
-                                    activePageIndex: _pageIndex,
-                                    selectedElementId: _selectedId,
-                                    onSelectPage: _selectPage,
-                                    onSelectElement: (id) =>
-                                        setState(() => _selectedId = id),
-                                    onChanged: _changed,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            if (_importing)
-                              const Positioned.fill(
-                                child: ColoredBox(
-                                  color: Color(0x99000000),
-                                  child: Center(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        CircularProgressIndicator(),
-                                        SizedBox(height: 12),
-                                        Text('Fotoğraflar hazırlanıyor…'),
-                                      ],
+        body: CraftBackdrop(
+          variant: CraftBackdropVariant.cork,
+          baseColor: colors.background,
+          textureIntensity: .64,
+          child: SafeArea(
+            child: Column(
+              children: [
+                _PageNavigator(
+                  label: _spreadLabel,
+                  onPrevious: _canGoPrevious ? _goToPreviousPage : null,
+                  onNext: _canGoNext ? _goToNextPage : null,
+                  onAdd: _addPage,
+                  onMore: () => _showPageMenu(context),
+                ),
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 4, 8, 10),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final phoneLayout =
+                              MediaQuery.sizeOf(context).shortestSide < 600;
+                          return Stack(
+                            children: [
+                              Positioned.fill(
+                                child: AnimatedBuilder(
+                                  animation: _pageTurnController,
+                                  builder: (context, _) => IgnorePointer(
+                                    ignoring: _isPageTurning,
+                                    child: PhysicalBookSpread(
+                                      album: album,
+                                      leftPageIndex: _spreadLeftPageIndex,
+                                      rightPageIndex: _spreadRightPageIndex,
+                                      nextLeftPageIndex:
+                                          _nextSpreadLeftPageIndex,
+                                      nextRightPageIndex:
+                                          _nextSpreadRightPageIndex,
+                                      turnProgress: _pageTurnController.value,
+                                      turningForward: _turningForward,
+                                      interactive: true,
+                                      focusedPageIndex: phoneLayout
+                                          ? _pageIndex
+                                          : null,
+                                      activePageIndex: _pageIndex,
+                                      selectedElementId: _selectedId,
+                                      onSelectPage: _selectPage,
+                                      onSelectElement: (id) =>
+                                          setState(() => _selectedId = id),
+                                      onChanged: _changed,
                                     ),
                                   ),
                                 ),
                               ),
-                          ],
-                        );
-                      },
+                              if (_importing)
+                                const Positioned.fill(
+                                  child: ColoredBox(
+                                    color: Color(0x99000000),
+                                    child: Center(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          CircularProgressIndicator(),
+                                          SizedBox(height: 12),
+                                          Text('Fotoğraflar hazırlanıyor…'),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
-              ),
-              if (selectedElement != null)
-                _SelectionToolbar(
-                  element: selectedElement!,
-                  onStyle: _styleSelected,
-                  onForward: _bringForward,
-                  onDuplicate: _duplicateSelected,
-                  onDelete: _removeSelected,
+                if (selectedElement != null)
+                  _SelectionToolbar(
+                    element: selectedElement!,
+                    onStyle: _styleSelected,
+                    onForward: _bringForward,
+                    onDuplicate: _duplicateSelected,
+                    onDelete: _removeSelected,
+                  ),
+                _MainToolbar(
+                  onPhoto: _addPhotos,
+                  onText: _addText,
+                  onDraw: _addHandwriting,
+                  onCard: _addOccasionCard,
+                  onSticker: _addSticker,
+                  onShape: _addShape,
+                  onBackground: _changeBackground,
+                  onPage: _addPage,
                 ),
-              _MainToolbar(
-                onPhoto: _addPhotos,
-                onText: _addText,
-                onDraw: _addHandwriting,
-                onCard: _addOccasionCard,
-                onSticker: _addSticker,
-                onShape: _addShape,
-                onBackground: _changeBackground,
-                onPage: _addPage,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -957,46 +988,54 @@ class _PageNavigator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final colors = AlbumiumAppTheme.colorsOf(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton(
-            onPressed: onPrevious,
-            tooltip: 'Önceki sayfa',
-            icon: const Icon(Icons.chevron_left_rounded),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-            decoration: BoxDecoration(
-              color: colors.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(99),
-              border: Border.all(color: colors.outlineVariant),
+      padding: const EdgeInsets.fromLTRB(12, 7, 12, 5),
+      child: PaperPanel(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        borderRadius: BorderRadius.circular(7),
+        rotationDegrees: -.15,
+        textureIntensity: .2,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              onPressed: onPrevious,
+              tooltip: 'Önceki sayfa',
+              icon: const Icon(Icons.chevron_left_rounded),
             ),
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+            TornPaperLabel(
+              color: colors.elevatedSurface,
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
+              edgeDepth: 2,
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: colors.text,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
-          ),
-          IconButton(
-            onPressed: onNext,
-            tooltip: 'Sonraki sayfa',
-            icon: const Icon(Icons.chevron_right_rounded),
-          ),
-          const Spacer(),
-          IconButton(
-            onPressed: onAdd,
-            tooltip: 'Sayfa ekle',
-            icon: const Icon(Icons.add_box_outlined),
-          ),
-          IconButton(
-            onPressed: onMore,
-            tooltip: 'Sayfa seçenekleri',
-            icon: const Icon(Icons.more_horiz_rounded),
-          ),
-        ],
+            IconButton(
+              onPressed: onNext,
+              tooltip: 'Sonraki sayfa',
+              icon: const Icon(Icons.chevron_right_rounded),
+            ),
+            const Spacer(),
+            IconButton(
+              onPressed: onAdd,
+              tooltip: 'Sayfa ekle',
+              color: colors.primary,
+              icon: const Icon(Icons.add_box_outlined),
+            ),
+            IconButton(
+              onPressed: onMore,
+              tooltip: 'Sayfa seçenekleri',
+              icon: const Icon(Icons.more_horiz_rounded),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1025,13 +1064,13 @@ class _MainToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
-        border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
-      ),
+    final colors = AlbumiumAppTheme.colorsOf(context);
+    return PaperPanel(
+      color: colors.surface,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
       padding: const EdgeInsets.fromLTRB(6, 8, 6, 10),
+      textureIntensity: .24,
+      showShadow: true,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -1096,7 +1135,7 @@ class _SelectionToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final colors = AlbumiumAppTheme.colorsOf(context);
     final (styleLabel, styleIcon) = switch (element.type) {
       AlbumElementType.photo => (
         'Çerçeve · ${albumPhotoFrameLabel(element.frameStyle)}',
@@ -1113,43 +1152,44 @@ class _SelectionToolbar extends StatelessWidget {
       AlbumElementType.drawing => ('Döndür', Icons.rotate_right_rounded),
       AlbumElementType.sticker => ('Süsü değiştir', Icons.auto_awesome_rounded),
     };
-    return Container(
-      margin: const EdgeInsets.fromLTRB(18, 0, 18, 8),
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Row(
-        children: [
-          Flexible(
-            flex: 3,
-            child: TextButton.icon(
-              onPressed: onStyle,
-              icon: Icon(styleIcon, size: 18),
-              label: Text(
-                styleLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
+      child: PaperPanel(
+        color: colors.elevatedSurface,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        borderRadius: BorderRadius.circular(7),
+        rotationDegrees: .2,
+        textureIntensity: .2,
+        child: Row(
+          children: [
+            Flexible(
+              flex: 3,
+              child: TextButton.icon(
+                onPressed: onStyle,
+                icon: Icon(styleIcon, size: 18),
+                label: Text(
+                  styleLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
-          ),
-          IconButton(
-            onPressed: onForward,
-            tooltip: 'Öne al',
-            icon: const Icon(Icons.flip_to_front_outlined, size: 20),
-          ),
-          IconButton(
-            onPressed: onDuplicate,
-            tooltip: 'Kopyala',
-            icon: const Icon(Icons.copy_rounded, size: 20),
-          ),
-          IconButton(
-            onPressed: onDelete,
-            icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-          ),
-        ],
+            IconButton(
+              onPressed: onForward,
+              tooltip: 'Öne al',
+              icon: const Icon(Icons.flip_to_front_outlined, size: 20),
+            ),
+            IconButton(
+              onPressed: onDuplicate,
+              tooltip: 'Kopyala',
+              icon: const Icon(Icons.copy_rounded, size: 20),
+            ),
+            IconButton(
+              onPressed: onDelete,
+              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1164,15 +1204,19 @@ class _Tool extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AlbumiumAppTheme.colorsOf(context);
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      borderRadius: BorderRadius.circular(8),
+      child: StitchedBorder(
+        color: colors.border,
+        borderRadius: BorderRadius.circular(8),
+        inset: 2,
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 23, color: Theme.of(context).colorScheme.primary),
+            Icon(icon, size: 23, color: colors.primary),
             const SizedBox(height: 3),
             Text(
               label,

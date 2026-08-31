@@ -105,6 +105,43 @@ void main() {
     expect(find.bySemanticsLabel('Cilt merkezi: Sert Kapak'), findsOneWidget);
   });
 
+  testWidgets('single page phone editor crops at the binding', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(900, 1600);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final now = DateTime(2026);
+    final album = AlbumModel(
+      id: 'single-page-editor',
+      title: 'Tek Sayfa',
+      themeId: 'vintage_diary',
+      bindingType: AlbumBindingType.spiral,
+      createdAt: now,
+      updatedAt: now,
+      pages: [AlbumPageModel(id: 'only-page', backgroundColor: 0xFFF2E8D3)],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: EditorScreen(album: album),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final viewportSize = tester.getSize(
+      find.byKey(const ValueKey('focused-book-viewport')),
+    );
+    final pageSize = tester.getSize(find.byType(AlbumPageCanvas));
+
+    // Only the binding allowance may remain beyond the page. A missing
+    // companion must not reserve the normal 11% preview strip.
+    expect(viewportSize.width, greaterThan(pageSize.width));
+    expect(viewportSize.width, lessThanOrEqualTo(pageSize.width + 33));
+  });
+
   testWidgets('phone focuses the companion then curls to the next spread', (
     tester,
   ) async {
@@ -153,10 +190,18 @@ void main() {
     spread = tester.widget<PhysicalBookSpread>(find.byType(PhysicalBookSpread));
     expect(spread.nextLeftPageIndex, 2);
     expect(spread.nextRightPageIndex, 3);
-    expect(find.byType(PageCurl), findsOneWidget);
+    expect(find.byType(PageCurl), findsNWidgets(2));
     expect(
-      tester.widget<PageCurl>(find.byType(PageCurl)).surface,
+      tester
+          .widget<PageCurl>(find.byKey(const ValueKey('book-page-curl-front')))
+          .surface,
       PageCurlSurface.front,
+    );
+    expect(
+      tester
+          .widget<PageCurl>(find.byKey(const ValueKey('book-page-curl-front')))
+          .shadowOpacity,
+      0,
     );
 
     await tester.pumpAndSettle();
@@ -168,10 +213,12 @@ void main() {
     // açar; böylece ileri ve geri yönleri aynı motoru paylaşır.
     await tester.tap(find.byTooltip('Önceki sayfa'));
     await tester.pump(const Duration(milliseconds: 260));
-    expect(find.byType(PageCurl), findsOneWidget);
+    expect(find.byType(PageCurl), findsNWidgets(2));
     expect(
-      tester.widget<PageCurl>(find.byType(PageCurl)).surface,
-      PageCurlSurface.front,
+      tester
+          .widget<PageCurl>(find.byKey(const ValueKey('book-page-curl-back')))
+          .surface,
+      PageCurlSurface.back,
     );
     await tester.pumpAndSettle();
     spread = tester.widget<PhysicalBookSpread>(find.byType(PhysicalBookSpread));

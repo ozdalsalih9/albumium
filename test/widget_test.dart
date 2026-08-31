@@ -12,6 +12,10 @@ void main() {
 
     expect(find.text('ALBUMIUM'), findsOneWidget);
     expect(find.text('Tasarım oluştur'), findsOneWidget);
+    expect(
+      find.image(const AssetImage('assets/branding/albumium_app_icon.png')),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('Tasarım oluştur'));
     await tester.pumpAndSettle();
@@ -46,9 +50,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final project = createSpecialCardProject();
     await tester.pumpWidget(
-      MaterialApp(
-        home: SpecialCardStudioScreen(project: project),
-      ),
+      MaterialApp(home: SpecialCardStudioScreen(project: project)),
     );
     await tester.pumpAndSettle();
 

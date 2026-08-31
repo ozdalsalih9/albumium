@@ -120,35 +120,45 @@ abstract final class AlbumiumAppTheme {
     AlbumiumThemeOption(
       id: AlbumiumThemeId.rose,
       name: 'Gül Pembesi',
-      description: 'Romantik, yumuşak ve zarif pembe tonlar',
+      description: 'Toz pembe kâğıtlar ve çiçekli washi bantlar',
       icon: Icons.local_florist_rounded,
-      previewColors: [Color(0xFFF39AB5), Color(0xFF7F4058), Color(0xFF201217)],
+      previewColors: [Color(0xFFC47C82), Color(0xFFF2DDD5), Color(0xFF4B302F)],
     ),
     AlbumiumThemeOption(
       id: AlbumiumThemeId.navy,
       name: 'Gece Mavisi',
-      description: 'Derin lacivert ve sinematik mavi ışıklar',
+      description: 'Solgun mavi kâğıt ve lacivert mürekkep izleri',
       icon: Icons.nightlight_round,
-      previewColors: [Color(0xFF79AFFF), Color(0xFF284D86), Color(0xFF091321)],
+      previewColors: [Color(0xFF526C80), Color(0xFFE4E4DA), Color(0xFF24313C)],
     ),
     AlbumiumThemeOption(
       id: AlbumiumThemeId.obsidian,
       name: 'Obsidyen',
-      description: 'Minimal, güçlü ve zamansız siyah tonlar',
+      description: 'Eskitilmiş gri kâğıt ve kömür kalem dokusu',
       icon: Icons.dark_mode_rounded,
-      previewColors: [Color(0xFFE4E0D8), Color(0xFF676B73), Color(0xFF08090B)],
+      previewColors: [Color(0xFF4B4945), Color(0xFFE4DED2), Color(0xFF24231F)],
     ),
     AlbumiumThemeOption(
       id: AlbumiumThemeId.amber,
       name: 'Sıcak Kehribar',
-      description: 'Nostaljik, sıcak ve doğal albüm hissi',
+      description: 'Mantar pano, kraft kâğıt ve sıcak ahşap tonları',
       icon: Icons.wb_sunny_rounded,
-      previewColors: [Color(0xFFFFAA5E), Color(0xFF93572E), Color(0xFF181310)],
+      previewColors: [Color(0xFFB9825D), Color(0xFFF3E6D2), Color(0xFF392B24)],
     ),
   ];
 
   static AlbumiumThemeOption optionFor(AlbumiumThemeId id) {
     return options.firstWhere((option) => option.id == id);
+  }
+
+  /// Reads the active Albumium palette and falls back to the default craft
+  /// palette when a screen is embedded in a plain [MaterialApp].
+  static AlbumiumThemeColors colorsOf(BuildContext context) {
+    final theme = Theme.of(context);
+    return theme.extension<AlbumiumThemeColors>() ??
+        (theme.brightness == Brightness.dark
+            ? _darkColors(defaultThemeId)
+            : _lightColors(defaultThemeId));
   }
 
   static ThemeData light(AlbumiumThemeId id) {
@@ -196,38 +206,55 @@ abstract final class AlbumiumAppTheme {
       brightness: brightness,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: colors.background,
-      canvasColor: colors.background,
-      fontFamily: 'sans-serif',
+      canvasColor: colors.surface,
+      fontFamily: 'CraftQuicksand',
       visualDensity: VisualDensity.standard,
     );
 
     final roundedInputBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(16),
-      borderSide: BorderSide(color: colors.border),
+      borderRadius: BorderRadius.circular(9),
+      borderSide: BorderSide(color: colors.border, width: 1.2),
+    );
+
+    final functionalTextTheme = base.textTheme.apply(
+      bodyColor: colors.text,
+      displayColor: colors.text,
+      fontFamily: 'CraftQuicksand',
     );
 
     return base.copyWith(
       extensions: <ThemeExtension<dynamic>>[colors],
-      textTheme: base.textTheme
-          .apply(bodyColor: colors.text, displayColor: colors.text)
-          .copyWith(
-            headlineSmall: base.textTheme.headlineSmall?.copyWith(
-              color: colors.text,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.4,
-            ),
-            titleLarge: base.textTheme.titleLarge?.copyWith(
-              color: colors.text,
-              fontWeight: FontWeight.w800,
-            ),
-            titleMedium: base.textTheme.titleMedium?.copyWith(
-              color: colors.text,
-              fontWeight: FontWeight.w700,
-            ),
-            bodyMedium: base.textTheme.bodyMedium?.copyWith(
-              color: colors.mutedText,
-            ),
-          ),
+      textTheme: functionalTextTheme.copyWith(
+        displaySmall: TextStyle(
+          color: colors.text,
+          fontFamily: 'CraftCaveat',
+          fontSize: 42,
+          height: .96,
+          fontWeight: FontWeight.w700,
+        ),
+        headlineSmall: TextStyle(
+          color: colors.text,
+          fontFamily: 'CraftCaveat',
+          fontSize: 31,
+          height: 1.02,
+          fontWeight: FontWeight.w700,
+        ),
+        titleLarge: TextStyle(
+          color: colors.text,
+          fontFamily: 'CraftCaveat',
+          fontSize: 27,
+          height: 1,
+          fontWeight: FontWeight.w700,
+        ),
+        titleMedium: functionalTextTheme.titleMedium?.copyWith(
+          color: colors.text,
+          fontWeight: FontWeight.w700,
+        ),
+        bodyMedium: functionalTextTheme.bodyMedium?.copyWith(
+          color: colors.mutedText,
+          height: 1.35,
+        ),
+      ),
       appBarTheme: AppBarTheme(
         backgroundColor: colors.background,
         foregroundColor: colors.text,
@@ -237,9 +264,9 @@ abstract final class AlbumiumAppTheme {
         centerTitle: false,
         titleTextStyle: TextStyle(
           color: colors.text,
-          fontSize: 18,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 0.1,
+          fontFamily: 'CraftCaveat',
+          fontSize: 25,
+          fontWeight: FontWeight.w700,
         ),
       ),
       cardTheme: CardThemeData(
@@ -248,16 +275,16 @@ abstract final class AlbumiumAppTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-          side: BorderSide(color: colors.border),
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: colors.border, width: 1.2),
         ),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: colors.elevatedSurface,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-          side: BorderSide(color: colors.border),
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: colors.border, width: 1.2),
         ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
@@ -266,7 +293,7 @@ abstract final class AlbumiumAppTheme {
         surfaceTintColor: Colors.transparent,
         showDragHandle: true,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -293,10 +320,16 @@ abstract final class AlbumiumAppTheme {
           foregroundColor: colors.onPrimary,
           minimumSize: const Size(48, 48),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
-          textStyle: const TextStyle(fontWeight: FontWeight.w800),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+          textStyle: const TextStyle(
+            fontFamily: 'CraftQuicksand',
+            fontWeight: FontWeight.w800,
           ),
+          elevation: 2,
+          shadowColor: Colors.black.withValues(alpha: .30),
+          side: BorderSide(
+            color: Color.lerp(colors.primary, Colors.black, .22)!,
+          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -305,19 +338,21 @@ abstract final class AlbumiumAppTheme {
           minimumSize: const Size(48, 48),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
           side: BorderSide(color: colors.border),
-          textStyle: const TextStyle(fontWeight: FontWeight.w700),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+          textStyle: const TextStyle(
+            fontFamily: 'CraftQuicksand',
+            fontWeight: FontWeight.w700,
           ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: colors.primary,
-          textStyle: const TextStyle(fontWeight: FontWeight.w700),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(13),
+          textStyle: const TextStyle(
+            fontFamily: 'CraftQuicksand',
+            fontWeight: FontWeight.w700,
           ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
@@ -325,7 +360,7 @@ abstract final class AlbumiumAppTheme {
         foregroundColor: colors.onPrimary,
         elevation: 5,
         focusElevation: 7,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: colors.surface,
@@ -352,7 +387,7 @@ abstract final class AlbumiumAppTheme {
         disabledColor: colors.surface,
         side: BorderSide(color: colors.border),
         labelStyle: TextStyle(color: colors.text, fontWeight: FontWeight.w600),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
@@ -378,7 +413,7 @@ abstract final class AlbumiumAppTheme {
         actionTextColor: colors.primary,
         behavior: SnackBarBehavior.floating,
         elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
         color: colors.primary,
@@ -416,122 +451,122 @@ abstract final class AlbumiumAppTheme {
   }
 
   static const _roseLight = AlbumiumThemeColors(
-    background: Color(0xFFFFF8FA),
-    surface: Color(0xFFFFEEF3),
-    elevatedSurface: Color(0xFFFFE3EC),
-    heroStart: Color(0xFFFFDCE7),
-    heroEnd: Color(0xFFFFF8FA),
-    primary: Color(0xFFB83F68),
-    onPrimary: Color(0xFFFFFFFF),
-    secondary: Color(0xFF875363),
-    text: Color(0xFF2C151D),
-    mutedText: Color(0xFF765C65),
-    border: Color(0x2F703849),
-    glow: Color(0x35E15D88),
+    background: Color(0xFFC89A92),
+    surface: Color(0xFFF2DDD5),
+    elevatedSurface: Color(0xFFFFF3E8),
+    heroStart: Color(0xFFE8BAB1),
+    heroEnd: Color(0xFFF0D6CA),
+    primary: Color(0xFF9A4D58),
+    onPrimary: Color(0xFFFFF8F0),
+    secondary: Color(0xFF747765),
+    text: Color(0xFF432E2D),
+    mutedText: Color(0xFF78615D),
+    border: Color(0x5C704945),
+    glow: Color(0x55D89591),
   );
 
   static const _roseDark = AlbumiumThemeColors(
-    background: Color(0xFF171013),
-    surface: Color(0xFF24181D),
-    elevatedSurface: Color(0xFF312128),
-    heroStart: Color(0xFF4A2835),
-    heroEnd: Color(0xFF1C1216),
-    primary: Color(0xFFF39AB5),
-    onPrimary: Color(0xFF35101D),
-    secondary: Color(0xFFD0A2B0),
-    text: Color(0xFFFFF3F6),
-    mutedText: Color(0xFFC5AAB3),
-    border: Color(0x32FFD8E4),
-    glow: Color(0x45F26F9A),
+    background: Color(0xFF332221),
+    surface: Color(0xFF4B3532),
+    elevatedSurface: Color(0xFF614641),
+    heroStart: Color(0xFF70433F),
+    heroEnd: Color(0xFF3D2927),
+    primary: Color(0xFFE3A29F),
+    onPrimary: Color(0xFF3A2221),
+    secondary: Color(0xFFC7BE9E),
+    text: Color(0xFFFFEEDF),
+    mutedText: Color(0xFFD6BDB1),
+    border: Color(0x4DFFE4D6),
+    glow: Color(0x4DC87977),
   );
 
   static const _navyLight = AlbumiumThemeColors(
-    background: Color(0xFFF7F9FE),
-    surface: Color(0xFFEDF2FC),
-    elevatedSurface: Color(0xFFE1EAF9),
-    heroStart: Color(0xFFDDE9FF),
-    heroEnd: Color(0xFFF7F9FE),
-    primary: Color(0xFF235EA9),
-    onPrimary: Color(0xFFFFFFFF),
-    secondary: Color(0xFF536A8E),
-    text: Color(0xFF101C2D),
-    mutedText: Color(0xFF5C6878),
-    border: Color(0x30274A77),
-    glow: Color(0x3A5597ED),
+    background: Color(0xFF81909B),
+    surface: Color(0xFFE7E4D8),
+    elevatedSurface: Color(0xFFF6F1E4),
+    heroStart: Color(0xFFB9C8CC),
+    heroEnd: Color(0xFFD9DDD7),
+    primary: Color(0xFF3F5E73),
+    onPrimary: Color(0xFFFFFBEE),
+    secondary: Color(0xFF8B664F),
+    text: Color(0xFF26343D),
+    mutedText: Color(0xFF5E6A6E),
+    border: Color(0x5946545B),
+    glow: Color(0x4D7599AA),
   );
 
   static const _navyDark = AlbumiumThemeColors(
-    background: Color(0xFF08111E),
-    surface: Color(0xFF101C2E),
-    elevatedSurface: Color(0xFF18273E),
-    heroStart: Color(0xFF203D67),
-    heroEnd: Color(0xFF0B1422),
-    primary: Color(0xFF79AFFF),
-    onPrimary: Color(0xFF081B35),
-    secondary: Color(0xFFA9C7F8),
-    text: Color(0xFFF4F7FF),
-    mutedText: Color(0xFFAAB8CC),
-    border: Color(0x354A6C9F),
-    glow: Color(0x48558FE7),
+    background: Color(0xFF202B31),
+    surface: Color(0xFF34434A),
+    elevatedSurface: Color(0xFF475A62),
+    heroStart: Color(0xFF405966),
+    heroEnd: Color(0xFF27363D),
+    primary: Color(0xFF9EC0CC),
+    onPrimary: Color(0xFF1E3038),
+    secondary: Color(0xFFD4BFA8),
+    text: Color(0xFFF7ECD9),
+    mutedText: Color(0xFFC3C7BE),
+    border: Color(0x4DE3E0D3),
+    glow: Color(0x456A99A8),
   );
 
   static const _obsidianLight = AlbumiumThemeColors(
-    background: Color(0xFFF7F7F5),
-    surface: Color(0xFFEDEDEA),
-    elevatedSurface: Color(0xFFE2E2DE),
-    heroStart: Color(0xFFD8D8D3),
-    heroEnd: Color(0xFFF7F7F5),
-    primary: Color(0xFF24262A),
-    onPrimary: Color(0xFFFFFFFF),
-    secondary: Color(0xFF5C6068),
-    text: Color(0xFF111214),
-    mutedText: Color(0xFF666970),
-    border: Color(0x3022262C),
-    glow: Color(0x2822262C),
+    background: Color(0xFF8B8377),
+    surface: Color(0xFFE6DED1),
+    elevatedSurface: Color(0xFFF5EEE2),
+    heroStart: Color(0xFFC9C1B5),
+    heroEnd: Color(0xFFE0D8CC),
+    primary: Color(0xFF45423D),
+    onPrimary: Color(0xFFFFFBF2),
+    secondary: Color(0xFF78634E),
+    text: Color(0xFF2F2D29),
+    mutedText: Color(0xFF69645C),
+    border: Color(0x593D3A35),
+    glow: Color(0x3D5C5851),
   );
 
   static const _obsidianDark = AlbumiumThemeColors(
-    background: Color(0xFF08090B),
-    surface: Color(0xFF121316),
-    elevatedSurface: Color(0xFF1C1E22),
-    heroStart: Color(0xFF2A2D33),
-    heroEnd: Color(0xFF0C0D0F),
-    primary: Color(0xFFE4E0D8),
-    onPrimary: Color(0xFF171717),
-    secondary: Color(0xFFAAAEB7),
-    text: Color(0xFFF5F3EE),
-    mutedText: Color(0xFFA9A9A5),
-    border: Color(0x35D9D9D3),
-    glow: Color(0x29DDD9D0),
+    background: Color(0xFF24231F),
+    surface: Color(0xFF393732),
+    elevatedSurface: Color(0xFF4A4842),
+    heroStart: Color(0xFF555149),
+    heroEnd: Color(0xFF2D2B27),
+    primary: Color(0xFFD9D0C1),
+    onPrimary: Color(0xFF262520),
+    secondary: Color(0xFFC0A98B),
+    text: Color(0xFFF4EADC),
+    mutedText: Color(0xFFC7BFB3),
+    border: Color(0x4DEDE2D2),
+    glow: Color(0x3DD7CBB7),
   );
 
   static const _amberLight = AlbumiumThemeColors(
-    background: Color(0xFFFFFAF5),
-    surface: Color(0xFFF8EFE6),
-    elevatedSurface: Color(0xFFF1E2D3),
-    heroStart: Color(0xFFFFE5CB),
-    heroEnd: Color(0xFFFFFAF5),
-    primary: Color(0xFFB95816),
-    onPrimary: Color(0xFFFFFFFF),
-    secondary: Color(0xFF856046),
-    text: Color(0xFF2A1A10),
-    mutedText: Color(0xFF756355),
-    border: Color(0x326C4328),
-    glow: Color(0x3AF08B3F),
+    background: Color(0xFFB9825D),
+    surface: Color(0xFFF3E6D2),
+    elevatedSurface: Color(0xFFFFF8EC),
+    heroStart: Color(0xFFE7C29F),
+    heroEnd: Color(0xFFF0D5B8),
+    primary: Color(0xFF8F452E),
+    onPrimary: Color(0xFFFFF8EC),
+    secondary: Color(0xFF6F725F),
+    text: Color(0xFF392B24),
+    mutedText: Color(0xFF746055),
+    border: Color(0x666F4C3A),
+    glow: Color(0x55E4B773),
   );
 
   static const _amberDark = AlbumiumThemeColors(
-    background: Color(0xFF181310),
-    surface: Color(0xFF241D19),
-    elevatedSurface: Color(0xFF312721),
-    heroStart: Color(0xFF4A3020),
-    heroEnd: Color(0xFF1C1714),
-    primary: Color(0xFFFFAA5E),
-    onPrimary: Color(0xFF2B1708),
-    secondary: Color(0xFFD9B18E),
-    text: Color(0xFFFFF5ED),
-    mutedText: Color(0xFFC0B0A4),
-    border: Color(0x35FFE0C7),
-    glow: Color(0x45F08B3F),
+    background: Color(0xFF2A1C16),
+    surface: Color(0xFF47342B),
+    elevatedSurface: Color(0xFF5B4437),
+    heroStart: Color(0xFF6B4933),
+    heroEnd: Color(0xFF3A251B),
+    primary: Color(0xFFD99664),
+    onPrimary: Color(0xFF2C190F),
+    secondary: Color(0xFFC9B58E),
+    text: Color(0xFFF8EAD5),
+    mutedText: Color(0xFFCDB9A4),
+    border: Color(0x4DF0D6B6),
+    glow: Color(0x4DC97848),
   );
 }

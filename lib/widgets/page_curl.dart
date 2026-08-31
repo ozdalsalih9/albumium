@@ -145,8 +145,12 @@ class _PageCurlPainter extends SnapshotPainter {
 
   /// Ağın çözünürlüğü. Kıvrım yatayda geliştiği için sütun sayısı yüksek
   /// tutulur; satırlar yalnızca kat çizgisi eğildiğinde iş görür.
-  static const _cols = 44;
-  static const _rows = 26;
+  // The front/back split follows triangle edges. A denser grid keeps that
+  // physical face boundary smooth even on tall phone previews, without
+  // changing the deterministic curl geometry used by exports.
+  static const _cols = 72;
+  static const _rows = 44;
+  static const _faceSplitColumn = _cols ~/ 2;
 
   /// Silindirin yarıçapı (genişliğe oran). Kâğıdın sertliğini belirler:
   /// büyüdükçe kıvrım yayvan, küçüldükçe keskin olur.
@@ -173,7 +177,9 @@ class _PageCurlPainter extends SnapshotPainter {
   final _shades = Int32List(_vertexCount);
   final _speculars = Int32List(_vertexCount);
   final _backWash = Int32List(_vertexCount);
+  final _faceMix = Float32List(_vertexCount);
   late final Uint16List _indices = _buildIndices();
+  late final Uint16List _visibleIndices = Uint16List(_indices.length);
 
   set progress(double value) {
     if (_progress == value) return;
@@ -231,6 +237,30 @@ class _PageCurlPainter extends SnapshotPainter {
     return indices;
   }
 
+  /// Front and back snapshots share the same geometry, but never the same
+  /// triangle. Partitioning indices instead of relying on interpolated vertex
+  /// alpha avoids the Android GPU rounding that used to draw a second, ghost
+  /// sheet in front of the curl.
+  Uint16List _indicesForSurface() {
+    if (_surface == PageCurlSurface.paper) return _indices;
+
+    var visibleCount = 0;
+    for (var index = 0; index < _indices.length; index += 3) {
+      final a = _indices[index];
+      final b = _indices[index + 1];
+      final c = _indices[index + 2];
+      final mix = (_faceMix[a] + _faceMix[b] + _faceMix[c]) / 3;
+      final visible = _surface == PageCurlSurface.front
+          ? mix < 0.5
+          : mix >= 0.5;
+      if (!visible) continue;
+      _visibleIndices[visibleCount++] = a;
+      _visibleIndices[visibleCount++] = b;
+      _visibleIndices[visibleCount++] = c;
+    }
+    return Uint16List.sublistView(_visibleIndices, 0, visibleCount);
+  }
+
   /// Rasterleştirilmiş sayfayı doku olarak bağlar. Gölgelendirici kare başına
   /// değil, yalnızca görüntü değiştiğinde yeniden kurulur.
   ui.ImageShader _shaderFor(ui.Image image) {
@@ -276,12 +306,14 @@ class _PageCurlPainter extends SnapshotPainter {
   void _paintCurl(Canvas canvas, Offset offset, Size size, ui.Image image) {
     final t = _progress.clamp(0.0, 1.0);
     if (t <= 0) {
-      canvas.drawImageRect(
-        image,
-        Offset.zero & Size(image.width.toDouble(), image.height.toDouble()),
-        offset & size,
-        Paint()..filterQuality = FilterQuality.medium,
-      );
+      if (_surface != PageCurlSurface.back) {
+        canvas.drawImageRect(
+          image,
+          Offset.zero & Size(image.width.toDouble(), image.height.toDouble()),
+          offset & size,
+          Paint()..filterQuality = FilterQuality.medium,
+        );
+      }
       return;
     }
 
@@ -340,9 +372,21 @@ class _PageCurlPainter extends SnapshotPainter {
     for (var j = 0; j <= _rows; j++) {
       final fy = j / _rows;
       final y = h * fy;
+      // Make the exact 90° face boundary a shared mesh column. Without this,
+      // a diagonal front/back cut has to follow arbitrary cell diagonals and
+      // reads as a serrated shadow strip on high-density phone screens.
+      final faceBoundaryX =
+          (foldX + (math.pi * radius / 2 - (y - foldY) * ny) / nx).clamp(
+            0.0,
+            w,
+          );
       for (var i = 0; i <= _cols; i++) {
-        final fx = i / _cols;
-        final x = w * fx;
+        final x = i <= _faceSplitColumn
+            ? faceBoundaryX * (i / _faceSplitColumn)
+            : faceBoundaryX +
+                  (w - faceBoundaryX) *
+                      ((i - _faceSplitColumn) / (_cols - _faceSplitColumn));
+        final fx = w == 0 ? 0.0 : x / w;
 
         final relX = x - foldX;
         final relY = y - foldY;
@@ -392,19 +436,22 @@ class _PageCurlPainter extends SnapshotPainter {
           1.0,
         );
         final surfaceOpacity = switch (_surface) {
-          PageCurlSurface.front => 1 - sideMix,
-          PageCurlSurface.back => sideMix,
+          PageCurlSurface.front ||
+          PageCurlSurface.back ||
           PageCurlSurface.paper => 1.0,
         };
+        _faceMix[v] = sideMix;
         _shades[v] = _grey(shade, opacity: surfaceOpacity);
 
         // Yarım turu geçen yüzey kâğıdın arkasıdır: orada mürekkep değil
         // kâğıt görünmeli. Ön yüzün dokusu yalnızca soluk bir iz olarak
         // sızar, aynalanmış yazı okunur kalmaz.
-        final back = ((phi - math.pi / 2) / (math.pi / 2)).clamp(0.0, 1.0);
         final washOpacity = switch (_surface) {
-          PageCurlSurface.paper => 0.90 * math.min(1.0, back * 2.4),
-          PageCurlSurface.back => 0.11 * surfaceOpacity,
+          // Match the same narrow face transition used by the mesh opacity.
+          // Once the sheet faces away, paper fully covers mirrored front ink;
+          // otherwise it reads as a ghost-like second page on Android GPUs.
+          PageCurlSurface.paper => sideMix,
+          PageCurlSurface.back => 0.07,
           PageCurlSurface.front => 0.0,
         };
         _backWash[v] = _paperColor.withValues(alpha: washOpacity).toARGB32();
@@ -418,12 +465,18 @@ class _PageCurlPainter extends SnapshotPainter {
       }
     }
 
+    final visibleIndices = _indicesForSurface();
+    if (visibleIndices.isEmpty) {
+      canvas.restore();
+      return;
+    }
+
     final sheet = ui.Vertices.raw(
       ui.VertexMode.triangles,
       _positions,
       textureCoordinates: _texCoords,
       colors: _shades,
-      indices: _indices,
+      indices: visibleIndices,
     );
     canvas.drawVertices(
       sheet,
@@ -440,7 +493,7 @@ class _PageCurlPainter extends SnapshotPainter {
         ui.VertexMode.triangles,
         _positions,
         colors: _backWash,
-        indices: _indices,
+        indices: visibleIndices,
       );
       canvas.drawVertices(wash, BlendMode.srcOver, Paint());
       wash.dispose();
@@ -452,7 +505,7 @@ class _PageCurlPainter extends SnapshotPainter {
       ui.VertexMode.triangles,
       _positions,
       colors: _speculars,
-      indices: _indices,
+      indices: visibleIndices,
     );
     canvas.drawVertices(
       highlight,
