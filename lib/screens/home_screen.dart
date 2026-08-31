@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/album_library_query.dart';
 import '../models/album_models.dart';
 import '../services/album_storage.dart';
 import '../services/theme_controller.dart';
@@ -27,13 +28,38 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static const _libraryPageSize = 12;
+
   List<AlbumModel> _albums = [];
+  final TextEditingController _searchController = TextEditingController();
+  AlbumLibraryFilter _libraryFilter = AlbumLibraryFilter.all;
+  AlbumLibrarySort _librarySort = AlbumLibrarySort.updatedNewest;
+  int _visibleAlbumCount = _libraryPageSize;
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
     _reload();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _resetLibraryPage() {
+    _visibleAlbumCount = _libraryPageSize;
+  }
+
+  void _clearLibraryQuery() {
+    setState(() {
+      _searchController.clear();
+      _libraryFilter = AlbumLibraryFilter.all;
+      _librarySort = AlbumLibrarySort.updatedNewest;
+      _resetLibraryPage();
+    });
   }
 
   Future<void> _reload() async {
@@ -149,6 +175,16 @@ class _HomeScreenState extends State<HomeScreen> {
         : viewportWidth >= 700
         ? 3
         : 2;
+    final matchingAlbums = queryAlbumLibrary(
+      _albums,
+      searchQuery: _searchController.text,
+      filter: _libraryFilter,
+      sort: _librarySort,
+    );
+    final visibleAlbums = matchingAlbums
+        .take(_visibleAlbumCount)
+        .toList(growable: false);
+    final remainingAlbumCount = matchingAlbums.length - visibleAlbums.length;
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: CraftBackdrop(
@@ -171,64 +207,66 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: PaperPanel(
-                          rotationDegrees: -.7,
-                          borderRadius: BorderRadius.circular(6),
-                          padding: const EdgeInsets.fromLTRB(13, 11, 13, 10),
-                          tapePositions: const [CraftTapePosition.topLeft],
-                          tapeWidth: 43,
-                          tapeHeight: 15,
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFFF8EC),
-                                  border: Border.all(color: colors.border),
-                                  borderRadius: BorderRadius.circular(10),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Color(0x26000000),
-                                      blurRadius: 5,
-                                      offset: Offset(0, 2),
-                                    ),
-                                  ],
+                        child: Semantics(
+                          header: true,
+                          label:
+                              'Anılarına hoş geldin. Albüm ve kartlarını kaldığın yerden düzenle.',
+                          child: PaperPanel(
+                            rotationDegrees: -.18,
+                            borderRadius: BorderRadius.circular(14),
+                            textureIntensity: .12,
+                            padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
+                            child: Row(
+                              children: [
+                                SizedBox.square(
+                                  dimension: viewportWidth < 380 ? 48 : 56,
+                                  child: Image.asset(
+                                    'assets/branding/albumium_brand_mark.png',
+                                    fit: BoxFit.contain,
+                                    filterQuality: FilterQuality.high,
+                                    excludeFromSemantics: true,
+                                  ),
                                 ),
-                                clipBehavior: Clip.antiAlias,
-                                child: Image.asset(
-                                  'assets/branding/albumium_app_icon.png',
-                                  fit: BoxFit.cover,
-                                  filterQuality: FilterQuality.high,
-                                ),
-                              ),
-                              const SizedBox(width: 11),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'ALBUMIUM',
-                                      style: TextStyle(
-                                        color: colors.text,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: 1.8,
-                                      ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: ExcludeSemantics(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'Anılarına hoş geldin',
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleLarge
+                                              ?.copyWith(
+                                                color: colors.text,
+                                                fontSize: viewportWidth < 380
+                                                    ? 17
+                                                    : 20,
+                                                height: 1.05,
+                                              ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Albüm ve kartlarını kaldığın yerden düzenle.',
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: colors.mutedText,
+                                            fontSize: 10.5,
+                                            height: 1.25,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    Text(
-                                      'Anılarını elle tutulur hikâyelere dönüştür',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: colors.mutedText,
-                                        fontSize: 10.5,
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -264,7 +302,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         rotationDegrees: -.6,
                         padding: const EdgeInsets.fromLTRB(15, 7, 15, 8),
                         child: Text(
-                          'Tasarımların',
+                          'Koleksiyonum',
                           style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(color: colors.text, fontSize: 25),
                         ),
@@ -281,7 +319,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             borderRadius: BorderRadius.circular(99),
                           ),
                           child: Text(
-                            '${_albums.length}',
+                            matchingAlbums.length == _albums.length
+                                ? '${_albums.length}'
+                                : '${matchingAlbums.length} / ${_albums.length}',
                             style: TextStyle(
                               color: colors.primary,
                               fontSize: 11,
@@ -291,7 +331,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ],
                       const Spacer(),
-                      if (_albums.isNotEmpty)
+                      if (_albums.isNotEmpty && viewportWidth >= 410)
                         Text(
                           'Silmek için basılı tut',
                           style: TextStyle(
@@ -303,6 +343,43 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
+              if (!_loading && _albums.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalInset,
+                      14,
+                      horizontalInset,
+                      2,
+                    ),
+                    child: _LibraryToolbar(
+                      controller: _searchController,
+                      filter: _libraryFilter,
+                      sort: _librarySort,
+                      onSearchChanged: (_) {
+                        setState(_resetLibraryPage);
+                      },
+                      onClearSearch: () {
+                        setState(() {
+                          _searchController.clear();
+                          _resetLibraryPage();
+                        });
+                      },
+                      onFilterChanged: (filter) {
+                        setState(() {
+                          _libraryFilter = filter;
+                          _resetLibraryPage();
+                        });
+                      },
+                      onSortChanged: (sort) {
+                        setState(() {
+                          _librarySort = sort;
+                          _resetLibraryPage();
+                        });
+                      },
+                    ),
+                  ),
+                ),
               if (_loading)
                 const SliverFillRemaining(
                   child: Center(child: CircularProgressIndicator()),
@@ -312,13 +389,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   hasScrollBody: false,
                   child: _EmptyState(onCreate: _createProject),
                 )
+              else if (matchingAlbums.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: _NoLibraryResults(onClear: _clearLibraryQuery),
+                )
               else
                 SliverPadding(
                   padding: EdgeInsets.fromLTRB(
                     horizontalInset,
                     19,
                     horizontalInset,
-                    112,
+                    remainingAlbumCount > 0 ? 20 : 112,
                   ),
                   sliver: SliverGrid.builder(
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -327,16 +409,41 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisSpacing: 17,
                       mainAxisSpacing: 23,
                     ),
-                    itemCount: _albums.length,
+                    itemCount: visibleAlbums.length,
                     itemBuilder: (context, index) {
-                      final album = _albums[index];
+                      final album = visibleAlbums[index];
                       return _AlbumGridItem(
+                        key: ValueKey('library-item-${album.id}'),
                         album: album,
                         index: index,
                         onTap: () => _openAlbum(album),
                         onLongPress: () => _delete(album),
                       );
                     },
+                  ),
+                ),
+              if (!_loading && remainingAlbumCount > 0)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalInset,
+                      2,
+                      horizontalInset,
+                      112,
+                    ),
+                    child: Center(
+                      child: OutlinedButton.icon(
+                        key: const ValueKey('library-load-more'),
+                        onPressed: () {
+                          HapticFeedback.selectionClick();
+                          setState(() {
+                            _visibleAlbumCount += _libraryPageSize;
+                          });
+                        },
+                        icon: const Icon(Icons.expand_more_rounded),
+                        label: Text('Daha fazla göster ($remainingAlbumCount)'),
+                      ),
+                    ),
                   ),
                 ),
             ],
@@ -350,6 +457,249 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: const Icon(Icons.add_rounded),
               label: const Text('Yeni tasarım'),
             ),
+    );
+  }
+}
+
+class _LibraryToolbar extends StatelessWidget {
+  const _LibraryToolbar({
+    required this.controller,
+    required this.filter,
+    required this.sort,
+    required this.onSearchChanged,
+    required this.onClearSearch,
+    required this.onFilterChanged,
+    required this.onSortChanged,
+  });
+
+  final TextEditingController controller;
+  final AlbumLibraryFilter filter;
+  final AlbumLibrarySort sort;
+  final ValueChanged<String> onSearchChanged;
+  final VoidCallback onClearSearch;
+  final ValueChanged<AlbumLibraryFilter> onFilterChanged;
+  final ValueChanged<AlbumLibrarySort> onSortChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AlbumiumAppTheme.colorsOf(context);
+    return PaperPanel(
+      rotationDegrees: .12,
+      borderRadius: BorderRadius.circular(12),
+      padding: const EdgeInsets.all(12),
+      textureIntensity: .1,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            key: const ValueKey('library-search'),
+            controller: controller,
+            onChanged: onSearchChanged,
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              hintText: 'Albüm veya kart ara',
+              prefixIcon: const Icon(Icons.search_rounded),
+              suffixIcon: controller.text.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: 'Aramayı temizle',
+                      onPressed: onClearSearch,
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+              filled: true,
+              fillColor: colors.elevatedSurface.withValues(alpha: .64),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: colors.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: colors.border),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _LibraryFilterChip(
+                key: const ValueKey('library-filter-all'),
+                label: 'Tümü',
+                icon: Icons.grid_view_rounded,
+                selected: filter == AlbumLibraryFilter.all,
+                onSelected: () => onFilterChanged(AlbumLibraryFilter.all),
+              ),
+              _LibraryFilterChip(
+                key: const ValueKey('library-filter-albums'),
+                label: 'Albümler',
+                icon: Icons.auto_stories_outlined,
+                selected: filter == AlbumLibraryFilter.albums,
+                onSelected: () => onFilterChanged(AlbumLibraryFilter.albums),
+              ),
+              _LibraryFilterChip(
+                key: const ValueKey('library-filter-cards'),
+                label: 'Kartlar',
+                icon: Icons.mark_email_read_outlined,
+                selected: filter == AlbumLibraryFilter.cards,
+                onSelected: () => onFilterChanged(AlbumLibraryFilter.cards),
+              ),
+              PopupMenuButton<AlbumLibrarySort>(
+                key: const ValueKey('library-sort'),
+                initialValue: sort,
+                tooltip: 'Koleksiyonu sırala',
+                onSelected: onSortChanged,
+                itemBuilder: (context) => AlbumLibrarySort.values
+                    .map(
+                      (value) => PopupMenuItem(
+                        value: value,
+                        child: Row(
+                          children: [
+                            if (value == sort) ...[
+                              Icon(
+                                Icons.check_rounded,
+                                size: 18,
+                                color: colors.primary,
+                              ),
+                              const SizedBox(width: 8),
+                            ] else
+                              const SizedBox(width: 26),
+                            Text(_librarySortLabel(value)),
+                          ],
+                        ),
+                      ),
+                    )
+                    .toList(growable: false),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 11,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colors.elevatedSurface.withValues(alpha: .58),
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(color: colors.border),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.swap_vert_rounded,
+                        size: 17,
+                        color: colors.primary,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        _librarySortLabel(sort),
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: colors.text,
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      Icon(
+                        Icons.arrow_drop_down_rounded,
+                        size: 19,
+                        color: colors.mutedText,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LibraryFilterChip extends StatelessWidget {
+  const _LibraryFilterChip({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      label: Text(label),
+      avatar: Icon(icon, size: 16),
+      selected: selected,
+      onSelected: (_) => onSelected(),
+      showCheckmark: false,
+      visualDensity: VisualDensity.compact,
+    );
+  }
+}
+
+String _librarySortLabel(AlbumLibrarySort sort) => switch (sort) {
+  AlbumLibrarySort.updatedNewest => 'Son düzenlenen',
+  AlbumLibrarySort.createdNewest => 'En yeni',
+  AlbumLibrarySort.createdOldest => 'En eski',
+  AlbumLibrarySort.titleAz => 'Ada göre',
+};
+
+class _NoLibraryResults extends StatelessWidget {
+  const _NoLibraryResults({required this.onClear});
+
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AlbumiumAppTheme.colorsOf(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(28, 22, 28, 96),
+        child: PaperPanel(
+          borderRadius: BorderRadius.circular(12),
+          rotationDegrees: -.25,
+          textureIntensity: .12,
+          padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.search_off_rounded, color: colors.primary, size: 34),
+              const SizedBox(height: 10),
+              Text(
+                'Bu seçimde bir tasarım bulamadık',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: colors.text,
+                  fontSize: 20,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                'Arama sözcüğünü ya da filtreleri değiştirebilirsin.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.mutedText, height: 1.35),
+              ),
+              const SizedBox(height: 10),
+              TextButton.icon(
+                key: const ValueKey('library-clear-query'),
+                onPressed: onClear,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Tümünü göster'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -555,6 +905,7 @@ class _PaletteButton extends StatelessWidget {
 
 class _AlbumGridItem extends StatelessWidget {
   const _AlbumGridItem({
+    super.key,
     required this.album,
     required this.index,
     required this.onTap,

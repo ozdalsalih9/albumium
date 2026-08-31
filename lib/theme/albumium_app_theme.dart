@@ -207,7 +207,7 @@ abstract final class AlbumiumAppTheme {
       colorScheme: colorScheme,
       scaffoldBackgroundColor: colors.background,
       canvasColor: colors.surface,
-      fontFamily: 'CraftQuicksand',
+      fontFamily: 'AlbumiumSans',
       visualDensity: VisualDensity.standard,
     );
 
@@ -219,7 +219,7 @@ abstract final class AlbumiumAppTheme {
     final functionalTextTheme = base.textTheme.apply(
       bodyColor: colors.text,
       displayColor: colors.text,
-      fontFamily: 'CraftQuicksand',
+      fontFamily: 'AlbumiumSans',
     );
 
     return base.copyWith(
@@ -227,28 +227,30 @@ abstract final class AlbumiumAppTheme {
       textTheme: functionalTextTheme.copyWith(
         displaySmall: TextStyle(
           color: colors.text,
-          fontFamily: 'CraftCaveat',
-          fontSize: 42,
-          height: .96,
-          fontWeight: FontWeight.w700,
+          fontFamily: 'AlbumiumDisplay',
+          fontSize: 38,
+          height: 1.04,
+          fontWeight: FontWeight.w400,
+          letterSpacing: -.4,
         ),
         headlineSmall: TextStyle(
           color: colors.text,
-          fontFamily: 'CraftCaveat',
-          fontSize: 31,
-          height: 1.02,
-          fontWeight: FontWeight.w700,
+          fontFamily: 'AlbumiumDisplay',
+          fontSize: 30,
+          height: 1.08,
+          fontWeight: FontWeight.w400,
+          letterSpacing: -.25,
         ),
         titleLarge: TextStyle(
           color: colors.text,
-          fontFamily: 'CraftCaveat',
-          fontSize: 27,
-          height: 1,
-          fontWeight: FontWeight.w700,
+          fontFamily: 'AlbumiumDisplay',
+          fontSize: 24,
+          height: 1.08,
+          fontWeight: FontWeight.w400,
         ),
         titleMedium: functionalTextTheme.titleMedium?.copyWith(
           color: colors.text,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w800,
         ),
         bodyMedium: functionalTextTheme.bodyMedium?.copyWith(
           color: colors.mutedText,
@@ -264,9 +266,10 @@ abstract final class AlbumiumAppTheme {
         centerTitle: false,
         titleTextStyle: TextStyle(
           color: colors.text,
-          fontFamily: 'CraftCaveat',
-          fontSize: 25,
-          fontWeight: FontWeight.w700,
+          fontFamily: 'AlbumiumDisplay',
+          fontSize: 24,
+          fontWeight: FontWeight.w400,
+          letterSpacing: -.2,
         ),
       ),
       cardTheme: CardThemeData(
@@ -321,7 +324,7 @@ abstract final class AlbumiumAppTheme {
           minimumSize: const Size(48, 48),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
           textStyle: const TextStyle(
-            fontFamily: 'CraftQuicksand',
+            fontFamily: 'AlbumiumSans',
             fontWeight: FontWeight.w800,
           ),
           elevation: 2,
@@ -339,8 +342,8 @@ abstract final class AlbumiumAppTheme {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
           side: BorderSide(color: colors.border),
           textStyle: const TextStyle(
-            fontFamily: 'CraftQuicksand',
-            fontWeight: FontWeight.w700,
+            fontFamily: 'AlbumiumSans',
+            fontWeight: FontWeight.w500,
           ),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
         ),
@@ -349,8 +352,8 @@ abstract final class AlbumiumAppTheme {
         style: TextButton.styleFrom(
           foregroundColor: colors.primary,
           textStyle: const TextStyle(
-            fontFamily: 'CraftQuicksand',
-            fontWeight: FontWeight.w700,
+            fontFamily: 'AlbumiumSans',
+            fontWeight: FontWeight.w500,
           ),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
@@ -386,7 +389,7 @@ abstract final class AlbumiumAppTheme {
         selectedColor: colors.glow,
         disabledColor: colors.surface,
         side: BorderSide(color: colors.border),
-        labelStyle: TextStyle(color: colors.text, fontWeight: FontWeight.w600),
+        labelStyle: TextStyle(color: colors.text, fontWeight: FontWeight.w500),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       switchTheme: SwitchThemeData(

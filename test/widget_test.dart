@@ -7,16 +7,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   testWidgets('empty library opens the album creation flow', (tester) async {
     SharedPreferences.setMockInitialValues({});
-    await tester.pumpWidget(const AlbumiumApp());
+    await tester.pumpWidget(const AlbumiumApp(showLaunchAnimation: false));
     await tester.pumpAndSettle();
 
-    expect(find.text('ALBUMIUM'), findsOneWidget);
+    expect(find.text('Anılarına hoş geldin'), findsOneWidget);
+    expect(find.text('ALBUMIUM'), findsNothing);
     expect(find.text('Tasarım oluştur'), findsOneWidget);
     expect(
-      find.image(const AssetImage('assets/branding/albumium_app_icon.png')),
+      find.image(const AssetImage('assets/branding/albumium_brand_mark.png')),
       findsOneWidget,
     );
 
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -180));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Tasarım oluştur'));
     await tester.pumpAndSettle();
 
@@ -31,7 +34,7 @@ void main() {
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
-    await tester.pumpWidget(const AlbumiumApp());
+    await tester.pumpWidget(const AlbumiumApp(showLaunchAnimation: false));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Uygulama temasını değiştir'));
@@ -43,7 +46,8 @@ void main() {
 
     expect(find.text('Uygulama görünümü'), findsOneWidget);
     expect(find.text('Gül Pembesi temasını kullan'), findsOneWidget);
-    expect(find.text('ALBUMIUM'), findsOneWidget);
+    expect(find.text('Anılarına hoş geldin'), findsOneWidget);
+    expect(find.text('ALBUMIUM'), findsNothing);
   });
 
   testWidgets('special day card opens in its dedicated studio', (tester) async {

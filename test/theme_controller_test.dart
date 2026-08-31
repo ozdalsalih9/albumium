@@ -24,6 +24,10 @@ void main() {
       expect(dark.brightness, Brightness.dark);
       expect(light.extension<AlbumiumThemeColors>(), isNotNull);
       expect(dark.extension<AlbumiumThemeColors>(), isNotNull);
+      expect(light.textTheme.bodyMedium?.fontFamily, 'AlbumiumSans');
+      expect(light.textTheme.headlineSmall?.fontFamily, 'AlbumiumDisplay');
+      expect(dark.textTheme.bodyMedium?.fontFamily, 'AlbumiumSans');
+      expect(dark.textTheme.headlineSmall?.fontFamily, 'AlbumiumDisplay');
     }
   });
 
