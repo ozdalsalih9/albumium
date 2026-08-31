@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/theme_controller.dart';
 import '../theme/albumium_app_theme.dart';
+import 'handmade_craft.dart';
 
 Future<void> showAlbumiumThemePicker(
   BuildContext context,
@@ -54,23 +55,26 @@ class _AppThemePicker extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Uygulama görünümü',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
+                      Expanded(
+                        child: TornPaperLabel(
+                          rotationDegrees: -.35,
+                          padding: const EdgeInsets.fromLTRB(12, 6, 12, 7),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Uygulama görünümü',
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.titleLarge?.copyWith(fontSize: 23),
                               ),
-                            ),
-                            SizedBox(height: 2),
-                            Text(
-                              'Albüm tasarımlarından bağımsızdır.',
-                              style: TextStyle(fontSize: 12),
-                            ),
-                          ],
+                              const SizedBox(height: 2),
+                              const Text(
+                                'Albüm tasarımlarından bağımsızdır.',
+                                style: TextStyle(fontSize: 11),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       IconButton(
@@ -170,79 +174,70 @@ class _ThemeChoice extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(19),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 260),
-          curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.all(13),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [colors[1], colors[2]],
-            ),
-            borderRadius: BorderRadius.circular(19),
-            border: Border.all(
-              color: selected ? colors.first : Colors.white24,
-              width: selected ? 2.2 : 1,
-            ),
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: colors.first.withValues(alpha: 0.34),
-                      blurRadius: 18,
-                      offset: const Offset(0, 7),
+        borderRadius: BorderRadius.circular(7),
+        child: PaperPanel(
+          color: colors[1],
+          rotationDegrees: option.id.index.isEven ? -.35 : .35,
+          borderRadius: BorderRadius.circular(7),
+          padding: const EdgeInsets.all(9),
+          tapePositions: selected
+              ? const [CraftTapePosition.topRight]
+              : const [],
+          tapeColor: Color.lerp(colors.first, Colors.white, .52),
+          tapeWidth: 38,
+          tapeHeight: 12,
+          child: StitchedBorder(
+            color: selected ? colors.first : colors[2].withValues(alpha: .28),
+            inset: 2,
+            borderRadius: BorderRadius.circular(6),
+            padding: const EdgeInsets.all(7),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(option.icon, color: colors.first, size: 24),
+                    const Spacer(),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 180),
+                      child: selected
+                          ? Icon(
+                              Icons.check_circle_rounded,
+                              key: const ValueKey('selected'),
+                              color: colors.first,
+                              size: 22,
+                            )
+                          : const SizedBox(
+                              key: ValueKey('unselected'),
+                              width: 22,
+                              height: 22,
+                            ),
                     ),
-                  ]
-                : null,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(option.icon, color: colors.first, size: 24),
-                  const Spacer(),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    child: selected
-                        ? Icon(
-                            Icons.check_circle_rounded,
-                            key: const ValueKey('selected'),
-                            color: colors.first,
-                            size: 22,
-                          )
-                        : const SizedBox(
-                            key: ValueKey('unselected'),
-                            width: 22,
-                            height: 22,
-                          ),
+                  ],
+                ),
+                const Spacer(),
+                Text(
+                  option.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: colors[2],
+                    fontSize: 20,
                   ),
-                ],
-              ),
-              const Spacer(),
-              Text(
-                option.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
                 ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                option.description,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.68),
-                  height: 1.15,
-                  fontSize: 10.5,
+                const SizedBox(height: 3),
+                Text(
+                  option.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: colors[2].withValues(alpha: 0.72),
+                    height: 1.15,
+                    fontSize: 9.5,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

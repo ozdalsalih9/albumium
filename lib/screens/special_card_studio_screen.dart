@@ -11,8 +11,10 @@ import 'package:share_plus/share_plus.dart';
 
 import '../models/album_models.dart';
 import '../services/album_storage.dart';
+import '../theme/albumium_app_theme.dart';
 import '../widgets/album_page_canvas.dart';
 import '../widgets/font_selector_dialog.dart';
+import '../widgets/handmade_craft.dart';
 import '../widgets/occasion_cards.dart';
 import '../widgets/sticker_packs.dart';
 
@@ -407,6 +409,7 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AlbumiumAppTheme.colorsOf(context);
     final size = MediaQuery.sizeOf(context);
     final tablet = size.shortestSide >= 600;
     final controls = _CardControls(
@@ -424,7 +427,9 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
       onPopInvokedWithResult: (_, _) =>
           unawaited(AlbumStorage.instance.saveAlbum(project)),
       child: Scaffold(
+        backgroundColor: Colors.transparent,
         appBar: AppBar(
+          backgroundColor: colors.background,
           titleSpacing: 4,
           title: InkWell(
             onTap: _renameProject,
@@ -457,24 +462,29 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
             const SizedBox(width: 6),
           ],
         ),
-        body: SafeArea(
-          child: tablet
-              ? Row(
-                  children: [
-                    Expanded(flex: 6, child: canvas),
-                    VerticalDivider(
-                      width: 1,
-                      color: Theme.of(context).dividerColor,
-                    ),
-                    SizedBox(width: 360, child: controls),
-                  ],
-                )
-              : Column(
-                  children: [
-                    Expanded(child: canvas),
-                    controls,
-                  ],
-                ),
+        body: CraftBackdrop(
+          variant: CraftBackdropVariant.paper,
+          baseColor: colors.background,
+          textureIntensity: .58,
+          child: SafeArea(
+            child: tablet
+                ? Row(
+                    children: [
+                      Expanded(flex: 6, child: canvas),
+                      VerticalDivider(
+                        width: 1,
+                        color: Theme.of(context).dividerColor,
+                      ),
+                      SizedBox(width: 360, child: controls),
+                    ],
+                  )
+                : Column(
+                    children: [
+                      Expanded(child: canvas),
+                      controls,
+                    ],
+                  ),
+          ),
         ),
       ),
     );
@@ -594,115 +604,122 @@ class _CardControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tablet = MediaQuery.sizeOf(context).shortestSide >= 600;
-    return Material(
-      color: Theme.of(context).colorScheme.surfaceContainerLow,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(14, tablet ? 24 : 11, 14, 13),
-        child: Column(
-          mainAxisSize: tablet ? MainAxisSize.max : MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
+    final colors = AlbumiumAppTheme.colorsOf(context);
+    return PaperPanel(
+      color: colors.surface,
+      borderRadius: tablet
+          ? const BorderRadius.horizontal(left: Radius.circular(10))
+          : const BorderRadius.vertical(top: Radius.circular(10)),
+      padding: EdgeInsets.fromLTRB(14, tablet ? 24 : 11, 14, 13),
+      textureIntensity: .22,
+      child: Column(
+        mainAxisSize: tablet ? MainAxisSize.max : MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TornPaperLabel(
+            rotationDegrees: -.3,
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+            child: Text(
               'Kart Teması',
               style: Theme.of(
                 context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+              ).textTheme.titleLarge?.copyWith(fontSize: 20),
             ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: tablet ? 232 : 78,
-              child: ListView.separated(
-                scrollDirection: tablet ? Axis.vertical : Axis.horizontal,
-                itemCount: occasionCardTemplates.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 8, height: 8),
-                itemBuilder: (context, index) {
-                  final card = occasionCardTemplates[index];
-                  final selected = selectedTemplate.id == card.id;
-                  return InkWell(
-                    onTap: () => onTemplateSelected(card),
-                    borderRadius: BorderRadius.circular(15),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      width: tablet ? double.infinity : 146,
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: card.primaryColor,
-                        borderRadius: BorderRadius.circular(15),
-                        border: Border.all(
-                          color: selected
-                              ? card.accentColor
-                              : card.secondaryColor,
-                          width: selected ? 2.2 : 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 17,
-                            backgroundColor: card.secondaryColor,
-                            child: Icon(
-                              card.icon,
-                              size: 18,
-                              color: card.accentColor,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              card.badge,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: card.accentColor,
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                        ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: tablet ? 232 : 78,
+            child: ListView.separated(
+              scrollDirection: tablet ? Axis.vertical : Axis.horizontal,
+              itemCount: occasionCardTemplates.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 8, height: 8),
+              itemBuilder: (context, index) {
+                final card = occasionCardTemplates[index];
+                final selected = selectedTemplate.id == card.id;
+                return InkWell(
+                  onTap: () => onTemplateSelected(card),
+                  borderRadius: BorderRadius.circular(15),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: tablet ? double.infinity : 146,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: card.primaryColor,
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(
+                        color: selected
+                            ? card.accentColor
+                            : card.secondaryColor,
+                        width: selected ? 2.2 : 1,
                       ),
                     ),
-                  );
-                },
-              ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 17,
+                          backgroundColor: card.secondaryColor,
+                          child: Icon(
+                            card.icon,
+                            size: 18,
+                            color: card.accentColor,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            card.badge,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: card.accentColor,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
-            const SizedBox(height: 10),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _CardTool(
-                    icon: Icons.add_photo_alternate_outlined,
-                    label: 'Fotoğraf',
-                    onTap: onPhoto,
-                  ),
-                  _CardTool(
-                    icon: Icons.text_fields_rounded,
-                    label: 'Yazı',
-                    onTap: onText,
-                  ),
-                  _CardTool(
-                    icon: Icons.auto_awesome_outlined,
-                    label: 'Süsler',
-                    onTap: onSticker,
-                  ),
-                  _CardTool(
-                    icon: Icons.interests_outlined,
-                    label: 'Şekiller',
-                    onTap: onShape,
-                  ),
-                ],
-              ),
+          ),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _CardTool(
+                  icon: Icons.add_photo_alternate_outlined,
+                  label: 'Fotoğraf',
+                  onTap: onPhoto,
+                ),
+                _CardTool(
+                  icon: Icons.text_fields_rounded,
+                  label: 'Yazı',
+                  onTap: onText,
+                ),
+                _CardTool(
+                  icon: Icons.auto_awesome_outlined,
+                  label: 'Süsler',
+                  onTap: onSticker,
+                ),
+                _CardTool(
+                  icon: Icons.interests_outlined,
+                  label: 'Şekiller',
+                  onTap: onShape,
+                ),
+              ],
             ),
-            if (tablet) ...[
-              const SizedBox(height: 18),
-              Text(
-                'Nesneleri parmağınla taşı; iki parmakla büyüt, küçült ve döndür. Kart PNG olarak paylaşılabilir.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
+          ),
+          if (tablet) ...[
+            const SizedBox(height: 18),
+            Text(
+              'Nesneleri parmağınla taşı; iki parmakla büyüt, küçült ve döndür. Kart PNG olarak paylaşılabilir.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           ],
-        ),
+        ],
       ),
     );
   }

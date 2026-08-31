@@ -11,7 +11,7 @@ import '../theme/albumium_app_theme.dart';
 class ThemeController extends ChangeNotifier {
   ThemeController({
     AlbumiumThemeId initialThemeId = AlbumiumAppTheme.defaultThemeId,
-    ThemeMode initialThemeMode = ThemeMode.dark,
+    ThemeMode initialThemeMode = ThemeMode.light,
     SharedPreferences? preferences,
   }) : _themeId = initialThemeId,
        _themeMode = initialThemeMode,
@@ -74,9 +74,9 @@ class ThemeController extends ChangeNotifier {
     final preferences = await _getPreferences();
     final changed =
         _themeId != AlbumiumAppTheme.defaultThemeId ||
-        _themeMode != ThemeMode.dark;
+        _themeMode != ThemeMode.light;
     _themeId = AlbumiumAppTheme.defaultThemeId;
-    _themeMode = ThemeMode.dark;
+    _themeMode = ThemeMode.light;
     if (changed) notifyListeners();
 
     await Future.wait([

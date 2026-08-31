@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../models/album_models.dart';
 import '../services/album_storage.dart';
+import '../theme/albumium_app_theme.dart';
 import '../widgets/album_cover_3d.dart';
+import '../widgets/handmade_craft.dart';
 
 class ThemeScreen extends StatefulWidget {
   const ThemeScreen({super.key});
@@ -83,6 +85,7 @@ class _ThemeScreenState extends State<ThemeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AlbumiumAppTheme.colorsOf(context);
     final mediaSize = MediaQuery.sizeOf(context);
     final tablet = mediaSize.shortestSide >= 600;
     final compact = mediaSize.height < 740 && !tablet;
@@ -95,172 +98,214 @@ class _ThemeScreenState extends State<ThemeScreen> {
     final selectedTheme = albumThemes[_selected];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Albümünü Hazırla')),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: tablet ? 920 : double.infinity,
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(22, 6, 22, 2),
-                    child: Text(
-                      'Hangi hikâyeyi anlatıyoruz?',
-                      style: TextStyle(
-                        fontSize: 23,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        title: const Text('Albümünü Hazırla'),
+        backgroundColor: colors.background,
+      ),
+      body: CraftBackdrop(
+        variant: CraftBackdropVariant.paper,
+        baseColor: colors.background,
+        textureIntensity: .62,
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: tablet ? 920 : double.infinity,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(22, 6, 22, 2),
+                      child: TornPaperLabel(
+                        rotationDegrees: -.45,
+                        color: colors.elevatedSurface,
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 9),
+                        child: Text(
+                          'Hangi hikâyeyi anlatıyoruz?',
+                          style: Theme.of(
+                            context,
+                          ).textTheme.headlineSmall?.copyWith(fontSize: 30),
+                        ),
                       ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 22),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 22),
                     child: Text(
                       '${selectedTheme.name} · ${selectedTheme.subtitle}',
                       style: TextStyle(
-                        color: selectedTheme.accent,
+                        color: colors.text.withValues(alpha: .82),
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: coverHeight,
-                    child: PageView.builder(
-                      controller: PageController(
-                        viewportFraction: tablet ? 0.42 : 0.70,
-                      ),
-                      itemCount: albumThemes.length,
-                      onPageChanged: (index) =>
-                          setState(() => _selected = index),
-                      itemBuilder: (context, index) {
-                        final theme = albumThemes[index];
-                        final selected = index == _selected;
-                        return AnimatedPadding(
-                          duration: const Duration(milliseconds: 220),
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: selected ? 0 : 14,
-                          ),
-                          child: AnimatedScale(
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: coverHeight,
+                      child: PageView.builder(
+                        controller: PageController(
+                          viewportFraction: tablet ? 0.42 : 0.70,
+                        ),
+                        itemCount: albumThemes.length,
+                        onPageChanged: (index) =>
+                            setState(() => _selected = index),
+                        itemBuilder: (context, index) {
+                          final theme = albumThemes[index];
+                          final selected = index == _selected;
+                          return AnimatedPadding(
                             duration: const Duration(milliseconds: 220),
-                            scale: selected ? 1 : 0.94,
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(20),
-                              child: _buildThemedCover(theme, currentTitle),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: selected ? 0 : 14,
                             ),
-                          ),
-                        );
-                      },
+                            child: AnimatedScale(
+                              duration: const Duration(milliseconds: 220),
+                              scale: selected ? 1 : 0.94,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(20),
+                                child: _buildThemedCover(theme, currentTitle),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Center(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (var i = 0; i < albumThemes.length; i++)
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            margin: const EdgeInsets.symmetric(horizontal: 3),
-                            width: i == _selected ? 18 : 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: i == _selected
-                                  ? selectedTheme.accent
+                    const SizedBox(height: 10),
+                    Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (var i = 0; i < albumThemes.length; i++)
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                              width: i == _selected ? 18 : 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: i == _selected
+                                    ? selectedTheme.accent
+                                    : Theme.of(
+                                        context,
+                                      ).colorScheme.outlineVariant,
+                                borderRadius: BorderRadius.circular(99),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const StitchedDivider(
+                      height: 20,
+                      indent: 22,
+                      endIndent: 22,
+                    ),
+                    // Ciltleme Seçenekleri (Binding Styles)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 22),
+                      child: TornPaperLabel(
+                        rotationDegrees: .35,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        child: Text(
+                          'Ciltleme Türü',
+                          style: Theme.of(
+                            context,
+                          ).textTheme.titleLarge?.copyWith(fontSize: 20),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 40,
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 22),
+                        scrollDirection: Axis.horizontal,
+                        itemCount: AlbumBindingType.values.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(width: 8),
+                        itemBuilder: (context, index) {
+                          final binding = AlbumBindingType.values[index];
+                          final isSelected = _selectedBinding == binding;
+                          return ChoiceChip(
+                            selected: isSelected,
+                            onSelected: (_) =>
+                                setState(() => _selectedBinding = binding),
+                            avatar: Icon(
+                              binding.icon,
+                              size: 16,
+                              color: isSelected
+                                  ? Theme.of(context).colorScheme.onPrimary
                                   : Theme.of(
                                       context,
-                                    ).colorScheme.outlineVariant,
-                              borderRadius: BorderRadius.circular(99),
+                                    ).colorScheme.onSurfaceVariant,
                             ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  // Ciltleme Seçenekleri (Binding Styles)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 22),
-                    child: Text(
-                      'Ciltleme Türü',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
+                            label: Text(binding.title),
+                            labelStyle: TextStyle(
+                              fontSize: 12,
+                              fontWeight: isSelected
+                                  ? FontWeight.w800
+                                  : FontWeight.w500,
+                              color: isSelected
+                                  ? Theme.of(context).colorScheme.onPrimary
+                                  : Theme.of(context).colorScheme.onSurface,
+                            ),
+                            selectedColor: Theme.of(
+                              context,
+                            ).colorScheme.primary,
+                          );
+                        },
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 40,
-                    child: ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 22),
-                      scrollDirection: Axis.horizontal,
-                      itemCount: AlbumBindingType.values.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(width: 8),
-                      itemBuilder: (context, index) {
-                        final binding = AlbumBindingType.values[index];
-                        final isSelected = _selectedBinding == binding;
-                        return ChoiceChip(
-                          selected: isSelected,
-                          onSelected: (_) =>
-                              setState(() => _selectedBinding = binding),
-                          avatar: Icon(
-                            binding.icon,
-                            size: 16,
-                            color: isSelected
-                                ? Theme.of(context).colorScheme.onPrimary
-                                : Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(22, 15, 22, 8),
+                      child: PaperPanel(
+                        borderRadius: BorderRadius.circular(7),
+                        padding: const EdgeInsets.all(5),
+                        rotationDegrees: -.2,
+                        tapePositions: const [CraftTapePosition.topRight],
+                        tapeWidth: 42,
+                        tapeHeight: 13,
+                        child: TextField(
+                          controller: _titleController,
+                          textCapitalization: TextCapitalization.sentences,
+                          decoration: InputDecoration(
+                            labelText: 'Albüm adı (isteğe bağlı)',
+                            hintText: 'Örn. Bizim Yazımız',
+                            prefixIcon: const Icon(Icons.edit_outlined),
+                            suffixText: selectedTheme.emoji,
+                            suffixStyle: const TextStyle(fontSize: 18),
+                            filled: false,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
                           ),
-                          label: Text(binding.title),
-                          labelStyle: TextStyle(
-                            fontSize: 12,
-                            fontWeight: isSelected
-                                ? FontWeight.w800
-                                : FontWeight.w500,
-                            color: isSelected
-                                ? Theme.of(context).colorScheme.onPrimary
-                                : Theme.of(context).colorScheme.onSurface,
-                          ),
-                          selectedColor: Theme.of(context).colorScheme.primary,
-                        );
-                      },
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(22, 14, 22, 8),
-                    child: TextField(
-                      controller: _titleController,
-                      textCapitalization: TextCapitalization.sentences,
-                      decoration: InputDecoration(
-                        labelText: 'Albüm adı (isteğe bağlı)',
-                        hintText: 'Örn. Bizim Yazımız',
-                        prefixIcon: const Icon(Icons.edit_outlined),
-                        suffixText: selectedTheme.emoji,
-                        suffixStyle: const TextStyle(fontSize: 18),
+                        ),
                       ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(22, 8, 22, 18),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: FilledButton.icon(
-                        onPressed: _continue,
-                        icon: const Icon(Icons.auto_stories_rounded),
-                        label: Text('${selectedTheme.name} ile Başla'),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(22, 8, 22, 18),
+                      child: StitchedBorder(
+                        color: colors.onPrimary.withValues(alpha: .78),
+                        inset: 3,
+                        padding: EdgeInsets.zero,
+                        borderRadius: BorderRadius.circular(9),
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: FilledButton.icon(
+                            onPressed: _continue,
+                            icon: const Icon(Icons.auto_stories_rounded),
+                            label: Text('${selectedTheme.name} ile Başla'),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

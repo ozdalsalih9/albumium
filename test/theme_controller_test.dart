@@ -52,6 +52,6 @@ void main() {
     await controller.initialize();
 
     expect(controller.themeId, AlbumiumAppTheme.defaultThemeId);
-    expect(controller.themeMode, ThemeMode.dark);
+    expect(controller.themeMode, ThemeMode.light);
   });
 }

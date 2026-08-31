@@ -25,6 +25,7 @@ class PhysicalBookSpread extends StatelessWidget {
     this.nextClosed = false,
     this.turnProgress = 0,
     this.turningForward = true,
+    this.turnGrabY = 0.64,
     this.interactive = false,
     this.focusedPageIndex,
     this.companionPageFraction = 0.11,
@@ -47,6 +48,7 @@ class PhysicalBookSpread extends StatelessWidget {
   final bool nextClosed;
   final double turnProgress;
   final bool turningForward;
+  final double turnGrabY;
   final bool interactive;
 
   /// When set, keeps this page at its natural portrait ratio and reveals only
@@ -107,7 +109,14 @@ class PhysicalBookSpread extends StatelessWidget {
     required AlbumThemePreset theme,
   }) {
     const pageAspectRatio = 9 / 14;
-    final companion = companionPageFraction.clamp(0.08, 0.18);
+    final focusedLeft =
+        focusedPageIndex == leftPageIndex || rightPageIndex == blankPageIndex;
+    final companionIndex = focusedLeft ? rightPageIndex : leftPageIndex;
+    // Tek/son sayfada karşı yaprak yoksa cildin ötesinde boş bir kâğıt şeridi
+    // göstermeyiz. Gerçek bir karşı sayfa varken dar önizleme korunur.
+    final companion = companionIndex == blankPageIndex
+        ? 0.0
+        : companionPageFraction.clamp(0.08, 0.18);
     final pageWidthFromViewport = math.max(
       1.0,
       (constraints.maxWidth - 32) / (1 + companion),
@@ -123,19 +132,19 @@ class PhysicalBookSpread extends StatelessWidget {
       constraints.maxWidth,
       pageWidth * (1 + companion) + 32,
     );
-    final focusedLeft =
-        focusedPageIndex == leftPageIndex || rightPageIndex == blankPageIndex;
-    final left = focusedLeft ? 0.0 : viewportWidth - virtualWidth;
-    final book = _hasTransition
-        ? _buildFocusedTransitionBook(
-            theme: theme,
-            progress: turnProgress.clamp(0.0, 1.0),
-          )
-        : _buildOpenBook(
-            theme: theme,
-            leftIndex: leftPageIndex,
-            rightIndex: rightPageIndex,
-          );
+    final startLeft = focusedLeft ? 0.0 : viewportWidth - virtualWidth;
+    final targetFocusesLeft = turningForward;
+    final endLeft = targetFocusesLeft ? 0.0 : viewportWidth - virtualWidth;
+    final cameraProgress = _hasTransition
+        ? Curves.easeInOutCubic.transform(turnProgress.clamp(0.0, 1.0))
+        : 0.0;
+    final left = _lerp(startLeft, endLeft, cameraProgress);
+    final book = _buildBook(
+      width: virtualWidth,
+      height: virtualHeight,
+      theme: theme,
+      progress: turnProgress.clamp(0.0, 1.0),
+    );
 
     return Center(
       child: Semantics(
@@ -151,9 +160,7 @@ class PhysicalBookSpread extends StatelessWidget {
             child: Stack(
               clipBehavior: Clip.hardEdge,
               children: [
-                AnimatedPositioned(
-                  duration: const Duration(milliseconds: 320),
-                  curve: Curves.easeOutCubic,
+                Positioned(
                   left: left,
                   top: 0,
                   width: virtualWidth,
@@ -184,54 +191,6 @@ class PhysicalBookSpread extends StatelessWidget {
         ..rotateZ((turningForward ? -1 : 1) * lift * 0.004),
       filterQuality: FilterQuality.high,
       child: child,
-    );
-  }
-
-  /// Telefon düzenleyicisinde bir seferde tek sayfa okunur. Bu yüzden çevrilen
-  /// yaprak, sıradaki gerçek sayfayı aynı odak alanında açığa çıkarır; hareket
-  /// tamamlanınca kitap yeni yaprağın ciltteki tarafına yumuşakça kayar.
-  Widget _buildFocusedTransitionBook({
-    required AlbumThemePreset theme,
-    required double progress,
-  }) {
-    if (turningForward) {
-      return _buildOpenBook(
-        theme: theme,
-        leftIndex: leftPageIndex,
-        rightIndex: nextLeftPageIndex!,
-        turningLeaf: _CurlingLeaf(
-          progress: progress,
-          forward: true,
-          paperColor: theme.pageColor,
-          front: _buildPageSide(
-            index: rightPageIndex,
-            isLeft: false,
-            theme: theme,
-          ),
-          back: _buildPageSide(
-            index: nextLeftPageIndex!,
-            isLeft: true,
-            theme: theme,
-          ),
-        ),
-      );
-    }
-
-    return _buildOpenBook(
-      theme: theme,
-      leftIndex: nextRightPageIndex!,
-      rightIndex: rightPageIndex,
-      turningLeaf: _CurlingLeaf(
-        progress: progress,
-        forward: false,
-        paperColor: theme.pageColor,
-        front: _buildPageSide(index: leftPageIndex, isLeft: true, theme: theme),
-        back: _buildPageSide(
-          index: nextRightPageIndex!,
-          isLeft: false,
-          theme: theme,
-        ),
-      ),
     );
   }
 
@@ -277,6 +236,7 @@ class PhysicalBookSpread extends StatelessWidget {
       turningLeaf: _CurlingLeaf(
         progress: progress,
         forward: turningForward,
+        grabY: turnGrabY,
         paperColor: theme.pageColor,
         front: _buildPageSide(
           index: turningForward ? rightPageIndex : leftPageIndex,
@@ -490,28 +450,20 @@ class PhysicalBookSpread extends StatelessWidget {
                 theme: theme,
               ),
             ),
-            if (turningLeaf != null)
-              Positioned(
-                left: 14,
-                right: 14,
-                top: 12,
-                bottom: 12,
-                child: turningLeaf,
-              ),
             Positioned(
               top: 12,
               bottom: 12,
-              left: width / 2 - 31,
-              width: 62,
+              left: width / 2 - 23,
+              width: 46,
               child: const IgnorePointer(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
                         Colors.transparent,
-                        Color(0x25000000),
-                        Color(0x81000000),
-                        Color(0x2C000000),
+                        Color(0x1C000000),
+                        Color(0x5E000000),
+                        Color(0x24000000),
                         Colors.transparent,
                       ],
                       stops: [0, 0.34, 0.5, 0.66, 1],
@@ -529,6 +481,14 @@ class PhysicalBookSpread extends StatelessWidget {
                 child: _buildBindingOverlay(album.bindingType),
               ),
             ),
+            if (turningLeaf != null)
+              Positioned(
+                left: 14,
+                right: 14,
+                top: 12,
+                bottom: 12,
+                child: turningLeaf,
+              ),
           ],
         );
       },
@@ -643,6 +603,7 @@ class _CurlingLeaf extends StatelessWidget {
   const _CurlingLeaf({
     required this.progress,
     required this.forward,
+    required this.grabY,
     required this.front,
     required this.back,
     required this.paperColor,
@@ -650,13 +611,14 @@ class _CurlingLeaf extends StatelessWidget {
 
   final double progress;
   final bool forward;
+  final double grabY;
   final Widget front;
   final Widget back;
   final Color paperColor;
 
   @override
   Widget build(BuildContext context) {
-    final eased = Curves.easeInOutCubic.transform(progress);
+    final turn = progress.clamp(0.0, 1.0);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -664,22 +626,43 @@ class _CurlingLeaf extends StatelessWidget {
         Widget orientForEngine(Widget page) =>
             forward ? page : Transform.flip(flipX: true, child: page);
 
-        // Tek bir GPU yaprağı çizilir. Önceki uygulama ön ve arka yüzü iki
-        // ayrı PageCurl ağı olarak üst üste bindiriyordu; bazı Android GPU'ları
-        // vertex alfa maskesini farklı yuvarladığı için ikinci ağ önde kalan
-        // hayalet bir sayfa gibi görünüyordu. Arka yüz, alttaki gerçek hedef
-        // sayfanın kademeli açığa çıkmasıyla temsil edilir. Böylece hem içerik
-        // animasyon bitmeden günceldir hem de ek bir yaprak oluşmaz.
-        Widget curl = PageCurl(
-          key: const ValueKey('book-page-curl'),
-          progress: eased,
-          grabY: 0.64,
+        Widget curlSurface({
+          required Key key,
+          required Widget page,
+          required PageCurlSurface surface,
+        }) => PageCurl(
+          key: key,
+          progress: turn,
+          grabY: grabY.clamp(0.08, 0.92),
           paperColor: paperColor,
           borderRadius: 7,
-          shadowOpacity: 0.52,
+          shadowOpacity: 0,
           allowBindingOverflow: true,
-          surface: PageCurlSurface.front,
-          child: orientForEngine(front),
+          surface: surface,
+          child: orientForEngine(page),
+        );
+
+        // Both sides follow identical vertices. PageCurl assigns every mesh
+        // triangle to exactly one face, so the back page is carried by the
+        // physical sheet without a second translucent/ghost layer.
+        Widget curl = Stack(
+          fit: StackFit.expand,
+          children: [
+            curlSurface(
+              key: const ValueKey('book-page-curl-front'),
+              page: front,
+              surface: PageCurlSurface.front,
+            ),
+            // Past the half-turn the back face is physically closer to the
+            // reader, so it must paint last where the projected mesh overlaps
+            // itself. Reversing this order produces a dark "second page"
+            // strip in front of the fold on Android.
+            curlSurface(
+              key: const ValueKey('book-page-curl-back'),
+              page: back,
+              surface: PageCurlSurface.back,
+            ),
+          ],
         );
         if (!forward) {
           // The engine turns right-to-left. Mirroring its geometry and both
@@ -697,64 +680,6 @@ class _CurlingLeaf extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             Positioned(
-              left: forward ? 0 : halfWidth,
-              top: 0,
-              width: halfWidth,
-              bottom: 0,
-              child: ClipRect(
-                clipper: _LeafLandingClipper(
-                  progress: Curves.easeOutCubic.transform(eased),
-                  revealFromRight: forward,
-                ),
-                child: back,
-              ),
-            ),
-            Positioned(
-              left: halfWidth - 18,
-              top: 3,
-              bottom: 3,
-              width: 36,
-              child: IgnorePointer(
-                child: Opacity(
-                  opacity: math.sin(math.pi * eased).abs() * 0.48,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: forward
-                            ? const [Color(0x85000000), Colors.transparent]
-                            : const [Colors.transparent, Color(0x85000000)],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              left: forward
-                  ? math.max(0, halfWidth * (1 - eased) - 22)
-                  : math.min(
-                      constraints.maxWidth - 36,
-                      halfWidth + halfWidth * eased - 14,
-                    ),
-              top: 7,
-              bottom: 7,
-              width: 36,
-              child: IgnorePointer(
-                child: Opacity(
-                  opacity: math.sin(math.pi * eased).abs() * 0.38,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: forward
-                            ? const [Colors.transparent, Color(0x90000000)]
-                            : const [Color(0x90000000), Colors.transparent],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
               left: forward ? halfWidth : 0,
               top: 0,
               width: halfWidth,
@@ -766,29 +691,6 @@ class _CurlingLeaf extends StatelessWidget {
       },
     );
   }
-}
-
-class _LeafLandingClipper extends CustomClipper<Rect> {
-  const _LeafLandingClipper({
-    required this.progress,
-    required this.revealFromRight,
-  });
-
-  final double progress;
-  final bool revealFromRight;
-
-  @override
-  Rect getClip(Size size) {
-    final reveal = progress.clamp(0.0, 1.0);
-    return revealFromRight
-        ? Rect.fromLTRB(size.width * (1 - reveal), 0, size.width, size.height)
-        : Rect.fromLTRB(0, 0, size.width * reveal, size.height);
-  }
-
-  @override
-  bool shouldReclip(covariant _LeafLandingClipper oldClipper) =>
-      oldClipper.progress != progress ||
-      oldClipper.revealFromRight != revealFromRight;
 }
 
 class _ClosedBook extends StatelessWidget {
