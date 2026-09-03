@@ -233,6 +233,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Dışa Aktar & Paylaş'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('share_interactive_album')),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey('share_current_png')), findsOneWidget);
     expect(find.byKey(const ValueKey('share_all_png')), findsOneWidget);
     expect(find.byKey(const ValueKey('share_mp4')), findsOneWidget);

@@ -182,6 +182,17 @@ class AlbumiumLocalizations {
     'Dışa Aktar & Paylaş': 'Export & Share',
     'Her seçenek cihazında hazırlanır; internet gerekmez.':
         'Every option is prepared on your device; no internet required.',
+    'Etkileşimli albüm paylaş': 'Share interactive album',
+    'Küçük bir Albumium dosyası · sunucu gerekmez':
+        'Compact Albumium file · no server required',
+    'Albüm paketi hazırlanıyor…': 'Preparing album package…',
+    'Fotoğraflar paylaşım için küçültülüyor…': 'Optimizing photos for sharing…',
+    'Albüm dosyası paketleniyor…': 'Packaging album file…',
+    '{size} · {count} fotoğraf': '{size} · {count} photos',
+    '“{title}” albümünü Albumium’da açmak için bu dosyaya dokun.':
+        'Tap this file to open the “{title}” album in Albumium.',
+    'Etkileşimli albüm hazırlanamadı: {error}':
+        'The interactive album could not be prepared: {error}',
     'Bu görünümü PNG paylaş': 'Share this view as PNG',
     'Hızlı · 1080 × 1920 anı kartı': 'Quick · 1080 × 1920 memory card',
     'Tüm albümü PNG paylaş': 'Share entire album as PNG',
@@ -456,6 +467,35 @@ class AlbumiumLocalizations {
     'Kart yüzeyi hazırlanamadı': 'The card canvas could not be prepared',
     'PNG oluşturulamadı': 'The PNG could not be created',
     'Kart paylaşılamadı: {error}': 'The card could not be shared: {error}',
+    'Paylaşılan Albüm': 'Shared Album',
+    'Albüm paketi açılıyor…': 'Opening album package…',
+    'Albüm paketi açılamadı': 'The album package could not be opened',
+    '{count} sayfa · {size} · {media} fotoğraf':
+        '{count} pages · {size} · {media} photos',
+    'Bu albüm sunucu kullanılmadan doğrudan dosya olarak paylaşıldı.':
+        'This album was shared directly as a file without using a server.',
+    'Salt okunur görüntüle': 'View read-only',
+    'Kopya olarak içe aktar': 'Import a copy',
+    'İçe aktarılıyor…': 'Importing…',
+    'Albüm içe aktarıldı': 'Album imported',
+    'Albüm içe aktarılamadı: {error}':
+        'The album could not be imported: {error}',
+    'Gelen albüm alınamadı: {error}':
+        'The incoming album could not be received: {error}',
+    'Albümde kullanılan bir fotoğraf bulunamadı.':
+        'A photo used in the album could not be found.',
+    'Albüm paketi izin verilen boyutu aşıyor.':
+        'The album package exceeds the allowed size.',
+    'Dosya geçerli bir Albumium albümü değil.':
+        'This file is not a valid Albumium album.',
+    'Bu albüm daha yeni bir Albumium sürümü gerektiriyor.':
+        'This album requires a newer version of Albumium.',
+    'Albüm paketi güvenli olmayan içerik barındırıyor.':
+        'The album package contains unsafe content.',
+    'Albümdeki fotoğraflardan biri bozuk veya değiştirilmiş.':
+        'A photo in the album is corrupted or has been modified.',
+    'Beklenmeyen bir dosya hatası oluştu.':
+        'An unexpected file error occurred.',
     'PNG görünümleri hazırlanıyor…': 'Preparing PNG views…',
     'Anı kartı hazırlanıyor…': 'Preparing memory card…',
     'PNG {current} / {total} hazırlanıyor…':
