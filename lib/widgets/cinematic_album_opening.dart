@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../l10n/albumium_localizations.dart';
 import '../models/album_models.dart';
 import 'album_cover.dart';
 import 'album_page_canvas.dart';
@@ -138,13 +139,13 @@ class _CinematicAlbumOpeningState extends State<CinematicAlbumOpening>
   Widget build(BuildContext context) {
     final theme = themeById(widget.album.themeId);
     final title = widget.album.title.trim().isEmpty
-        ? 'İsimsiz Albüm'
+        ? context.tr('İsimsiz Albüm')
         : widget.album.title.trim();
 
     return Semantics(
       container: true,
       image: true,
-      label: '$title albümü açılıyor',
+      label: context.tr('{title} albümü açılıyor', values: {'title': title}),
       child: RepaintBoundary(
         child: LayoutBuilder(
           builder: (context, constraints) {

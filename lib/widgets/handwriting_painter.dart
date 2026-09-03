@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
+import '../l10n/albumium_localizations.dart';
+
 class StrokePoint {
   const StrokePoint(this.x, this.y);
 
@@ -168,6 +170,29 @@ class _HandwritingCanvasDialogState extends State<HandwritingCanvasDialog> {
   final List<DrawingStroke> _strokes = [];
   final List<DrawingStroke> _redoStack = [];
 
+  // This screen deliberately uses a dark drawing-desk chrome. Keep its
+  // controls independent from the user-selected application palette: light
+  // palettes otherwise supply dark AppBar/icon foregrounds on this surface.
+  static const _toolbarBackground = Color(0xFF241F1C);
+  static const _toolbarForeground = Color(0xFFFFF8EC);
+  static const _toolbarDisabledForeground = Color(0x6BFFF8EC);
+  static const _toolbarAccent = Color(0xFFFFA95C);
+
+  static final ButtonStyle _toolbarIconButtonStyle = IconButton.styleFrom(
+    foregroundColor: _toolbarForeground,
+    disabledForegroundColor: _toolbarDisabledForeground,
+  );
+
+  static final ButtonStyle _saveIconButtonStyle = IconButton.styleFrom(
+    backgroundColor: _toolbarAccent,
+    foregroundColor: const Color(0xFF2C190F),
+  );
+
+  static final ButtonStyle _saveButtonStyle = FilledButton.styleFrom(
+    backgroundColor: _toolbarAccent,
+    foregroundColor: const Color(0xFF2C190F),
+  );
+
   static const List<Color> _palette = [
     Color(0xFF1E1E1E), // Mürekkep siyah
     Color(0xFFC9A45C), // Altın varak
@@ -300,38 +325,64 @@ class _HandwritingCanvasDialogState extends State<HandwritingCanvasDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final useCompactAppBar = MediaQuery.sizeOf(context).width < 430;
+
     return Dialog.fullscreen(
       child: Scaffold(
         backgroundColor: const Color(0xFF1B1816),
         appBar: AppBar(
-          backgroundColor: const Color(0xFF241F1C),
-          title: const Text(
-            'Elle Yaz & Çiz',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          backgroundColor: _toolbarBackground,
+          foregroundColor: _toolbarForeground,
+          iconTheme: const IconThemeData(color: _toolbarForeground),
+          actionsIconTheme: const IconThemeData(color: _toolbarForeground),
+          surfaceTintColor: Colors.transparent,
+          title: Text(
+            context.tr('Elle Yaz & Çiz'),
+            style: const TextStyle(
+              color: _toolbarForeground,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           actions: [
             IconButton(
+              key: const ValueKey('handwriting-undo'),
               onPressed: _strokes.isNotEmpty ? _undo : null,
+              style: _toolbarIconButtonStyle,
               icon: const Icon(Icons.undo_rounded),
-              tooltip: 'Geri Al',
+              tooltip: context.tr('Geri Al'),
             ),
             IconButton(
+              key: const ValueKey('handwriting-redo'),
               onPressed: _redoStack.isNotEmpty ? _redo : null,
+              style: _toolbarIconButtonStyle,
               icon: const Icon(Icons.redo_rounded),
-              tooltip: 'İleri Al',
+              tooltip: context.tr('İleri Al'),
             ),
             IconButton(
+              key: const ValueKey('handwriting-clear'),
               onPressed: _strokes.isNotEmpty ? _clear : null,
+              style: _toolbarIconButtonStyle,
               icon: const Icon(Icons.delete_sweep_outlined),
-              tooltip: 'Temizle',
+              tooltip: context.tr('Temizle'),
             ),
-            const SizedBox(width: 4),
-            FilledButton.icon(
-              onPressed: _save,
-              icon: const Icon(Icons.check_rounded, size: 18),
-              label: const Text('Ekle'),
-            ),
-            const SizedBox(width: 14),
+            if (useCompactAppBar)
+              IconButton.filled(
+                key: const ValueKey('handwriting-save-compact'),
+                onPressed: _save,
+                style: _saveIconButtonStyle,
+                icon: const Icon(Icons.check_rounded),
+                tooltip: context.tr('Çizimi Ekle'),
+              )
+            else
+              FilledButton.icon(
+                key: const ValueKey('handwriting-save'),
+                onPressed: _save,
+                style: _saveButtonStyle,
+                icon: const Icon(Icons.check_rounded, size: 18),
+                label: Text(context.tr('Ekle')),
+              ),
+            SizedBox(width: useCompactAppBar ? 6 : 14),
           ],
         ),
         body: SafeArea(
@@ -355,6 +406,7 @@ class _HandwritingCanvasDialogState extends State<HandwritingCanvasDialog> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(16),
                       child: GestureDetector(
+                        key: const ValueKey('handwriting-drawing-area'),
                         behavior: HitTestBehavior.opaque,
                         onPanStart: _onPanStart,
                         onPanUpdate: _onPanUpdate,
@@ -380,7 +432,7 @@ class _HandwritingCanvasDialogState extends State<HandwritingCanvasDialog> {
               ),
               // Controls bar: Colors & Brush Width
               Container(
-                color: const Color(0xFF241F1C),
+                color: _toolbarBackground,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 12,
@@ -391,41 +443,52 @@ class _HandwritingCanvasDialogState extends State<HandwritingCanvasDialog> {
                     // Color Palette & Eraser
                     Row(
                       children: [
-                        for (final color in _palette)
-                          GestureDetector(
-                            onTap: () => setState(() {
-                              _selectedColor = color;
-                              _isEraser = false;
-                            }),
-                            child: Container(
-                              width: 32,
-                              height: 32,
-                              margin: const EdgeInsets.only(right: 8),
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: !_isEraser && _selectedColor == color
-                                      ? const Color(0xFFFFA95C)
-                                      : Colors.white24,
-                                  width: !_isEraser && _selectedColor == color
-                                      ? 3
-                                      : 1.2,
-                                ),
-                              ),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                for (final color in _palette)
+                                  GestureDetector(
+                                    onTap: () => setState(() {
+                                      _selectedColor = color;
+                                      _isEraser = false;
+                                    }),
+                                    child: Container(
+                                      width: 32,
+                                      height: 32,
+                                      margin: const EdgeInsets.only(right: 8),
+                                      decoration: BoxDecoration(
+                                        color: color,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color:
+                                              !_isEraser &&
+                                                  _selectedColor == color
+                                              ? _toolbarAccent
+                                              : Colors.white24,
+                                          width:
+                                              !_isEraser &&
+                                                  _selectedColor == color
+                                              ? 3
+                                              : 1.2,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
-                        const Spacer(),
+                        ),
+                        const SizedBox(width: 8),
                         IconButton.filledTonal(
                           onPressed: () =>
                               setState(() => _isEraser = !_isEraser),
                           icon: Icon(
                             Icons.cleaning_services_rounded,
-                            color: _isEraser
-                                ? const Color(0xFFFFA95C)
-                                : Colors.white70,
+                            color: _isEraser ? _toolbarAccent : Colors.white70,
                           ),
-                          tooltip: 'Silgi',
+                          tooltip: context.tr('Silgi'),
                         ),
                       ],
                     ),
@@ -433,9 +496,9 @@ class _HandwritingCanvasDialogState extends State<HandwritingCanvasDialog> {
                     // Thickness Selector
                     Row(
                       children: [
-                        const Text(
-                          'Fırça:',
-                          style: TextStyle(
+                        Text(
+                          context.tr('Fırça:'),
+                          style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/albumium_localizations.dart';
 import '../models/album_models.dart';
 import '../themes/album_themes.dart';
 
@@ -18,16 +19,17 @@ class AlbumCover extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final title = album.title.trim().isEmpty
-        ? 'İsimsiz Albüm'
+        ? context.tr('İsimsiz Albüm')
         : album.title.trim();
     final theme = themeById(album.themeId);
-    final subtitle = theme.subtitle;
+    final subtitle = context.tr(theme.subtitle);
 
     final Widget coverWidget = theme.coverAsset != null
         ? _OrnateAssetCover(
             assetPath: theme.coverAsset!,
             title: title,
             theme: theme,
+            cacheWidth: compact ? 600 : themeImageCacheWidth,
             onTap: onTap,
           )
         : switch (album.themeId) {
@@ -99,12 +101,14 @@ class _OrnateAssetCover extends StatelessWidget {
     required this.assetPath,
     required this.title,
     required this.theme,
+    required this.cacheWidth,
     this.onTap,
   });
 
   final String assetPath;
   final String title;
   final AlbumThemePreset theme;
+  final int cacheWidth;
   final VoidCallback? onTap;
 
   @override
@@ -112,7 +116,7 @@ class _OrnateAssetCover extends StatelessWidget {
     final gold = Color.lerp(theme.accent, const Color(0xFFFFE4A8), 0.38)!;
     return Semantics(
       button: onTap != null,
-      label: '$title albümü',
+      label: context.tr('{title} albümü', values: {'title': title}),
       child: GestureDetector(
         onTap: onTap,
         child: ClipRRect(
@@ -135,8 +139,10 @@ class _OrnateAssetCover extends StatelessWidget {
                 Image.asset(
                   assetPath,
                   fit: BoxFit.fill,
-                  filterQuality: FilterQuality.high,
-                  cacheWidth: themeImageCacheWidth,
+                  filterQuality: cacheWidth < themeImageCacheWidth
+                      ? FilterQuality.medium
+                      : FilterQuality.high,
+                  cacheWidth: cacheWidth,
                   errorBuilder: (_, _, _) => const SizedBox.shrink(),
                 ),
                 const _CoverMaterialLighting(),
@@ -263,29 +269,22 @@ class _CoverMaterialLighting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: -1.25, end: 1.25),
-        duration: const Duration(milliseconds: 2600),
-        curve: Curves.easeInOutCubic,
-        builder: (context, value, _) {
-          return DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment(value - 0.7, -1),
-                end: Alignment(value + 0.7, 1),
-                colors: const [
-                  Colors.transparent,
-                  Color(0x0AFFFFFF),
-                  Color(0x26FFFFFF),
-                  Color(0x06000000),
-                  Colors.transparent,
-                ],
-                stops: const [0, 0.39, 0.48, 0.57, 1],
-              ),
-            ),
-          );
-        },
+    return const IgnorePointer(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment(-1.1, -1),
+            end: Alignment(.55, 1),
+            colors: [
+              Colors.transparent,
+              Color(0x08FFFFFF),
+              Color(0x1AFFFFFF),
+              Color(0x05000000),
+              Colors.transparent,
+            ],
+            stops: [0, 0.39, 0.48, 0.57, 1],
+          ),
+        ),
       ),
     );
   }

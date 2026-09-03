@@ -38,24 +38,25 @@ class AlbumCover3D extends StatelessWidget {
                 clipBehavior: Clip.none,
                 children: [
                   // 1. Zemin Yumuşak Derinlik Gölgesi (Ambient floor drop shadow)
-                  Positioned(
-                    bottom: compact ? 2 : 6,
-                    left: compact ? 12 : 24,
-                    right: compact ? 6 : 14,
-                    height: compact ? 16 : 28,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.6),
-                            blurRadius: compact ? 16 : 26,
-                            offset: Offset(compact ? 6 : 12, compact ? 8 : 14),
-                          ),
-                        ],
+                  if (!compact)
+                    Positioned(
+                      bottom: 6,
+                      left: 24,
+                      right: 14,
+                      height: 28,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              blurRadius: 26,
+                              offset: const Offset(12, 14),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
 
                   // 2. 3D Açılı Kitap Gövdesi (3D Tilted Book Body)
                   Transform(
@@ -83,11 +84,13 @@ class AlbumCover3D extends StatelessWidget {
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.45),
-                                blurRadius: compact ? 12 : 20,
+                                color: Colors.black.withValues(
+                                  alpha: compact ? 0.24 : 0.45,
+                                ),
+                                blurRadius: compact ? 5 : 20,
                                 offset: Offset(
-                                  compact ? 4 : 6,
-                                  compact ? 4 : 8,
+                                  compact ? 2 : 6,
+                                  compact ? 3 : 8,
                                 ),
                               ),
                             ],

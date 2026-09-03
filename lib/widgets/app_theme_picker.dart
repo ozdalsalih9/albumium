@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/albumium_localizations.dart';
 import '../services/theme_controller.dart';
 import '../theme/albumium_app_theme.dart';
 import 'handmade_craft.dart';
@@ -63,15 +64,17 @@ class _AppThemePicker extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Uygulama görünümü',
+                                context.tr('Uygulama görünümü'),
                                 style: Theme.of(
                                   context,
                                 ).textTheme.titleLarge?.copyWith(fontSize: 23),
                               ),
                               const SizedBox(height: 2),
-                              const Text(
-                                'Albüm tasarımlarından bağımsızdır.',
-                                style: TextStyle(fontSize: 11),
+                              Text(
+                                context.tr(
+                                  'Albüm tasarımlarından bağımsızdır.',
+                                ),
+                                style: const TextStyle(fontSize: 11),
                               ),
                             ],
                           ),
@@ -104,29 +107,32 @@ class _AppThemePicker extends StatelessWidget {
                     },
                   ),
                   const SizedBox(height: 22),
-                  const Text(
-                    'Parlaklık',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                  Text(
+                    context.tr('Parlaklık'),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 9),
                   SizedBox(
                     width: double.infinity,
                     child: SegmentedButton<ThemeMode>(
-                      segments: const [
+                      segments: [
                         ButtonSegment(
                           value: ThemeMode.dark,
-                          icon: Icon(Icons.dark_mode_outlined),
-                          label: Text('Koyu'),
+                          icon: const Icon(Icons.dark_mode_outlined),
+                          label: Text(context.tr('Koyu')),
                         ),
                         ButtonSegment(
                           value: ThemeMode.light,
-                          icon: Icon(Icons.light_mode_outlined),
-                          label: Text('Açık'),
+                          icon: const Icon(Icons.light_mode_outlined),
+                          label: Text(context.tr('Açık')),
                         ),
                         ButtonSegment(
                           value: ThemeMode.system,
-                          icon: Icon(Icons.settings_suggest_outlined),
-                          label: Text('Sistem'),
+                          icon: const Icon(Icons.settings_suggest_outlined),
+                          label: Text(context.tr('Sistem')),
                         ),
                       ],
                       selected: {controller.themeMode},
@@ -142,7 +148,14 @@ class _AppThemePicker extends StatelessWidget {
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.check_rounded),
                       label: Text(
-                        '${controller.selectedOption.name} temasını kullan',
+                        context.tr(
+                          '{theme} temasını kullan',
+                          values: {
+                            'theme': context.tr(
+                              controller.selectedOption.name,
+                            ),
+                          },
+                        ),
                       ),
                     ),
                   ),
@@ -217,7 +230,7 @@ class _ThemeChoice extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  option.name,
+                  context.tr(option.name),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -227,7 +240,7 @@ class _ThemeChoice extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  option.description,
+                  context.tr(option.description),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

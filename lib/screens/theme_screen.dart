@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/albumium_localizations.dart';
 import '../models/album_models.dart';
 import '../services/album_storage.dart';
 import '../theme/albumium_app_theme.dart';
@@ -14,9 +15,13 @@ class ThemeScreen extends StatefulWidget {
 }
 
 class _ThemeScreenState extends State<ThemeScreen> {
+  static const _phoneViewportFraction = 0.70;
+  static const _tabletViewportFraction = 0.42;
+
   int _selected = 0;
   AlbumBindingType _selectedBinding = AlbumBindingType.spiral;
   final _titleController = TextEditingController();
+  PageController? _pageController;
 
   @override
   void initState() {
@@ -27,7 +32,32 @@ class _ThemeScreenState extends State<ThemeScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final tablet = MediaQuery.sizeOf(context).shortestSide >= 600;
+    final viewportFraction = tablet
+        ? _tabletViewportFraction
+        : _phoneViewportFraction;
+    final currentController = _pageController;
+    if (currentController?.viewportFraction == viewportFraction) return;
+
+    _pageController = PageController(
+      initialPage: _selected,
+      keepPage: false,
+      viewportFraction: viewportFraction,
+    );
+    if (currentController == null) return;
+
+    // The previous controller can still be attached to this frame's PageView.
+    // Dispose it after the rebuilt carousel has adopted the replacement.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      currentController.dispose();
+    });
+  }
+
+  @override
   void dispose() {
+    _pageController?.dispose();
     _titleController.dispose();
     super.dispose();
   }
@@ -38,7 +68,7 @@ class _ThemeScreenState extends State<ThemeScreen> {
     final album = AlbumModel(
       id: newId(),
       title: _titleController.text.trim().isEmpty
-          ? 'Benim Albümüm'
+          ? context.tr('Benim Albümüm')
           : _titleController.text.trim(),
       themeId: theme.id,
       bindingType: _selectedBinding,
@@ -100,7 +130,7 @@ class _ThemeScreenState extends State<ThemeScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: const Text('Albümünü Hazırla'),
+        title: Text(context.tr('Albümünü Hazırla')),
         backgroundColor: colors.background,
       ),
       body: CraftBackdrop(
@@ -111,7 +141,7 @@ class _ThemeScreenState extends State<ThemeScreen> {
           child: Center(
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxWidth: tablet ? 920 : double.infinity,
+                maxWidth: tablet ? 1040 : double.infinity,
               ),
               child: SingleChildScrollView(
                 child: Column(
@@ -124,7 +154,7 @@ class _ThemeScreenState extends State<ThemeScreen> {
                         color: colors.elevatedSurface,
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 9),
                         child: Text(
-                          'Hangi hikâyeyi anlatıyoruz?',
+                          context.tr('Hangi hikâyeyi anlatıyoruz?'),
                           style: Theme.of(
                             context,
                           ).textTheme.headlineSmall?.copyWith(fontSize: 30),
@@ -133,12 +163,13 @@ class _ThemeScreenState extends State<ThemeScreen> {
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 22),
-                    child: Text(
-                      '${selectedTheme.name} · ${selectedTheme.subtitle}',
-                      style: TextStyle(
-                        color: colors.text.withValues(alpha: .82),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
+                      child: Text(
+                        '${context.tr(selectedTheme.name)} · ${context.tr(selectedTheme.subtitle)}',
+                        key: const ValueKey('selected-theme-summary'),
+                        style: TextStyle(
+                          color: colors.text.withValues(alpha: .82),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
                         ),
                       ),
                     ),
@@ -146,9 +177,8 @@ class _ThemeScreenState extends State<ThemeScreen> {
                     SizedBox(
                       height: coverHeight,
                       child: PageView.builder(
-                        controller: PageController(
-                          viewportFraction: tablet ? 0.42 : 0.70,
-                        ),
+                        key: const ValueKey('theme-carousel'),
+                        controller: _pageController,
                         itemCount: albumThemes.length,
                         onPageChanged: (index) =>
                             setState(() => _selected = index),
@@ -211,7 +241,7 @@ class _ThemeScreenState extends State<ThemeScreen> {
                           vertical: 6,
                         ),
                         child: Text(
-                          'Ciltleme Türü',
+                          context.tr('Ciltleme Türü'),
                           style: Theme.of(
                             context,
                           ).textTheme.titleLarge?.copyWith(fontSize: 20),
@@ -243,7 +273,7 @@ class _ThemeScreenState extends State<ThemeScreen> {
                                       context,
                                     ).colorScheme.onSurfaceVariant,
                             ),
-                            label: Text(binding.title),
+                            label: Text(context.tr(binding.title)),
                             labelStyle: TextStyle(
                               fontSize: 12,
                               fontWeight: isSelected
@@ -273,8 +303,8 @@ class _ThemeScreenState extends State<ThemeScreen> {
                           controller: _titleController,
                           textCapitalization: TextCapitalization.sentences,
                           decoration: InputDecoration(
-                            labelText: 'Albüm adı (isteğe bağlı)',
-                            hintText: 'Örn. Bizim Yazımız',
+                            labelText: context.tr('Albüm adı (isteğe bağlı)'),
+                            hintText: context.tr('Örn. Bizim Yazımız'),
                             prefixIcon: const Icon(Icons.edit_outlined),
                             suffixText: selectedTheme.emoji,
                             suffixStyle: const TextStyle(fontSize: 18),
@@ -299,7 +329,14 @@ class _ThemeScreenState extends State<ThemeScreen> {
                           child: FilledButton.icon(
                             onPressed: _continue,
                             icon: const Icon(Icons.auto_stories_rounded),
-                            label: Text('${selectedTheme.name} ile Başla'),
+                            label: Text(
+                              context.tr(
+                                '{theme} ile Başla',
+                                values: {
+                                  'theme': context.tr(selectedTheme.name),
+                                },
+                              ),
+                            ),
                           ),
                         ),
                       ),

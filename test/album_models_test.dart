@@ -26,6 +26,7 @@ AlbumModel _album() => AlbumModel(
           rotation: -0.03,
           scale: 1.4,
           frameStyle: 3,
+          photoShape: AlbumPhotoShape.arch,
           textColor: 0xFF112233,
           fontSize: 19.5,
           extraData: 'kart:dogumgunu',
@@ -64,6 +65,7 @@ void main() {
       expect(element.rotation, original.rotation);
       expect(element.scale, original.scale);
       expect(element.frameStyle, original.frameStyle);
+      expect(element.photoShape, original.photoShape);
       expect(element.textColor, original.textColor);
       expect(element.fontSize, original.fontSize);
       expect(element.extraData, original.extraData);
@@ -85,9 +87,25 @@ void main() {
       expect(element.rotation, 0);
       expect(element.scale, 1);
       expect(element.frameStyle, 0);
+      expect(element.photoShape, AlbumPhotoShape.free);
       expect(element.textColor, 0xFF2B2521);
       expect(element.fontSize, 24);
       expect(element.extraData, '');
+    });
+
+    test('bilinmeyen fotoğraf biçimi güvenli varsayılana düşer', () {
+      final element = AlbumElementModel.fromJson({
+        'id': 'e',
+        'type': 'photo',
+        'content': '/tmp/a.jpg',
+        'x': 0,
+        'y': 0,
+        'width': 1,
+        'height': 1,
+        'photoShape': 'holografik',
+      });
+
+      expect(element.photoShape, AlbumPhotoShape.free);
     });
 
     test('bilinmeyen cilt tipi spiral olarak okunur', () {

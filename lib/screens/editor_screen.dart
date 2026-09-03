@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../l10n/albumium_localizations.dart';
 import '../models/album_models.dart';
 import '../services/album_storage.dart';
 import '../theme/albumium_app_theme.dart';
@@ -11,6 +12,7 @@ import '../widgets/font_selector_dialog.dart';
 import '../widgets/handmade_craft.dart';
 import '../widgets/handwriting_painter.dart';
 import '../widgets/occasion_cards.dart';
+import '../widgets/photo_style_picker.dart';
 import '../widgets/physical_book_spread.dart';
 import '../widgets/sticker_packs.dart';
 import 'preview_screen.dart';
@@ -28,21 +30,6 @@ const _vintagePaperChoices = <({String name, Color color})>[
   (name: 'Kraft', color: Color(0xFFCBB38E)),
   (name: 'Gece mürekkebi', color: Color(0xFF292827)),
   (name: 'Bordo', color: Color(0xFF4A292F)),
-];
-
-const _frameIcons = <IconData>[
-  Icons.crop_square_rounded,
-  Icons.photo_outlined,
-  Icons.bookmarks_outlined,
-  Icons.rounded_corner_rounded,
-  Icons.filter_vintage_outlined,
-  Icons.filter_frames_outlined,
-  Icons.texture_rounded,
-  Icons.movie_outlined,
-  Icons.museum_outlined,
-  Icons.grid_goldenratio_rounded,
-  Icons.local_post_office_outlined,
-  Icons.auto_awesome_mosaic_outlined,
 ];
 
 class EditorScreen extends StatefulWidget {
@@ -80,18 +67,23 @@ class _EditorScreenState extends State<EditorScreen>
 
   bool get _isPageTurning => _nextSpreadLeftPageIndex != null;
 
-  bool get _usesFocusedPhoneLayout =>
-      MediaQuery.sizeOf(context).shortestSide < 600;
+  bool get _usesFocusedPageLayout {
+    final size = MediaQuery.sizeOf(context);
+    // Dar tablet portresinde iki sayfayı yan yana sıkıştırmak yerine düzenlenen
+    // sayfayı öne çıkar. Yatay tablette yeterli genişlik olduğunda gerçek
+    // iki-sayfa görünümü korunur.
+    return size.shortestSide < 600 || size.width < 720;
+  }
 
   bool get _canGoPrevious {
     if (_isPageTurning) return false;
-    if (_usesFocusedPhoneLayout && _pageIndex.isOdd) return true;
+    if (_usesFocusedPageLayout && _pageIndex.isOdd) return true;
     return _spreadIndex > 0;
   }
 
   bool get _canGoNext {
     if (_isPageTurning) return false;
-    if (_usesFocusedPhoneLayout &&
+    if (_usesFocusedPageLayout &&
         _pageIndex.isEven &&
         _spreadRightPageIndex >= 0) {
       return true;
@@ -103,8 +95,18 @@ class _EditorScreenState extends State<EditorScreen>
     final left = _spreadLeftPageIndex + 1;
     final rightIndex = _spreadRightPageIndex;
     return rightIndex >= 0
-        ? 'Sayfalar $left–${rightIndex + 1} / ${album.pages.length}'
-        : 'Sayfa $left / ${album.pages.length}';
+        ? context.tr(
+            'Sayfalar {first}–{last} / {total}',
+            values: {
+              'first': left,
+              'last': rightIndex + 1,
+              'total': album.pages.length,
+            },
+          )
+        : context.tr(
+            'Sayfa {page} / {total}',
+            values: {'page': left, 'total': album.pages.length},
+          );
   }
 
   AlbumElementModel? get selectedElement {
@@ -195,6 +197,12 @@ class _EditorScreenState extends State<EditorScreen>
     _saveDebounce = Timer(const Duration(milliseconds: 450), () {
       unawaited(AlbumStorage.instance.saveAlbum(album));
     });
+  }
+
+  void _canvasChanged() {
+    if (!mounted) return;
+    setState(() {});
+    _changed();
   }
 
   Future<void> _addPhotos() async {
@@ -436,7 +444,7 @@ class _EditorScreenState extends State<EditorScreen>
 
   void _goToPreviousPage() {
     if (!_canGoPrevious) return;
-    if (_usesFocusedPhoneLayout && _pageIndex.isOdd) {
+    if (_usesFocusedPageLayout && _pageIndex.isOdd) {
       _selectPage(_pageIndex - 1);
       return;
     }
@@ -445,7 +453,7 @@ class _EditorScreenState extends State<EditorScreen>
 
   void _goToNextPage() {
     if (!_canGoNext) return;
-    if (_usesFocusedPhoneLayout &&
+    if (_usesFocusedPageLayout &&
         _pageIndex.isEven &&
         _spreadRightPageIndex >= 0) {
       _selectPage(_spreadRightPageIndex);
@@ -464,7 +472,7 @@ class _EditorScreenState extends State<EditorScreen>
     final nextRight = candidateRight < album.pages.length
         ? candidateRight
         : PhysicalBookSpread.blankPageIndex;
-    final targetPage = _usesFocusedPhoneLayout && !forward && nextRight >= 0
+    final targetPage = _usesFocusedPageLayout && !forward && nextRight >= 0
         ? nextRight
         : nextLeft;
 
@@ -506,6 +514,7 @@ class _EditorScreenState extends State<EditorScreen>
               rotation: e.rotation,
               scale: e.scale,
               frameStyle: e.frameStyle,
+              photoShape: e.photoShape,
               textColor: e.textColor,
               fontSize: e.fontSize,
               extraData: e.extraData,
@@ -524,7 +533,7 @@ class _EditorScreenState extends State<EditorScreen>
   void _deletePage() {
     if (album.pages.length == 1) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Albümde en az bir sayfa kalmalı.')),
+        SnackBar(content: Text(context.tr('Albümde en az bir sayfa kalmalı.'))),
       );
       return;
     }
@@ -540,42 +549,56 @@ class _EditorScreenState extends State<EditorScreen>
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Albüm Ciltleme Tipi',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 14),
-              for (final binding in AlbumBindingType.values)
-                ListTile(
-                  leading: Icon(
-                    binding.icon,
-                    color: Theme.of(context).colorScheme.primary,
+        child: FractionallySizedBox(
+          heightFactor: MediaQuery.sizeOf(context).height < 700 ? .88 : .72,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  context.tr('Albüm Ciltleme Tipi'),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
                   ),
-                  title: Text(
-                    binding.title,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  subtitle: Text(binding.description),
-                  trailing: album.bindingType == binding
-                      ? Icon(
-                          Icons.check_circle_rounded,
-                          color: Theme.of(context).colorScheme.primary,
-                        )
-                      : null,
-                  onTap: () {
-                    setState(() => album.bindingType = binding);
-                    _changed();
-                    Navigator.pop(context);
-                  },
                 ),
-            ],
+                const SizedBox(height: 10),
+                Expanded(
+                  child: ListView(
+                    key: const ValueKey('binding-options-list'),
+                    padding: EdgeInsets.zero,
+                    children: [
+                      for (final binding in AlbumBindingType.values)
+                        ListTile(
+                          leading: Icon(
+                            binding.icon,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          title: Text(
+                            context.tr(binding.title),
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          subtitle: Text(context.tr(binding.description)),
+                          trailing: album.bindingType == binding
+                              ? Icon(
+                                  Icons.check_circle_rounded,
+                                  color: Theme.of(context).colorScheme.primary,
+                                )
+                              : null,
+                          onTap: () {
+                            setState(() => album.bindingType = binding);
+                            _changed();
+                            Navigator.pop(context);
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -586,7 +609,7 @@ class _EditorScreenState extends State<EditorScreen>
     final theme = themeById(album.themeId);
     final seenColors = <int>{};
     final colors = <({String name, Color color})>[
-      (name: 'Temaya özel', color: theme.pageColor),
+      (name: context.tr('Temaya özel'), color: theme.pageColor),
       ..._vintagePaperChoices,
     ].where((choice) => seenColors.add(choice.color.toARGB32())).toList();
     showModalBottomSheet<void>(
@@ -600,19 +623,24 @@ class _EditorScreenState extends State<EditorScreen>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.texture_rounded, size: 23),
-                  SizedBox(width: 10),
+                  const Icon(Icons.texture_rounded, size: 23),
+                  const SizedBox(width: 10),
                   Text(
-                    'Vintage kâğıt seç',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                    context.tr('Vintage kâğıt seç'),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 5),
               Text(
-                'Her renk ince lif, tanecik ve kenar patinasıyla uygulanır.',
+                context.tr(
+                  'Her renk ince lif, tanecik ve kenar patinasıyla uygulanır.',
+                ),
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontSize: 12,
@@ -625,7 +653,7 @@ class _EditorScreenState extends State<EditorScreen>
                 children: [
                   for (final choice in colors)
                     _PaperColorTile(
-                      name: choice.name,
+                      name: context.tr(choice.name),
                       color: choice.color,
                       selected: page.backgroundColor == choice.color.toARGB32(),
                       onTap: () {
@@ -655,13 +683,38 @@ class _EditorScreenState extends State<EditorScreen>
     _changed();
   }
 
-  void _bringForward() {
+  bool _canMoveSelectedLayer(AlbumElementLayerAction action) {
+    final selected = selectedElement;
+    return selected != null &&
+        canMoveAlbumElementLayer(page.elements, selected.id, action);
+  }
+
+  void _moveSelectedLayer(AlbumElementLayerAction action) {
     final selected = selectedElement;
     if (selected == null) return;
+    var changed = false;
     setState(() {
-      page.elements.remove(selected);
-      page.elements.add(selected);
+      changed = moveAlbumElementLayer(page.elements, selected.id, action);
     });
+    if (!changed) return;
+    _changed();
+  }
+
+  void _scaleSelected(double factor) {
+    final selected = selectedElement;
+    if (selected == null) return;
+    var changed = false;
+    setState(() => changed = scaleAlbumElementBy(selected, factor));
+    if (!changed) return;
+    _changed();
+  }
+
+  void _resetSelectedTransform() {
+    final selected = selectedElement;
+    if (selected == null) return;
+    var changed = false;
+    setState(() => changed = resetAlbumElementTransform(selected));
+    if (!changed) return;
     _changed();
   }
 
@@ -680,6 +733,7 @@ class _EditorScreenState extends State<EditorScreen>
         rotation: selected.rotation,
         scale: selected.scale,
         frameStyle: selected.frameStyle,
+        photoShape: selected.photoShape,
         textColor: selected.textColor,
         fontSize: selected.fontSize,
         extraData: selected.extraData,
@@ -695,16 +749,16 @@ class _EditorScreenState extends State<EditorScreen>
     if (selected == null) return;
 
     if (selected.type == AlbumElementType.photo) {
-      final frame = await showModalBottomSheet<int>(
-        context: context,
-        showDragHandle: true,
-        isScrollControlled: true,
-        builder: (context) => _PhotoFramePicker(
-          selectedStyle: selected.frameStyle % albumPhotoFrameCount,
-        ),
+      final style = await showAlbumPhotoStylePicker(
+        context,
+        selectedFrameStyle: selected.frameStyle,
+        selectedShape: selected.photoShape,
       );
-      if (frame == null || !mounted) return;
-      setState(() => selected.frameStyle = frame);
+      if (style == null || !mounted) return;
+      setState(() {
+        selected.frameStyle = style.frameStyle;
+        applyAlbumPhotoShape(selected, style.shape);
+      });
       _changed();
       return;
     }
@@ -748,7 +802,7 @@ class _EditorScreenState extends State<EditorScreen>
     final title = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Albüm adını değiştir'),
+        title: Text(context.tr('Albüm adını değiştir')),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -757,11 +811,11 @@ class _EditorScreenState extends State<EditorScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Vazgeç'),
+            child: Text(context.tr('Vazgeç')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Kaydet'),
+            child: Text(context.tr('Kaydet')),
           ),
         ],
       ),
@@ -813,12 +867,15 @@ class _EditorScreenState extends State<EditorScreen>
             IconButton(
               onPressed: _changeBinding,
               icon: Icon(album.bindingType.icon),
-              tooltip: 'Cilt Tipi (${album.bindingType.title})',
+              tooltip: context.tr(
+                'Cilt Tipi ({binding})',
+                values: {'binding': context.tr(album.bindingType.title)},
+              ),
             ),
             TextButton.icon(
               onPressed: _preview,
               icon: const Icon(Icons.menu_book_rounded),
-              label: const Text('Kitap Aç'),
+              label: Text(context.tr('Kitap Aç')),
             ),
             const SizedBox(width: 4),
           ],
@@ -843,8 +900,7 @@ class _EditorScreenState extends State<EditorScreen>
                       padding: const EdgeInsets.fromLTRB(8, 4, 8, 10),
                       child: LayoutBuilder(
                         builder: (context, constraints) {
-                          final phoneLayout =
-                              MediaQuery.sizeOf(context).shortestSide < 600;
+                          final focusedPageLayout = _usesFocusedPageLayout;
                           return Stack(
                             children: [
                               Positioned.fill(
@@ -863,7 +919,7 @@ class _EditorScreenState extends State<EditorScreen>
                                       turnProgress: _pageTurnController.value,
                                       turningForward: _turningForward,
                                       interactive: true,
-                                      focusedPageIndex: phoneLayout
+                                      focusedPageIndex: focusedPageLayout
                                           ? _pageIndex
                                           : null,
                                       activePageIndex: _pageIndex,
@@ -871,22 +927,26 @@ class _EditorScreenState extends State<EditorScreen>
                                       onSelectPage: _selectPage,
                                       onSelectElement: (id) =>
                                           setState(() => _selectedId = id),
-                                      onChanged: _changed,
+                                      onChanged: _canvasChanged,
                                     ),
                                   ),
                                 ),
                               ),
                               if (_importing)
-                                const Positioned.fill(
+                                Positioned.fill(
                                   child: ColoredBox(
-                                    color: Color(0x99000000),
+                                    color: const Color(0x99000000),
                                     child: Center(
                                       child: Column(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          CircularProgressIndicator(),
-                                          SizedBox(height: 12),
-                                          Text('Fotoğraflar hazırlanıyor…'),
+                                          const CircularProgressIndicator(),
+                                          const SizedBox(height: 12),
+                                          Text(
+                                            context.tr(
+                                              'Fotoğraflar hazırlanıyor…',
+                                            ),
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -903,7 +963,21 @@ class _EditorScreenState extends State<EditorScreen>
                   _SelectionToolbar(
                     element: selectedElement!,
                     onStyle: _styleSelected,
-                    onForward: _bringForward,
+                    canMoveLayer: _canMoveSelectedLayer,
+                    onLayerAction: _moveSelectedLayer,
+                    onScaleDown:
+                        selectedElement!.scale > albumElementMinScale + .000001
+                        ? () => _scaleSelected(1 / albumElementScaleStep)
+                        : null,
+                    onScaleUp:
+                        selectedElement!.scale < albumElementMaxScale - .000001
+                        ? () => _scaleSelected(albumElementScaleStep)
+                        : null,
+                    onResetTransform:
+                        (selectedElement!.scale - 1).abs() > .000001 ||
+                            selectedElement!.rotation.abs() > .000001
+                        ? _resetSelectedTransform
+                        : null,
                     onDuplicate: _duplicateSelected,
                     onDelete: _removeSelected,
                   ),
@@ -938,8 +1012,8 @@ class _EditorScreenState extends State<EditorScreen>
                 album.bindingType.icon,
                 color: Theme.of(context).colorScheme.primary,
               ),
-              title: const Text('Ciltleme Tipini Değiştir'),
-              subtitle: Text(album.bindingType.title),
+              title: Text(context.tr('Ciltleme Tipini Değiştir')),
+              subtitle: Text(context.tr(album.bindingType.title)),
               onTap: () {
                 Navigator.pop(context);
                 _changeBinding();
@@ -947,7 +1021,7 @@ class _EditorScreenState extends State<EditorScreen>
             ),
             ListTile(
               leading: const Icon(Icons.copy_all_outlined),
-              title: const Text('Sayfayı çoğalt'),
+              title: Text(context.tr('Sayfayı çoğalt')),
               onTap: () {
                 Navigator.pop(context);
                 _duplicatePage();
@@ -955,7 +1029,7 @@ class _EditorScreenState extends State<EditorScreen>
             ),
             ListTile(
               leading: const Icon(Icons.delete_outline),
-              title: const Text('Sayfayı sil'),
+              title: Text(context.tr('Sayfayı sil')),
               textColor: Colors.redAccent,
               iconColor: Colors.redAccent,
               onTap: () {
@@ -1001,7 +1075,7 @@ class _PageNavigator extends StatelessWidget {
           children: [
             IconButton(
               onPressed: onPrevious,
-              tooltip: 'Önceki sayfa',
+              tooltip: context.tr('Önceki sayfa'),
               icon: const Icon(Icons.chevron_left_rounded),
             ),
             TornPaperLabel(
@@ -1019,19 +1093,19 @@ class _PageNavigator extends StatelessWidget {
             ),
             IconButton(
               onPressed: onNext,
-              tooltip: 'Sonraki sayfa',
+              tooltip: context.tr('Sonraki sayfa'),
               icon: const Icon(Icons.chevron_right_rounded),
             ),
             const Spacer(),
             IconButton(
               onPressed: onAdd,
-              tooltip: 'Sayfa ekle',
+              tooltip: context.tr('Sayfa ekle'),
               color: colors.primary,
               icon: const Icon(Icons.add_box_outlined),
             ),
             IconButton(
               onPressed: onMore,
-              tooltip: 'Sayfa seçenekleri',
+              tooltip: context.tr('Sayfa seçenekleri'),
               icon: const Icon(Icons.more_horiz_rounded),
             ),
           ],
@@ -1071,47 +1145,57 @@ class _MainToolbar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(6, 8, 6, 10),
       textureIntensity: .24,
       showShadow: true,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _Tool(
-              icon: Icons.add_photo_alternate_outlined,
-              label: 'Fotoğraf',
-              onTap: onPhoto,
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _Tool(
+                  icon: Icons.add_photo_alternate_outlined,
+                  label: context.tr('Fotoğraf'),
+                  onTap: onPhoto,
+                ),
+                _Tool(
+                  icon: Icons.text_fields_rounded,
+                  label: context.tr('Yazı / Font'),
+                  onTap: onText,
+                ),
+                _Tool(
+                  icon: Icons.gesture_rounded,
+                  label: context.tr('Elle Yaz'),
+                  onTap: onDraw,
+                ),
+                _Tool(
+                  icon: Icons.card_membership_rounded,
+                  label: context.tr('Özel Kart'),
+                  onTap: onCard,
+                ),
+                _Tool(
+                  icon: Icons.auto_awesome_outlined,
+                  label: context.tr('Süsler'),
+                  onTap: onSticker,
+                ),
+                _Tool(
+                  icon: Icons.interests_outlined,
+                  label: context.tr('Şekiller'),
+                  onTap: onShape,
+                ),
+                _Tool(
+                  icon: Icons.palette_outlined,
+                  label: context.tr('Sayfa'),
+                  onTap: onBackground,
+                ),
+                _Tool(
+                  icon: Icons.note_add_outlined,
+                  label: context.tr('Yeni'),
+                  onTap: onPage,
+                ),
+              ],
             ),
-            _Tool(
-              icon: Icons.text_fields_rounded,
-              label: 'Yazı / Font',
-              onTap: onText,
-            ),
-            _Tool(
-              icon: Icons.gesture_rounded,
-              label: 'Elle Yaz',
-              onTap: onDraw,
-            ),
-            _Tool(
-              icon: Icons.card_membership_rounded,
-              label: 'Özel Kart',
-              onTap: onCard,
-            ),
-            _Tool(
-              icon: Icons.auto_awesome_outlined,
-              label: 'Süsler',
-              onTap: onSticker,
-            ),
-            _Tool(
-              icon: Icons.interests_outlined,
-              label: 'Şekiller',
-              onTap: onShape,
-            ),
-            _Tool(
-              icon: Icons.palette_outlined,
-              label: 'Sayfa',
-              onTap: onBackground,
-            ),
-            _Tool(icon: Icons.note_add_outlined, label: 'Yeni', onTap: onPage),
-          ],
+          ),
         ),
       ),
     );
@@ -1122,14 +1206,22 @@ class _SelectionToolbar extends StatelessWidget {
   const _SelectionToolbar({
     required this.element,
     required this.onStyle,
-    required this.onForward,
+    required this.canMoveLayer,
+    required this.onLayerAction,
+    required this.onScaleDown,
+    required this.onScaleUp,
+    required this.onResetTransform,
     required this.onDuplicate,
     required this.onDelete,
   });
 
   final AlbumElementModel element;
   final VoidCallback onStyle;
-  final VoidCallback onForward;
+  final bool Function(AlbumElementLayerAction action) canMoveLayer;
+  final ValueChanged<AlbumElementLayerAction> onLayerAction;
+  final VoidCallback? onScaleDown;
+  final VoidCallback? onScaleUp;
+  final VoidCallback? onResetTransform;
   final VoidCallback onDuplicate;
   final VoidCallback onDelete;
 
@@ -1138,58 +1230,198 @@ class _SelectionToolbar extends StatelessWidget {
     final colors = AlbumiumAppTheme.colorsOf(context);
     final (styleLabel, styleIcon) = switch (element.type) {
       AlbumElementType.photo => (
-        'Çerçeve · ${albumPhotoFrameLabel(element.frameStyle)}',
+        '${context.tr(albumPhotoShapeLabel(element.photoShape))} · ${context.tr(albumPhotoFrameLabel(element.frameStyle))}',
         Icons.crop_original_rounded,
       ),
       AlbumElementType.text => (
-        'Yazıyı / Fontu Düzenle',
+        context.tr('Yazıyı / Fontu Düzenle'),
         Icons.font_download_rounded,
       ),
       AlbumElementType.card => (
-        'Kart Metnini Düzenle',
+        context.tr('Kart Metnini Düzenle'),
         Icons.edit_note_rounded,
       ),
-      AlbumElementType.drawing => ('Döndür', Icons.rotate_right_rounded),
-      AlbumElementType.sticker => ('Süsü değiştir', Icons.auto_awesome_rounded),
+      AlbumElementType.drawing => (
+        context.tr('Döndür'),
+        Icons.rotate_right_rounded,
+      ),
+      AlbumElementType.sticker => (
+        context.tr('Süsü değiştir'),
+        Icons.auto_awesome_rounded,
+      ),
     };
+
+    Widget styleButton() => TextButton.icon(
+      onPressed: onStyle,
+      icon: Icon(styleIcon, size: 18),
+      label: Text(styleLabel, maxLines: 1, overflow: TextOverflow.ellipsis),
+    );
+
+    Widget scaleBadge() => Semantics(
+      label: context.tr(
+        'Öğe ölçeği yüzde {percent}',
+        values: {'percent': (element.scale * 100).round()},
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: colors.border),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Text(
+            '${(element.scale * 100).round()}%',
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+          ),
+        ),
+      ),
+    );
+
+    Widget actionButtons() => Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _SelectionIconButton(
+          onPressed: onScaleDown,
+          tooltip: context.tr('Küçült'),
+          icon: Icons.zoom_out_rounded,
+        ),
+        _SelectionIconButton(
+          onPressed: onScaleUp,
+          tooltip: context.tr('Büyüt'),
+          icon: Icons.zoom_in_rounded,
+        ),
+        _SelectionIconButton(
+          onPressed: onResetTransform,
+          tooltip: context.tr('Dönüş ve ölçeği sıfırla'),
+          icon: Icons.restart_alt_rounded,
+        ),
+        SizedBox(
+          width: 42,
+          height: 42,
+          child: PopupMenuButton<AlbumElementLayerAction>(
+            key: const ValueKey('selection-layer-menu'),
+            tooltip: context.tr('Katman sırası'),
+            padding: EdgeInsets.zero,
+            icon: const Icon(Icons.layers_outlined, size: 20),
+            onSelected: onLayerAction,
+            itemBuilder: (context) => [
+              for (final action in AlbumElementLayerAction.values)
+                PopupMenuItem<AlbumElementLayerAction>(
+                  key: ValueKey('layer-action-${action.name}'),
+                  value: action,
+                  enabled: canMoveLayer(action),
+                  child: Row(
+                    children: [
+                      Icon(_layerActionIcon(action), size: 20),
+                      const SizedBox(width: 12),
+                      Text(context.tr(_layerActionLabel(action))),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+        _SelectionIconButton(
+          onPressed: onDuplicate,
+          tooltip: context.tr('Kopyala'),
+          icon: Icons.copy_rounded,
+        ),
+        _SelectionIconButton(
+          onPressed: onDelete,
+          tooltip: context.tr('Sil'),
+          icon: Icons.delete_outline,
+          color: Colors.redAccent,
+        ),
+      ],
+    );
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
       child: PaperPanel(
         color: colors.elevatedSurface,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.fromLTRB(8, 3, 8, 5),
         borderRadius: BorderRadius.circular(7),
         rotationDegrees: .2,
         textureIntensity: .2,
-        child: Row(
-          children: [
-            Flexible(
-              flex: 3,
-              child: TextButton.icon(
-                onPressed: onStyle,
-                icon: Icon(styleIcon, size: 18),
-                label: Text(
-                  styleLabel,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth >= 680) {
+              return Row(
+                key: const ValueKey('selection-toolbar-wide'),
+                children: [
+                  Expanded(child: styleButton()),
+                  scaleBadge(),
+                  const SizedBox(width: 6),
+                  actionButtons(),
+                ],
+              );
+            }
+            return Column(
+              key: const ValueKey('selection-toolbar-stacked'),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: styleButton()),
+                    scaleBadge(),
+                  ],
                 ),
-              ),
-            ),
-            IconButton(
-              onPressed: onForward,
-              tooltip: 'Öne al',
-              icon: const Icon(Icons.flip_to_front_outlined, size: 20),
-            ),
-            IconButton(
-              onPressed: onDuplicate,
-              tooltip: 'Kopyala',
-              icon: const Icon(Icons.copy_rounded, size: 20),
-            ),
-            IconButton(
-              onPressed: onDelete,
-              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-            ),
-          ],
+                Align(
+                  alignment: Alignment.center,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: actionButtons(),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
+      ),
+    );
+  }
+}
+
+String _layerActionLabel(AlbumElementLayerAction action) => switch (action) {
+  AlbumElementLayerAction.moveDown => 'Bir alta gönder',
+  AlbumElementLayerAction.moveUp => 'Bir üste getir',
+  AlbumElementLayerAction.sendToBack => 'En alta gönder',
+  AlbumElementLayerAction.bringToFront => 'En üste getir',
+};
+
+IconData _layerActionIcon(AlbumElementLayerAction action) => switch (action) {
+  AlbumElementLayerAction.moveDown => Icons.arrow_downward_rounded,
+  AlbumElementLayerAction.moveUp => Icons.arrow_upward_rounded,
+  AlbumElementLayerAction.sendToBack => Icons.vertical_align_bottom_rounded,
+  AlbumElementLayerAction.bringToFront => Icons.vertical_align_top_rounded,
+};
+
+class _SelectionIconButton extends StatelessWidget {
+  const _SelectionIconButton({
+    required this.onPressed,
+    required this.tooltip,
+    required this.icon,
+    this.color,
+  });
+
+  final VoidCallback? onPressed;
+  final String tooltip;
+  final IconData icon;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 42,
+      height: 42,
+      child: IconButton(
+        onPressed: onPressed,
+        tooltip: tooltip,
+        padding: EdgeInsets.zero,
+        visualDensity: VisualDensity.compact,
+        icon: Icon(icon, size: 20, color: color),
       ),
     );
   }
@@ -1351,253 +1583,4 @@ class _PaperSamplePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _PaperSamplePainter oldDelegate) =>
       oldDelegate.color != color;
-}
-
-class _PhotoFramePicker extends StatelessWidget {
-  const _PhotoFramePicker({required this.selectedStyle});
-
-  final int selectedStyle;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final tablet = MediaQuery.sizeOf(context).shortestSide >= 600;
-    return SafeArea(
-      child: SizedBox(
-        height: MediaQuery.sizeOf(context).height * 0.68,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 0, 18, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: colors.primaryContainer,
-                      borderRadius: BorderRadius.circular(11),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Icon(
-                        Icons.filter_frames_outlined,
-                        color: colors.onPrimaryContainer,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 11),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Fotoğraf Çerçeveleri',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        Text(
-                          'Albümün hikâyesine yakışan bir dokunuş seç',
-                          style: TextStyle(fontSize: 11),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: GridView.builder(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: tablet ? 5 : 3,
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    childAspectRatio: 0.92,
-                  ),
-                  itemCount: albumPhotoFrameCount,
-                  itemBuilder: (context, index) => _FrameChoiceTile(
-                    index: index,
-                    selected: index == selectedStyle,
-                    onTap: () => Navigator.pop(context, index),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FrameChoiceTile extends StatelessWidget {
-  const _FrameChoiceTile({
-    required this.index,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final int index;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 170),
-        padding: const EdgeInsets.fromLTRB(8, 8, 8, 7),
-        decoration: BoxDecoration(
-          color: selected
-              ? colors.primaryContainer.withValues(alpha: 0.62)
-              : colors.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? colors.primary : colors.outlineVariant,
-            width: selected ? 2 : 1,
-          ),
-        ),
-        child: Column(
-          children: [
-            Expanded(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  CustomPaint(painter: _FramePreviewPainter(index)),
-                  Center(
-                    child: Icon(
-                      _frameIcons[index],
-                      size: 22,
-                      color: const Color(0xFFD9C39C),
-                    ),
-                  ),
-                  if (selected)
-                    Align(
-                      alignment: Alignment.topRight,
-                      child: Icon(
-                        Icons.check_circle_rounded,
-                        size: 17,
-                        color: colors.primary,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 5),
-            Text(
-              albumPhotoFrameLabel(index),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: selected ? colors.primary : colors.onSurface,
-                fontSize: 10,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FramePreviewPainter extends CustomPainter {
-  const _FramePreviewPainter(this.style);
-
-  final int style;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromLTWH(
-      size.width * .18,
-      size.height * .08,
-      size.width * .64,
-      size.height * .82,
-    );
-    final shadowPath = Path()
-      ..addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(3)));
-    canvas.drawShadow(shadowPath, const Color(0x55000000), 3, false);
-
-    final outerColor = switch (style) {
-      2 || 5 || 7 => const Color(0xFF29231F),
-      4 || 8 => const Color(0xFFC5A357),
-      9 => const Color(0xFFC59BA3),
-      10 => const Color(0xFFE7D8BE),
-      _ => const Color(0xFFF1E8D9),
-    };
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, Radius.circular(style == 3 ? 13 : 3)),
-      Paint()..color = outerColor,
-    );
-    final inset = style == 1
-        ? const EdgeInsets.fromLTRB(5, 5, 5, 12)
-        : style == 9
-        ? const EdgeInsets.fromLTRB(7, 7, 7, 9)
-        : const EdgeInsets.all(5);
-    final inner = Rect.fromLTRB(
-      rect.left + inset.left,
-      rect.top + inset.top,
-      rect.right - inset.right,
-      rect.bottom - inset.bottom,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(inner, const Radius.circular(2)),
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF6C7A6D), Color(0xFF39474A)],
-        ).createShader(inner),
-    );
-
-    if (style == 7) {
-      final hole = Paint()..color = const Color(0xFFE8DCC8);
-      for (var y = rect.top + 5; y < rect.bottom - 2; y += 9) {
-        canvas.drawRect(Rect.fromLTWH(rect.left + 1, y, 3, 4), hole);
-        canvas.drawRect(Rect.fromLTWH(rect.right - 4, y, 3, 4), hole);
-      }
-    } else if (style == 11) {
-      final tape = Paint()..color = const Color(0xB8D6A8B2);
-      canvas.save();
-      canvas.translate(rect.left + 2, rect.top + 4);
-      canvas.rotate(-0.18);
-      canvas.drawRect(const Rect.fromLTWH(0, 0, 25, 7), tape);
-      canvas.restore();
-    } else if (style == 4 || style == 5) {
-      final corner = Paint()
-        ..color = style == 4 ? const Color(0xFFE0BF6B) : const Color(0xFF191817)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3;
-      canvas.drawLine(
-        inner.topLeft,
-        inner.topLeft + const Offset(10, 0),
-        corner,
-      );
-      canvas.drawLine(
-        inner.topLeft,
-        inner.topLeft + const Offset(0, 10),
-        corner,
-      );
-      canvas.drawLine(
-        inner.bottomRight,
-        inner.bottomRight - const Offset(10, 0),
-        corner,
-      );
-      canvas.drawLine(
-        inner.bottomRight,
-        inner.bottomRight - const Offset(0, 10),
-        corner,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _FramePreviewPainter oldDelegate) =>
-      oldDelegate.style != style;
 }

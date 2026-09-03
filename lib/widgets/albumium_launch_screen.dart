@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/albumium_localizations.dart';
 import '../theme/albumium_app_theme.dart';
 
 /// A brief, branded overlay shown while Albumium opens.
@@ -125,7 +126,7 @@ class _AlbumiumLaunchScreenState extends State<AlbumiumLaunchScreen>
     return Semantics(
       container: true,
       liveRegion: true,
-      label: 'Uygulama açılıyor. Anılar, zarafetle saklanır.',
+      label: context.tr('Uygulama açılıyor. Anılar, zarafetle saklanır.'),
       child: ExcludeSemantics(
         child: RepaintBoundary(
           child: ColoredBox(
@@ -162,7 +163,7 @@ class _AlbumiumLaunchScreenState extends State<AlbumiumLaunchScreen>
                         ),
                         const SizedBox(height: 24),
                         Text(
-                          'Anılar, zarafetle saklanır.',
+                          context.tr('Anılar, zarafetle saklanır.'),
                           textAlign: TextAlign.center,
                           style: textTheme.titleMedium?.copyWith(
                             color: colors.text,

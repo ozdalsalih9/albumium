@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../l10n/albumium_localizations.dart';
+
 class OccasionCardTemplate {
   const OccasionCardTemplate({
     required this.id,
@@ -254,7 +256,7 @@ class OccasionCardView extends StatelessWidget {
                             Text(t.emoji, style: const TextStyle(fontSize: 12)),
                             const SizedBox(width: 4),
                             Text(
-                              badge,
+                              context.tr(badge),
                               style: GoogleFonts.inter(
                                 fontSize: 9,
                                 fontWeight: FontWeight.w800,
@@ -267,7 +269,7 @@ class OccasionCardView extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        title,
+                        context.tr(title),
                         textAlign: TextAlign.center,
                         style: GoogleFonts.cormorantGaramond(
                           fontSize: 19,
@@ -278,7 +280,7 @@ class OccasionCardView extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        subtitle,
+                        context.tr(subtitle),
                         textAlign: TextAlign.center,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -321,6 +323,7 @@ class _EditOccasionCardDialogState extends State<EditOccasionCardDialog> {
   late TextEditingController _titleController;
   late TextEditingController _subtitleController;
   late TextEditingController _badgeController;
+  bool _localizedDefaults = false;
 
   @override
   void initState() {
@@ -333,6 +336,16 @@ class _EditOccasionCardDialogState extends State<EditOccasionCardDialog> {
     _titleController = TextEditingController(text: data.title);
     _subtitleController = TextEditingController(text: data.subtitle);
     _badgeController = TextEditingController(text: data.badge);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_localizedDefaults || widget.initialDataRaw.trim().isNotEmpty) return;
+    _localizedDefaults = true;
+    _titleController.text = context.tr(_template.title);
+    _subtitleController.text = context.tr(_template.subtitle);
+    _badgeController.text = context.tr(_template.badge);
   }
 
   @override
@@ -366,9 +379,9 @@ class _EditOccasionCardDialogState extends State<EditOccasionCardDialog> {
                       size: 24,
                     ),
                     const SizedBox(width: 10),
-                    const Text(
-                      'Kart Metnini Düzenle',
-                      style: TextStyle(
+                    Text(
+                      context.tr('Kart Metnini Düzenle'),
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                       ),
@@ -402,10 +415,10 @@ class _EditOccasionCardDialogState extends State<EditOccasionCardDialog> {
                 TextField(
                   controller: _titleController,
                   textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(
-                    labelText: 'Kart Başlığı',
-                    hintText: 'Örn. İyi ki Doğdun Canım!',
-                    prefixIcon: Icon(Icons.title_rounded),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Kart Başlığı'),
+                    hintText: context.tr('Örn. İyi ki Doğdun Canım!'),
+                    prefixIcon: const Icon(Icons.title_rounded),
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
@@ -414,10 +427,10 @@ class _EditOccasionCardDialogState extends State<EditOccasionCardDialog> {
                   controller: _subtitleController,
                   maxLines: 2,
                   textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(
-                    labelText: 'Alt Mesaj / Not',
-                    hintText: 'Örn. Birlikte nice güzel yaşlara...',
-                    prefixIcon: Icon(Icons.notes_rounded),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Alt Mesaj / Not'),
+                    hintText: context.tr('Örn. Birlikte nice güzel yaşlara...'),
+                    prefixIcon: const Icon(Icons.notes_rounded),
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
@@ -425,10 +438,10 @@ class _EditOccasionCardDialogState extends State<EditOccasionCardDialog> {
                 TextField(
                   controller: _badgeController,
                   textCapitalization: TextCapitalization.characters,
-                  decoration: const InputDecoration(
-                    labelText: 'Rozet Etiketi',
-                    hintText: 'Örn. 25. YAŞ GÜNÜ',
-                    prefixIcon: Icon(Icons.label_outline_rounded),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Rozet Etiketi'),
+                    hintText: context.tr('Örn. 25. YAŞ GÜNÜ'),
+                    prefixIcon: const Icon(Icons.label_outline_rounded),
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
@@ -452,7 +465,7 @@ class _EditOccasionCardDialogState extends State<EditOccasionCardDialog> {
                       Navigator.pop(context, customData);
                     },
                     icon: const Icon(Icons.check_rounded, size: 18),
-                    label: const Text('Kaydet ve Ekle'),
+                    label: Text(context.tr('Kaydet ve Ekle')),
                   ),
                 ),
               ],
@@ -494,9 +507,12 @@ class OccasionCardPickerSheet extends StatelessWidget {
                   size: 24,
                 ),
                 const SizedBox(width: 10),
-                const Text(
-                  'Özel Gün Kartı Ekle',
-                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+                Text(
+                  context.tr('Özel Gün Kartı Ekle'),
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const Spacer(),
                 IconButton(
@@ -506,9 +522,11 @@ class OccasionCardPickerSheet extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Bir kart seçip üzerindeki yazıları anında özelleştirebilirsin.',
-              style: TextStyle(color: Color(0xFF9B8F84), fontSize: 13),
+            Text(
+              context.tr(
+                'Bir kart seçip üzerindeki yazıları anında özelleştirebilirsin.',
+              ),
+              style: const TextStyle(color: Color(0xFF9B8F84), fontSize: 13),
             ),
             const SizedBox(height: 14),
             SizedBox(

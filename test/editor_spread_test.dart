@@ -105,6 +105,49 @@ void main() {
     expect(find.bySemanticsLabel('Cilt merkezi: Sert Kapak'), findsOneWidget);
   });
 
+  testWidgets('portrait tablet focuses one wider page without overflow', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1200, 1920);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final now = DateTime(2026);
+    final album = AlbumModel(
+      id: 'portrait-tablet-spread',
+      title: 'Dikey Tablet Albümü',
+      themeId: 'vintage_diary',
+      createdAt: now,
+      updatedAt: now,
+      pages: [
+        AlbumPageModel(id: 'portrait-left', backgroundColor: 0xFFF2E8D3),
+        AlbumPageModel(id: 'portrait-right', backgroundColor: 0xFFF2E8D3),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: EditorScreen(album: album),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final spread = tester.widget<PhysicalBookSpread>(
+      find.byType(PhysicalBookSpread),
+    );
+    expect(spread.focusedPageIndex, 0);
+    expect(find.byKey(const ValueKey('focused-book-viewport')), findsOneWidget);
+    final pageSize = tester.getSize(find.byType(AlbumPageCanvas).first);
+    expect(
+      pageSize.width / pageSize.height,
+      closeTo(albumPageAspectRatio, .01),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('single page phone editor crops at the binding', (tester) async {
     SharedPreferences.setMockInitialValues({});
     tester.view.physicalSize = const Size(900, 1600);
@@ -140,6 +183,10 @@ void main() {
     // companion must not reserve the normal 11% preview strip.
     expect(viewportSize.width, greaterThan(pageSize.width));
     expect(viewportSize.width, lessThanOrEqualTo(pageSize.width + 33));
+    expect(
+      pageSize.width / pageSize.height,
+      closeTo(albumPageAspectRatio, .01),
+    );
   });
 
   testWidgets('phone focuses the companion then curls to the next spread', (
@@ -201,7 +248,7 @@ void main() {
       tester
           .widget<PageCurl>(find.byKey(const ValueKey('book-page-curl-front')))
           .shadowOpacity,
-      0,
+      .30,
     );
 
     await tester.pumpAndSettle();

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../l10n/albumium_localizations.dart';
+
 class FontOption {
   const FontOption({
     required this.name,
@@ -229,9 +231,12 @@ class _TextEditorDialogState extends State<TextEditorDialog> {
                     size: 24,
                   ),
                   const SizedBox(width: 10),
-                  const Text(
-                    'Yazı & Font Seçimi',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  Text(
+                    context.tr('Yazı & Font Seçimi'),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const Spacer(),
                   IconButton(
@@ -249,8 +254,8 @@ class _TextEditorDialogState extends State<TextEditorDialog> {
                 minLines: 2,
                 textCapitalization: TextCapitalization.sentences,
                 style: const TextStyle(fontSize: 15),
-                decoration: const InputDecoration(
-                  hintText: 'Albümüne eklemek istediğin notu yaz…',
+                decoration: InputDecoration(
+                  hintText: context.tr('Albümüne eklemek istediğin notu yaz…'),
                 ),
                 onChanged: (_) => setState(() {}),
               ),
@@ -276,7 +281,7 @@ class _TextEditorDialogState extends State<TextEditorDialog> {
                 child: Center(
                   child: Text(
                     _textController.text.trim().isEmpty
-                        ? 'Önizleme Metni'
+                        ? context.tr('Önizleme Metni')
                         : _textController.text.trim(),
                     textAlign: TextAlign.center,
                     maxLines: 3,
@@ -291,9 +296,9 @@ class _TextEditorDialogState extends State<TextEditorDialog> {
               ),
               const SizedBox(height: 14),
               // Font Gallery List
-              const Text(
-                'Yazı Tipi (Font)',
-                style: TextStyle(
+              Text(
+                context.tr('Yazı Tipi (Font)'),
+                style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: Colors.white70,
@@ -344,7 +349,7 @@ class _TextEditorDialogState extends State<TextEditorDialog> {
                                   ),
                                 ),
                                 Text(
-                                  font.category,
+                                  context.tr(font.category),
                                   style: const TextStyle(
                                     fontSize: 11,
                                     color: Color(0xFF9B8F84),
@@ -423,7 +428,7 @@ class _TextEditorDialogState extends State<TextEditorDialog> {
                     );
                   },
                   icon: const Icon(Icons.check_rounded, size: 18),
-                  label: const Text('Sayfaya Ekle'),
+                  label: Text(context.tr('Sayfaya Ekle')),
                 ),
               ),
             ],

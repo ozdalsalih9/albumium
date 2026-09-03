@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -47,6 +48,11 @@ class AlbumStorage {
   /// Yazılan zarfın sürümü. Sürümsüz (çıplak liste) veri sürüm 1 sayılır.
   static const _schemaVersion = 2;
 
+  /// Large album libraries can contain many page elements and embedded asset
+  /// paths. Decode those JSON payloads away from the UI isolate so opening the
+  /// library does not stall scrolling or the launch transition.
+  static const _backgroundDecodeThreshold = 256 * 1024;
+
   /// Yazma işlemleri bu zincire dizilir.
   ///
   /// `saveAlbum` atomik olmayan bir oku-değiştir-yaz; editörde kaydetme
@@ -77,7 +83,9 @@ class AlbumStorage {
 
     Object? decoded;
     try {
-      decoded = jsonDecode(raw);
+      decoded = raw.length >= _backgroundDecodeThreshold
+          ? await Isolate.run<Object?>(() => jsonDecode(raw))
+          : jsonDecode(raw);
     } catch (error, stack) {
       // Zarfın kendisi okunamıyor: tek bir kayıt değil, her şey şüpheli.
       ErrorReporter.report(error, stack, context: 'albüm verisi çözümlenemedi');

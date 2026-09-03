@@ -161,6 +161,53 @@ void main() {
     expect(find.bySemanticsLabel('Albüm ilerlemesi 1 / 14'), findsOneWidget);
   });
 
+  testWidgets('preview fits portrait and landscape tablet viewports', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final now = DateTime(2026);
+    final album = AlbumModel(
+      id: 'tablet-preview',
+      title: 'Tablette Anılarımız',
+      themeId: 'vintage_diary',
+      createdAt: now,
+      updatedAt: now,
+      pages: List.generate(
+        4,
+        (index) => AlbumPageModel(
+          id: 'tablet-preview-$index',
+          backgroundColor: 0xFFF2E8D3,
+        ),
+      ),
+    );
+
+    for (final physicalSize in const [
+      Size(1200, 1920),
+      Size(1920, 1200),
+      Size(2048, 1536),
+    ]) {
+      tester.view.physicalSize = physicalSize;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData.dark(),
+          home: PreviewScreen(album: album),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PhysicalBookSpread), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('preview_share_button')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
+  });
+
   testWidgets('share menu exposes offline PNG and MP4 choices', (tester) async {
     tester.view.physicalSize = const Size(900, 1600);
     tester.view.devicePixelRatio = 2;
@@ -190,5 +237,22 @@ void main() {
     expect(find.byKey(const ValueKey('share_all_png')), findsOneWidget);
     expect(find.byKey(const ValueKey('share_mp4')), findsOneWidget);
     expect(find.textContaining('internet gerekmez'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('share_mp4')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('mp4_export_options')), findsOneWidget);
+    expect(find.text('Tek Sayfa MP4'), findsOneWidget);
+    expect(find.text('Full HD · 1080 × 1920'), findsOneWidget);
+    expect(find.text('Arka plan sesi'), findsOneWidget);
+    expect(
+      tester
+          .widget<SwitchListTile>(
+            find.byKey(const ValueKey('mp4_soundtrack_toggle')),
+          )
+          .value,
+      isTrue,
+    );
+    expect(find.byKey(const ValueKey('start_mp4_export')), findsOneWidget);
   });
 }

@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/albumium_localizations.dart';
 import '../models/album_library_query.dart';
 import '../models/album_models.dart';
 import '../services/album_storage.dart';
+import '../services/language_controller.dart';
 import '../services/theme_controller.dart';
 import '../theme/albumium_app_theme.dart';
 import '../widgets/album_cover_3d.dart';
-import '../widgets/album_page_canvas.dart';
 import '../widgets/app_theme_picker.dart';
 import '../widgets/cinematic_album_opening.dart';
 import '../widgets/handmade_craft.dart';
@@ -19,9 +20,14 @@ import 'theme_screen.dart';
 enum _CreationKind { album, occasionCard }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.themeController});
+  const HomeScreen({
+    super.key,
+    required this.themeController,
+    required this.languageController,
+  });
 
   final ThemeController themeController;
+  final LanguageController languageController;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -94,7 +100,9 @@ class _HomeScreenState extends State<HomeScreen> {
       await _createAlbum();
       return;
     }
-    final project = createSpecialCardProject();
+    final project = createSpecialCardProject(
+      translate: (text) => context.tr(text),
+    );
     await AlbumStorage.instance.saveAlbum(project);
     if (!mounted) return;
     await _openAlbum(project);
@@ -142,18 +150,23 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) => AlertDialog(
         title: Text(
           album.projectType == AlbumProjectType.occasionCard
-              ? 'Kart silinsin mi?'
-              : 'Albüm silinsin mi?',
+              ? context.tr('Kart silinsin mi?')
+              : context.tr('Albüm silinsin mi?'),
         ),
-        content: Text('“${album.title}” bu cihazdan kaldırılacak.'),
+        content: Text(
+          context.tr(
+            '“{title}” bu cihazdan kaldırılacak.',
+            values: {'title': album.title},
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Vazgeç'),
+            child: Text(context.tr('Vazgeç')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Sil'),
+            child: Text(context.tr('Sil')),
           ),
         ],
       ),
@@ -167,14 +180,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final colors = AlbumiumAppTheme.colorsOf(context);
     final viewportWidth = MediaQuery.sizeOf(context).width;
-    final horizontalInset = viewportWidth > 1244
-        ? (viewportWidth - 1200) / 2 + 22
-        : 22.0;
-    final albumColumns = viewportWidth >= 1100
-        ? 4
-        : viewportWidth >= 700
-        ? 3
-        : 2;
+    const minimumHorizontalInset = 22.0;
+    const maximumContentWidth = 1280.0;
+    final centeredInset = (viewportWidth - maximumContentWidth) / 2;
+    final horizontalInset = centeredInset > minimumHorizontalInset
+        ? centeredInset
+        : minimumHorizontalInset;
     final matchingAlbums = queryAlbumLibrary(
       _albums,
       searchQuery: _searchController.text,
@@ -209,8 +220,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       Expanded(
                         child: Semantics(
                           header: true,
-                          label:
-                              'Anılarına hoş geldin. Albüm ve kartlarını kaldığın yerden düzenle.',
+                          label: context.tr(
+                            'Anılarına hoş geldin. Albüm ve kartlarını kaldığın yerden düzenle.',
+                          ),
                           child: PaperPanel(
                             rotationDegrees: -.18,
                             borderRadius: BorderRadius.circular(14),
@@ -236,7 +248,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(
-                                          'Anılarına hoş geldin',
+                                          context.tr('Anılarına hoş geldin'),
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
                                           style: Theme.of(context)
@@ -252,7 +264,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          'Albüm ve kartlarını kaldığın yerden düzenle.',
+                                          context.tr(
+                                            'Albüm ve kartlarını kaldığın yerden düzenle.',
+                                          ),
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
@@ -270,7 +284,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
+                      _LanguageButton(controller: widget.languageController),
+                      const SizedBox(width: 7),
                       _PaletteButton(
                         controller: widget.themeController,
                         onTap: () => showAlbumiumThemePicker(
@@ -290,7 +306,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     horizontalInset,
                     27,
                   ),
-                  child: _HeroPanel(onCreate: _createProject),
+                  child: SizedBox(
+                    key: const ValueKey('home-hero-content'),
+                    width: double.infinity,
+                    child: _HeroPanel(onCreate: _createProject),
+                  ),
                 ),
               ),
               SliverToBoxAdapter(
@@ -302,7 +322,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         rotationDegrees: -.6,
                         padding: const EdgeInsets.fromLTRB(15, 7, 15, 8),
                         child: Text(
-                          'Koleksiyonum',
+                          context.tr('Koleksiyonum'),
                           style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(color: colors.text, fontSize: 25),
                         ),
@@ -331,9 +351,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ],
                       const Spacer(),
-                      if (_albums.isNotEmpty && viewportWidth >= 410)
+                      if (_albums.isNotEmpty && viewportWidth >= 680)
                         Text(
-                          'Silmek için basılı tut',
+                          context.tr('Silmek için basılı tut'),
                           style: TextStyle(
                             color: colors.mutedText,
                             fontSize: 10.5,
@@ -403,12 +423,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     remainingAlbumCount > 0 ? 20 : 112,
                   ),
                   sliver: SliverGrid.builder(
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: albumColumns,
-                      childAspectRatio: 0.61,
-                      crossAxisSpacing: 17,
-                      mainAxisSpacing: 23,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 280,
+                          childAspectRatio: 0.61,
+                          crossAxisSpacing: 17,
+                          mainAxisSpacing: 23,
+                        ),
                     itemCount: visibleAlbums.length,
                     itemBuilder: (context, index) {
                       final album = visibleAlbums[index];
@@ -441,7 +462,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           });
                         },
                         icon: const Icon(Icons.expand_more_rounded),
-                        label: Text('Daha fazla göster ($remainingAlbumCount)'),
+                        label: Text(
+                          context.tr(
+                            'Daha fazla göster ({count})',
+                            values: {'count': remainingAlbumCount},
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -455,7 +481,7 @@ class _HomeScreenState extends State<HomeScreen> {
           : FloatingActionButton.extended(
               onPressed: _createProject,
               icon: const Icon(Icons.add_rounded),
-              label: const Text('Yeni tasarım'),
+              label: Text(context.tr('Yeni tasarım')),
             ),
     );
   }
@@ -497,12 +523,12 @@ class _LibraryToolbar extends StatelessWidget {
             onChanged: onSearchChanged,
             textInputAction: TextInputAction.search,
             decoration: InputDecoration(
-              hintText: 'Albüm veya kart ara',
+              hintText: context.tr('Albüm veya kart ara'),
               prefixIcon: const Icon(Icons.search_rounded),
               suffixIcon: controller.text.isEmpty
                   ? null
                   : IconButton(
-                      tooltip: 'Aramayı temizle',
+                      tooltip: context.tr('Aramayı temizle'),
                       onPressed: onClearSearch,
                       icon: const Icon(Icons.close_rounded),
                     ),
@@ -531,21 +557,21 @@ class _LibraryToolbar extends StatelessWidget {
             children: [
               _LibraryFilterChip(
                 key: const ValueKey('library-filter-all'),
-                label: 'Tümü',
+                label: context.tr('Tümü'),
                 icon: Icons.grid_view_rounded,
                 selected: filter == AlbumLibraryFilter.all,
                 onSelected: () => onFilterChanged(AlbumLibraryFilter.all),
               ),
               _LibraryFilterChip(
                 key: const ValueKey('library-filter-albums'),
-                label: 'Albümler',
+                label: context.tr('Albümler'),
                 icon: Icons.auto_stories_outlined,
                 selected: filter == AlbumLibraryFilter.albums,
                 onSelected: () => onFilterChanged(AlbumLibraryFilter.albums),
               ),
               _LibraryFilterChip(
                 key: const ValueKey('library-filter-cards'),
-                label: 'Kartlar',
+                label: context.tr('Kartlar'),
                 icon: Icons.mark_email_read_outlined,
                 selected: filter == AlbumLibraryFilter.cards,
                 onSelected: () => onFilterChanged(AlbumLibraryFilter.cards),
@@ -553,7 +579,7 @@ class _LibraryToolbar extends StatelessWidget {
               PopupMenuButton<AlbumLibrarySort>(
                 key: const ValueKey('library-sort'),
                 initialValue: sort,
-                tooltip: 'Koleksiyonu sırala',
+                tooltip: context.tr('Koleksiyonu sırala'),
                 onSelected: onSortChanged,
                 itemBuilder: (context) => AlbumLibrarySort.values
                     .map(
@@ -570,7 +596,7 @@ class _LibraryToolbar extends StatelessWidget {
                               const SizedBox(width: 8),
                             ] else
                               const SizedBox(width: 26),
-                            Text(_librarySortLabel(value)),
+                            Text(context.tr(_librarySortLabel(value))),
                           ],
                         ),
                       ),
@@ -596,7 +622,7 @@ class _LibraryToolbar extends StatelessWidget {
                       ),
                       const SizedBox(width: 5),
                       Text(
-                        _librarySortLabel(sort),
+                        context.tr(_librarySortLabel(sort)),
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
                           color: colors.text,
                           fontSize: 11,
@@ -676,7 +702,7 @@ class _NoLibraryResults extends StatelessWidget {
               Icon(Icons.search_off_rounded, color: colors.primary, size: 34),
               const SizedBox(height: 10),
               Text(
-                'Bu seçimde bir tasarım bulamadık',
+                context.tr('Bu seçimde bir tasarım bulamadık'),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: colors.text,
@@ -685,7 +711,9 @@ class _NoLibraryResults extends StatelessWidget {
               ),
               const SizedBox(height: 5),
               Text(
-                'Arama sözcüğünü ya da filtreleri değiştirebilirsin.',
+                context.tr(
+                  'Arama sözcüğünü ya da filtreleri değiştirebilirsin.',
+                ),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: colors.mutedText, height: 1.35),
               ),
@@ -694,7 +722,7 @@ class _NoLibraryResults extends StatelessWidget {
                 key: const ValueKey('library-clear-query'),
                 onPressed: onClear,
                 icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Tümünü göster'),
+                label: Text(context.tr('Tümünü göster')),
               ),
             ],
           ),
@@ -741,7 +769,7 @@ class _HeroPanel extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Bugün hangi\nhikâyeyi anlatalım?',
+                    context.tr('Bugün hangi\nhikâyeyi anlatalım?'),
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       color: colors.text,
                       fontSize: 30,
@@ -749,7 +777,9 @@ class _HeroPanel extends StatelessWidget {
                   ),
                   const SizedBox(height: 9),
                   Text(
-                    'Fotoğraflarını, notlarını ve küçük hatıralarını kendi albümünde bir araya getir.',
+                    context.tr(
+                      'Fotoğraflarını, notlarını ve küçük hatıralarını kendi albümünde bir araya getir.',
+                    ),
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -767,7 +797,7 @@ class _HeroPanel extends StatelessWidget {
                     child: FilledButton.icon(
                       onPressed: onCreate,
                       icon: const Icon(Icons.add_rounded, size: 19),
-                      label: const Text('Yeni tasarım'),
+                      label: Text(context.tr('Yeni tasarım')),
                     ),
                   ),
                 ],
@@ -831,7 +861,7 @@ class _MemoryScraps extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
               edgeDepth: 2.3,
               child: Text(
-                'anı\ndefteri',
+                context.tr('anı\ndefteri'),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: colors.text,
@@ -857,6 +887,77 @@ class _MemoryScraps extends StatelessWidget {
   }
 }
 
+class _LanguageButton extends StatelessWidget {
+  const _LanguageButton({required this.controller});
+
+  final LanguageController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AlbumiumAppTheme.colorsOf(context);
+    return Tooltip(
+      message: context.tr('Dili değiştir'),
+      child: PaperPanel(
+        rotationDegrees: -.8,
+        padding: EdgeInsets.zero,
+        borderRadius: BorderRadius.circular(9),
+        textureIntensity: .18,
+        child: PopupMenuButton<AppLanguage>(
+          key: const ValueKey('home-language-button'),
+          tooltip: context.tr('Dili değiştir'),
+          initialValue: controller.language,
+          onSelected: controller.setLanguage,
+          itemBuilder: (context) => AppLanguage.values
+              .map(
+                (language) => PopupMenuItem<AppLanguage>(
+                  value: language,
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 23,
+                        child: language == controller.language
+                            ? Icon(
+                                Icons.check_rounded,
+                                size: 18,
+                                color: colors.primary,
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 7),
+                      Text(language.displayName),
+                    ],
+                  ),
+                ),
+              )
+              .toList(growable: false),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.language_rounded, color: colors.primary, size: 20),
+                  const SizedBox(width: 3),
+                  Text(
+                    controller.language.shortLabel,
+                    key: const ValueKey('home-language-code'),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: colors.text,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PaletteButton extends StatelessWidget {
   const _PaletteButton({required this.controller, required this.onTap});
 
@@ -867,13 +968,14 @@ class _PaletteButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final option = controller.selectedOption;
     return Tooltip(
-      message: 'Uygulama temasını değiştir',
+      message: context.tr('Uygulama temasını değiştir'),
       child: PaperPanel(
         rotationDegrees: .9,
         padding: EdgeInsets.zero,
         borderRadius: BorderRadius.circular(9),
         textureIntensity: .18,
         child: IconButton(
+          key: const ValueKey('home-theme-button'),
           onPressed: onTap,
           icon: Stack(
             clipBehavior: Clip.none,
@@ -921,19 +1023,7 @@ class _AlbumGridItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = AlbumiumAppTheme.colorsOf(context);
     final isCard = album.projectType == AlbumProjectType.occasionCard;
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: 460 + (index.clamp(0, 5) * 75)),
-      curve: Curves.easeOutBack,
-      builder: (context, value, child) {
-        return Opacity(
-          opacity: value.clamp(0, 1),
-          child: Transform.translate(
-            offset: Offset(0, (1 - value) * 22),
-            child: Transform.scale(scale: 0.94 + value * 0.06, child: child),
-          ),
-        );
-      },
+    return RepaintBoundary(
       child: PaperPanel(
         rotationDegrees: index.isEven ? -.8 : .75,
         borderRadius: BorderRadius.circular(5),
@@ -945,8 +1035,14 @@ class _AlbumGridItem extends StatelessWidget {
         child: Semantics(
           button: true,
           label: isCard
-              ? '${album.title}, özel gün kartı'
-              : '${album.title}, ${album.pages.length} sayfa',
+              ? context.tr(
+                  '{title}, özel gün kartı',
+                  values: {'title': album.title},
+                )
+              : context.tr(
+                  '{title}, {count} sayfa',
+                  values: {'title': album.title, 'count': album.pages.length},
+                ),
           child: InkWell(
             onTap: onTap,
             onLongPress: onLongPress,
@@ -959,7 +1055,11 @@ class _AlbumGridItem extends StatelessWidget {
                     padding: const EdgeInsets.only(right: 3, bottom: 2),
                     child: isCard
                         ? _SpecialCardThumbnail(project: album)
-                        : AlbumCover3D(album: album, compact: true),
+                        : AlbumCover3D(
+                            album: album,
+                            compact: true,
+                            perspective: false,
+                          ),
                   ),
                 ),
                 const SizedBox(height: 7),
@@ -976,8 +1076,21 @@ class _AlbumGridItem extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   isCard
-                      ? 'Özel gün kartı · ${occasionTemplateById(album.cardThemeId).badge}'
-                      : '${album.pages.length} sayfa · ${album.bindingType.title}',
+                      ? context.tr(
+                          'Özel gün kartı · {badge}',
+                          values: {
+                            'badge': occasionTemplateById(
+                              album.cardThemeId,
+                            ).badge,
+                          },
+                        )
+                      : context.tr(
+                          '{count} sayfa · {binding}',
+                          values: {
+                            'count': album.pages.length,
+                            'binding': context.tr(album.bindingType.title),
+                          },
+                        ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: colors.mutedText, fontSize: 9.5),
@@ -1039,7 +1152,7 @@ class _EmptyState extends StatelessWidget {
               ),
               const SizedBox(height: 11),
               Text(
-                'İlk tasarımın burada yaşayacak',
+                context.tr('İlk tasarımın burada yaşayacak'),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: colors.text,
@@ -1050,11 +1163,13 @@ class _EmptyState extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onCreate,
                 icon: const Icon(Icons.auto_awesome),
-                label: const Text('Tasarım oluştur'),
+                label: Text(context.tr('Tasarım oluştur')),
               ),
               const StitchedDivider(height: 12),
               Text(
-                'Gerçek bir albüm oluştur veya temalı bir özel gün kartı tasarla.',
+                context.tr(
+                  'Gerçek bir albüm oluştur veya temalı bir özel gün kartı tasarla.',
+                ),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: colors.mutedText, height: 1.35),
               ),
@@ -1086,7 +1201,7 @@ class _CreationPickerSheet extends StatelessWidget {
                 rotationDegrees: -.45,
                 padding: const EdgeInsets.fromLTRB(14, 7, 14, 8),
                 child: Text(
-                  'Ne tasarlamak istersin?',
+                  context.tr('Ne tasarlamak istersin?'),
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     color: colors.text,
                     fontSize: 28,
@@ -1095,7 +1210,9 @@ class _CreationPickerSheet extends StatelessWidget {
               ),
               const SizedBox(height: 5),
               Text(
-                'Her iki tasarım da kaydedilir; fotoğraf, yazı, süs ve şekillerle kişiselleştirilebilir.',
+                context.tr(
+                  'Her iki tasarım da kaydedilir; fotoğraf, yazı, süs ve şekillerle kişiselleştirilebilir.',
+                ),
                 style: TextStyle(color: colors.mutedText, height: 1.35),
               ),
               const SizedBox(height: 17),
@@ -1105,8 +1222,10 @@ class _CreationPickerSheet extends StatelessWidget {
                     Expanded(
                       child: _CreationChoice(
                         icon: Icons.auto_stories_rounded,
-                        title: 'Fiziksel Albüm',
-                        subtitle: 'Kapak, cilt ve gerçekçi çevrilen sayfalar',
+                        title: context.tr('Fiziksel Albüm'),
+                        subtitle: context.tr(
+                          'Kapak, cilt ve gerçekçi çevrilen sayfalar',
+                        ),
                         colors: [colors.primary, colors.secondary],
                         onTap: () =>
                             Navigator.pop(context, _CreationKind.album),
@@ -1116,8 +1235,10 @@ class _CreationPickerSheet extends StatelessWidget {
                     Expanded(
                       child: _CreationChoice(
                         icon: Icons.mark_email_read_rounded,
-                        title: 'Özel Gün Kartı',
-                        subtitle: 'Tema seç, özgürce tasarla ve PNG paylaş',
+                        title: context.tr('Özel Gün Kartı'),
+                        subtitle: context.tr(
+                          'Tema seç, özgürce tasarla ve PNG paylaş',
+                        ),
                         colors: const [Color(0xFFE9A4B5), Color(0xFF9C5270)],
                         onTap: () =>
                             Navigator.pop(context, _CreationKind.occasionCard),
@@ -1130,16 +1251,20 @@ class _CreationPickerSheet extends StatelessWidget {
                   children: [
                     _CreationChoice(
                       icon: Icons.auto_stories_rounded,
-                      title: 'Fiziksel Albüm',
-                      subtitle: 'Kapak, cilt ve gerçekçi çevrilen sayfalar',
+                      title: context.tr('Fiziksel Albüm'),
+                      subtitle: context.tr(
+                        'Kapak, cilt ve gerçekçi çevrilen sayfalar',
+                      ),
                       colors: [colors.primary, colors.secondary],
                       onTap: () => Navigator.pop(context, _CreationKind.album),
                     ),
                     const SizedBox(height: 11),
                     _CreationChoice(
                       icon: Icons.mark_email_read_rounded,
-                      title: 'Özel Gün Kartı',
-                      subtitle: 'Tema seç, özgürce tasarla ve PNG paylaş',
+                      title: context.tr('Özel Gün Kartı'),
+                      subtitle: context.tr(
+                        'Tema seç, özgürce tasarla ve PNG paylaş',
+                      ),
                       colors: const [Color(0xFFE9A4B5), Color(0xFF9C5270)],
                       onTap: () =>
                           Navigator.pop(context, _CreationKind.occasionCard),
@@ -1174,7 +1299,7 @@ class _CreationChoice extends StatelessWidget {
     return PaperPanel(
       borderRadius: BorderRadius.circular(7),
       padding: EdgeInsets.zero,
-      rotationDegrees: title == 'Fiziksel Albüm' ? -.35 : .35,
+      rotationDegrees: icon == Icons.auto_stories_rounded ? -.35 : .35,
       tapePositions: const [CraftTapePosition.topRight],
       tapeColor: Color.lerp(colors.first, Colors.white, .52),
       tapeWidth: 45,
@@ -1243,32 +1368,15 @@ class _SpecialCardThumbnail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final template = occasionTemplateById(project.cardThemeId);
-    if (project.pages.isEmpty) {
-      return OccasionCardView(cardId: template.id);
-    }
     return Center(
       child: AspectRatio(
         aspectRatio: 5 / 7,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x55000000),
-                blurRadius: 18,
-                offset: Offset(7, 12),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: IgnorePointer(
-              child: AlbumPageCanvas(
-                page: project.pages.first,
-                theme: specialCardThemeFor(template),
-                showPageNumber: false,
-              ),
-            ),
+        child: IgnorePointer(
+          child: OccasionCardView(
+            cardId: template.id,
+            customTitle: project.title,
+            customSubtitle: context.tr('Kartını açmak için dokun'),
+            customBadge: template.badge,
           ),
         ),
       ),
@@ -1338,12 +1446,12 @@ class _CinematicOpeningScreenState extends State<_CinematicOpeningScreen> {
                       IconButton.filledTonal(
                         onPressed: () => Navigator.pop(context),
                         icon: const Icon(Icons.close_rounded),
-                        tooltip: 'Kapat',
+                        tooltip: context.tr('Kapat'),
                       ),
                       const Spacer(),
                       TextButton(
                         onPressed: _enterEditor,
-                        child: const Text('Geç'),
+                        child: Text(context.tr('Geç')),
                       ),
                     ],
                   ),
@@ -1374,7 +1482,7 @@ class _CinematicOpeningScreenState extends State<_CinematicOpeningScreen> {
                           ),
                           const SizedBox(width: 9),
                           Text(
-                            'Hikâyen açılıyor',
+                            context.tr('Hikâyen açılıyor'),
                             style: TextStyle(
                               color: colors.text,
                               fontSize: 11.5,
