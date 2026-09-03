@@ -16,6 +16,12 @@ class MainActivity : FlutterActivity() {
         const val CHANNEL = "com.albumium.albumium/incoming_album_package"
         const val ALBUM_MIME = "application/vnd.albumium.album+zip"
         const val MAX_PACKAGE_BYTES = 160L * 1024L * 1024L
+        val ALBUM_CONTAINER_MIMES = setOf(
+            ALBUM_MIME,
+            "application/octet-stream",
+            "application/zip",
+            "application/x-zip-compressed",
+        )
     }
 
     private var channel: MethodChannel? = null
@@ -92,8 +98,8 @@ class MainActivity : FlutterActivity() {
         }
 
     private fun isAlbumPackage(uri: Uri, declaredType: String?): Boolean {
-        val resolvedType = declaredType ?: contentResolver.getType(uri)
-        if (resolvedType == ALBUM_MIME) return true
+        val resolvedType = (declaredType ?: contentResolver.getType(uri))?.lowercase()
+        if (resolvedType in ALBUM_CONTAINER_MIMES) return true
         return displayName(uri)?.lowercase()?.endsWith(".albumium") == true
     }
 
