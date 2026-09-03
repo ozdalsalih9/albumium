@@ -23,4 +23,22 @@ void main() {
       );
     }
   });
+
+  test(
+    'native bridge accepts the normalized MIME before package validation',
+    () {
+      final source = File(
+        'android/app/src/main/kotlin/com/albumium/albumium/MainActivity.kt',
+      ).readAsStringSync();
+
+      expect(source, contains('resolvedType in ALBUM_CONTAINER_MIMES'));
+      for (final mimeType in const [
+        'application/octet-stream',
+        'application/zip',
+        'application/x-zip-compressed',
+      ]) {
+        expect(source, contains('"$mimeType"'));
+      }
+    },
+  );
 }
