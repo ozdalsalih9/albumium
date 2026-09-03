@@ -154,7 +154,10 @@ class _PageCurlPainter extends SnapshotPainter {
 
   /// Silindirin yarıçapı (genişliğe oran). Kâğıdın sertliğini belirler:
   /// büyüdükçe kıvrım yayvan, küçüldükçe keskin olur.
-  static const _radiusRatio = 0.085;
+  // A slightly broader roll keeps the moving leaf visibly curved instead of
+  // reading as a rigid card hinged at the binding. The conservative value
+  // still leaves a firm paper body and avoids the rubber-sheet look.
+  static const _radiusRatio = 0.11;
 
   /// Kat çizgisinin, köşeden tutulduğunda alabileceği en büyük eğim (radyan).
   static const _maxTilt = 0.38;

@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../l10n/albumium_localizations.dart';
+
 const _illustratedPrefix = 'albumium:';
 const _assetPrefix = 'albumium_asset:';
 const _shapePrefix = 'albumium_shape:';
@@ -196,12 +198,30 @@ String albumStickerLabel(String value) {
     'albumium_shape:circle_blush' => 'Pudra daire',
     'albumium_shape:circle_navy' => 'Lacivert daire',
     'albumium_shape:circle_gold' => 'Altın daire',
+    'albumium_shape:circle_sage' => 'Adaçayı daire',
+    'albumium_shape:circle_lavender' => 'Lavanta daire',
     'albumium_shape:square_blush' => 'Pudra kare',
     'albumium_shape:square_navy' => 'Lacivert kare',
     'albumium_shape:square_obsidian' => 'Obsidyen kare',
+    'albumium_shape:square_sage' => 'Adaçayı kare',
+    'albumium_shape:square_gold' => 'Altın kare',
     'albumium_shape:heart_rose' => 'Gül kalp',
     'albumium_shape:heart_blue' => 'Mavi kalp',
     'albumium_shape:heart_gold' => 'Altın kalp',
+    'albumium_shape:heart_blush' => 'Pudra kalp',
+    'albumium_shape:heart_lavender' => 'Lavanta kalp',
+    'albumium_shape:triangle_blush' => 'Pudra üçgen',
+    'albumium_shape:triangle_navy' => 'Lacivert üçgen',
+    'albumium_shape:triangle_gold' => 'Altın üçgen',
+    'albumium_shape:star_rose' => 'Gül yıldız',
+    'albumium_shape:star_blue' => 'Mavi yıldız',
+    'albumium_shape:star_gold' => 'Altın yıldız',
+    'albumium_shape:hexagon_blush' => 'Pudra altıgen',
+    'albumium_shape:hexagon_navy' => 'Lacivert altıgen',
+    'albumium_shape:hexagon_gold' => 'Altın altıgen',
+    'albumium_shape:diamond_rose' => 'Gül baklava',
+    'albumium_shape:diamond_blue' => 'Mavi baklava',
+    'albumium_shape:diamond_gold' => 'Altın baklava',
     _ => value,
   };
 }
@@ -210,12 +230,30 @@ const albumShapeObjects = <String>[
   'albumium_shape:circle_blush',
   'albumium_shape:circle_navy',
   'albumium_shape:circle_gold',
+  'albumium_shape:circle_sage',
+  'albumium_shape:circle_lavender',
   'albumium_shape:square_blush',
   'albumium_shape:square_navy',
   'albumium_shape:square_obsidian',
+  'albumium_shape:square_sage',
+  'albumium_shape:square_gold',
   'albumium_shape:heart_rose',
   'albumium_shape:heart_blue',
   'albumium_shape:heart_gold',
+  'albumium_shape:heart_blush',
+  'albumium_shape:heart_lavender',
+  'albumium_shape:triangle_blush',
+  'albumium_shape:triangle_navy',
+  'albumium_shape:triangle_gold',
+  'albumium_shape:star_rose',
+  'albumium_shape:star_blue',
+  'albumium_shape:star_gold',
+  'albumium_shape:hexagon_blush',
+  'albumium_shape:hexagon_navy',
+  'albumium_shape:hexagon_gold',
+  'albumium_shape:diamond_rose',
+  'albumium_shape:diamond_blue',
+  'albumium_shape:diamond_gold',
 ];
 
 class StickerCategory {
@@ -517,10 +555,12 @@ class AlbumStickerView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final english =
+        AlbumiumLocalizations.maybeOf(context)?.locale.languageCode == 'en';
     if (isAlbumStickerAsset(content)) {
       return Semantics(
         image: true,
-        label: albumStickerLabel(content),
+        label: context.tr(albumStickerLabel(content)),
         child: Center(
           child: AspectRatio(
             key: ValueKey('sticker-art-$content'),
@@ -546,7 +586,7 @@ class AlbumStickerView extends StatelessWidget {
     if (isAlbumShape(content)) {
       return Semantics(
         image: true,
-        label: albumStickerLabel(content),
+        label: context.tr(albumStickerLabel(content)),
         child: Center(
           child: AspectRatio(
             key: ValueKey('sticker-art-$content'),
@@ -562,13 +602,13 @@ class AlbumStickerView extends StatelessWidget {
 
     return Semantics(
       image: true,
-      label: albumStickerLabel(content),
+      label: context.tr(albumStickerLabel(content)),
       child: Center(
         child: AspectRatio(
           key: ValueKey('sticker-art-$content'),
           aspectRatio: albumStickerAspectRatio(content),
           child: CustomPaint(
-            painter: _IllustratedStickerPainter(content),
+            painter: _IllustratedStickerPainter(content, english: english),
             child: preview ? const SizedBox.expand() : null,
           ),
         ),
@@ -597,20 +637,22 @@ class ShapeObjectPickerSheet extends StatelessWidget {
               children: [
                 Icon(Icons.interests_outlined, color: colors.primary),
                 const SizedBox(width: 10),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Şekil Nesneleri',
-                        style: TextStyle(
+                        context.tr('Şekil Nesneleri'),
+                        style: const TextStyle(
                           fontSize: 19,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                       Text(
-                        'Daire, kare ve kalpleri büyüt, döndür ve katmanla',
-                        style: TextStyle(fontSize: 11.5),
+                        context.tr(
+                          'Geometrik şekilleri büyüt, döndür ve katmanla',
+                        ),
+                        style: const TextStyle(fontSize: 11.5),
                       ),
                     ],
                   ),
@@ -654,7 +696,7 @@ class ShapeObjectPickerSheet extends StatelessWidget {
                           ),
                           const SizedBox(height: 5),
                           Text(
-                            albumStickerLabel(shape),
+                            context.tr(albumStickerLabel(shape)),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
@@ -687,6 +729,8 @@ class _ShapeObjectPainter extends CustomPainter {
     String value when value.endsWith('_navy') => const Color(0xFF294F83),
     String value when value.endsWith('_blue') => const Color(0xFF5B8FCB),
     String value when value.endsWith('_gold') => const Color(0xFFC7A45A),
+    String value when value.endsWith('_sage') => const Color(0xFF83977B),
+    String value when value.endsWith('_lavender') => const Color(0xFF9B86B8),
     _ => const Color(0xFF292A2E),
   };
 
@@ -722,6 +766,44 @@ class _ShapeObjectPainter extends CustomPainter {
             Radius.circular(math.min(target.width, target.height) * 0.16),
           ),
         );
+    } else if (id.contains(':triangle_')) {
+      path = Path()
+        ..moveTo(target.center.dx, target.top)
+        ..lineTo(target.right, target.bottom)
+        ..lineTo(target.left, target.bottom)
+        ..close();
+    } else if (id.contains(':star_')) {
+      path = Path();
+      for (var point = 0; point < 10; point++) {
+        final angle = -math.pi / 2 + point * math.pi / 5;
+        final radius = point.isEven ? 0.5 : 0.23;
+        final offset = Offset(
+          target.center.dx + math.cos(angle) * target.width * radius,
+          target.center.dy + math.sin(angle) * target.height * radius,
+        );
+        if (point == 0) {
+          path.moveTo(offset.dx, offset.dy);
+        } else {
+          path.lineTo(offset.dx, offset.dy);
+        }
+      }
+      path.close();
+    } else if (id.contains(':hexagon_')) {
+      path = Path()
+        ..moveTo(target.left + target.width * .25, target.top)
+        ..lineTo(target.left + target.width * .75, target.top)
+        ..lineTo(target.right, target.center.dy)
+        ..lineTo(target.left + target.width * .75, target.bottom)
+        ..lineTo(target.left + target.width * .25, target.bottom)
+        ..lineTo(target.left, target.center.dy)
+        ..close();
+    } else if (id.contains(':diamond_')) {
+      path = Path()
+        ..moveTo(target.center.dx, target.top)
+        ..lineTo(target.right, target.center.dy)
+        ..lineTo(target.center.dx, target.bottom)
+        ..lineTo(target.left, target.center.dy)
+        ..close();
     } else {
       final x = target.left;
       final y = target.top;
@@ -803,9 +885,12 @@ class _StickerPackPickerSheetState extends State<StickerPackPickerSheet> {
     for (final pack in stickerPacks) {
       if (_selectedCategory != null && pack.name != _selectedCategory) continue;
       for (final sticker in pack.stickers) {
-        final label = albumStickerLabel(sticker);
+        final label = context.tr(albumStickerLabel(sticker));
+        final category = context.tr(pack.name);
         if (query.isNotEmpty &&
             !label.toLowerCase().contains(query) &&
+            !category.toLowerCase().contains(query) &&
+            !albumStickerLabel(sticker).toLowerCase().contains(query) &&
             !pack.name.toLowerCase().contains(query)) {
           continue;
         }
@@ -841,29 +926,31 @@ class _StickerPackPickerSheetState extends State<StickerPackPickerSheet> {
                     ),
                   ),
                   const SizedBox(width: 11),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Tüm Süsler',
-                          style: TextStyle(
+                          context.tr('Tüm Süsler'),
+                          style: const TextStyle(
                             fontSize: 19,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
                         Text(
-                          'Ara, filtrele veya sürpriz bir parça seç',
+                          context.tr(
+                            'Ara, filtrele veya sürpriz bir parça seç',
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 11),
+                          style: const TextStyle(fontSize: 11),
                         ),
                       ],
                     ),
                   ),
                   IconButton.filledTonal(
                     onPressed: _pickSurpriseSticker,
-                    tooltip: 'Rastgele sürpriz süs',
+                    tooltip: context.tr('Rastgele sürpriz süs'),
                     icon: const Icon(Icons.casino_outlined),
                   ),
                   const SizedBox(width: 2),
@@ -879,21 +966,21 @@ class _StickerPackPickerSheetState extends State<StickerPackPickerSheet> {
                   Expanded(
                     child: TextField(
                       onChanged: (value) => setState(() => _query = value),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         isDense: true,
-                        hintText: 'Süs ara…',
-                        prefixIcon: Icon(Icons.search_rounded, size: 20),
+                        hintText: context.tr('Süs ara…'),
+                        prefixIcon: const Icon(Icons.search_rounded, size: 20),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   PopupMenuButton<String>(
-                    tooltip: 'Kategori seç',
+                    tooltip: context.tr('Kategori seç'),
                     onSelected: (value) => setState(
                       () => _selectedCategory = value.isEmpty ? null : value,
                     ),
                     itemBuilder: (context) => [
-                      const PopupMenuItem(value: '', child: Text('Tümü')),
+                      PopupMenuItem(value: '', child: Text(context.tr('Tümü'))),
                       for (final pack in stickerPacks)
                         PopupMenuItem(
                           value: pack.name,
@@ -901,7 +988,7 @@ class _StickerPackPickerSheetState extends State<StickerPackPickerSheet> {
                             children: [
                               Icon(pack.icon, size: 18),
                               const SizedBox(width: 9),
-                              Text(pack.name),
+                              Text(context.tr(pack.name)),
                             ],
                           ),
                         ),
@@ -922,7 +1009,9 @@ class _StickerPackPickerSheetState extends State<StickerPackPickerSheet> {
                           const SizedBox(width: 6),
                           Flexible(
                             child: Text(
-                              _selectedCategory ?? 'Tümü',
+                              _selectedCategory == null
+                                  ? context.tr('Tümü')
+                                  : context.tr(_selectedCategory!),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(fontSize: 12),
@@ -936,7 +1025,10 @@ class _StickerPackPickerSheetState extends State<StickerPackPickerSheet> {
               ),
               const SizedBox(height: 9),
               Text(
-                '${entries.length} yaratıcı parça',
+                context.tr(
+                  '{count} yaratıcı parça',
+                  values: {'count': entries.length},
+                ),
                 style: TextStyle(
                   color: colors.onSurfaceVariant,
                   fontSize: 11,
@@ -946,7 +1038,9 @@ class _StickerPackPickerSheetState extends State<StickerPackPickerSheet> {
               const SizedBox(height: 7),
               Expanded(
                 child: entries.isEmpty
-                    ? const Center(child: Text('Bu aramaya uygun süs yok.'))
+                    ? Center(
+                        child: Text(context.tr('Bu aramaya uygun süs yok.')),
+                      )
                     : GridView.builder(
                         keyboardDismissBehavior:
                             ScrollViewKeyboardDismissBehavior.onDrag,
@@ -992,7 +1086,9 @@ class _StickerPackPickerSheetState extends State<StickerPackPickerSheet> {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      albumStickerLabel(entry.sticker),
+                                      context.tr(
+                                        albumStickerLabel(entry.sticker),
+                                      ),
                                       maxLines: 2,
                                       textAlign: TextAlign.center,
                                       overflow: TextOverflow.ellipsis,
@@ -1019,9 +1115,10 @@ class _StickerPackPickerSheetState extends State<StickerPackPickerSheet> {
 }
 
 class _IllustratedStickerPainter extends CustomPainter {
-  const _IllustratedStickerPainter(this.id);
+  const _IllustratedStickerPainter(this.id, {required this.english});
 
   final String id;
+  final bool english;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -2487,7 +2584,7 @@ class _IllustratedStickerPainter extends CustomPainter {
       );
       _drawLabel(
         canvas,
-        'PASAPORT',
+        english ? 'PASSPORT' : 'PASAPORT',
         const Rect.fromLTWH(26, 72, 49, 13),
         brass,
         8,
@@ -2809,31 +2906,35 @@ class _IllustratedStickerPainter extends CustomPainter {
   void _paintWordLabel(Canvas canvas) {
     final data = switch (id) {
       'albumium:words_today' => (
-        'BUGÜN',
+        english ? 'TODAY' : 'BUGÜN',
         const Color(0xFFE5B5B8),
         const Color(0xFF6F3E46),
       ),
       'albumium:words_us' => (
-        'BİZ',
+        english ? 'US' : 'BİZ',
         const Color(0xFF9BB8B7),
         const Color(0xFF35545A),
       ),
       'albumium:words_memory' => (
-        'ANI',
+        english ? 'MEMORY' : 'ANI',
         const Color(0xFFE4C879),
         const Color(0xFF6C5228),
       ),
       'albumium:words_goodday' => (
-        'GÜZEL\u00A0GÜN',
+        english ? 'GOOD\u00A0DAY' : 'GÜZEL\u00A0GÜN',
         const Color(0xFFD4C4E1),
         const Color(0xFF5B496A),
       ),
       'albumium:words_lucky' => (
-        'İYİ Kİ',
+        english ? 'SO\u00A0GLAD' : 'İYİ Kİ',
         const Color(0xFFC4D3A6),
         const Color(0xFF4A5D39),
       ),
-      _ => ('YOLCULUK', const Color(0xFFB9C9DC), const Color(0xFF3D5269)),
+      _ => (
+        english ? 'JOURNEY' : 'YOLCULUK',
+        const Color(0xFFB9C9DC),
+        const Color(0xFF3D5269),
+      ),
     };
     final label = Path()
       ..moveTo(4, 25)
@@ -3310,5 +3411,5 @@ class _IllustratedStickerPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _IllustratedStickerPainter oldDelegate) =>
-      oldDelegate.id != id;
+      oldDelegate.id != id || oldDelegate.english != english;
 }

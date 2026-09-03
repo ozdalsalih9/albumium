@@ -2,10 +2,19 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../l10n/albumium_localizations.dart';
 import '../models/album_models.dart';
 import 'album_cover.dart';
 import 'album_page_canvas.dart';
 import 'page_curl.dart';
+
+/// Albüm sayfalarını eski 9:14 oranından yalnızca biraz daha ferah tutar.
+/// Normalized öğe koordinatları sayesinde mevcut tasarımlar aynı yerleşimi
+/// korurken yatayda yaklaşık %4 daha fazla çalışma alanı kazanır.
+const double albumPageAspectRatio = 2 / 3;
+
+/// Açık kitabın dış siluetindeki aynı ölçülü genişlemeyi korur.
+const double albumBookSpreadAspectRatio = 1.56;
 
 /// A single, persistent physical book.
 ///
@@ -28,6 +37,8 @@ class PhysicalBookSpread extends StatelessWidget {
     this.turnGrabY = 0.64,
     this.interactive = false,
     this.focusedPageIndex,
+    this.targetFocusedPageIndex,
+    this.focusTransitionProgress,
     this.companionPageFraction = 0.11,
     this.activePageIndex,
     this.selectedElementId,
@@ -53,9 +64,20 @@ class PhysicalBookSpread extends StatelessWidget {
 
   /// When set, keeps this page at its natural portrait ratio and reveals only
   /// a narrow strip of the companion page. The binding remains visible between
-  /// them. Editors use this on phones; previews and tablet editors leave it
-  /// null to show the complete spread.
+  /// them. Set [companionPageFraction] to zero for a strict single-page
+  /// viewport. Editors use this on phones; previews and tablet editors leave
+  /// it null to show the complete spread.
   final int? focusedPageIndex;
+
+  /// Moves the focused viewport toward this page without requiring a physical
+  /// leaf turn. This lets callers animate the camera from the left page to the
+  /// right page of the same spread before starting the next page curl.
+  final int? targetFocusedPageIndex;
+
+  /// Normalized camera progress toward [targetFocusedPageIndex]. When omitted
+  /// during a physical page turn, [turnProgress] also drives the camera so the
+  /// viewport naturally follows the newly revealed page.
+  final double? focusTransitionProgress;
   final double companionPageFraction;
   final int? activePageIndex;
   final String? selectedElementId;
@@ -72,15 +94,19 @@ class PhysicalBookSpread extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (interactive && focusedPageIndex != null && !closed) {
-          return _buildFocusedEditor(constraints: constraints, theme: theme);
+        if (focusedPageIndex != null && !closed) {
+          return _buildFocusedEditor(
+            context: context,
+            constraints: constraints,
+            theme: theme,
+          );
         }
 
         var width = constraints.maxWidth;
-        var height = width / 1.5;
+        var height = width / albumBookSpreadAspectRatio;
         if (height > constraints.maxHeight) {
           height = constraints.maxHeight;
-          width = height * 1.5;
+          width = height * albumBookSpreadAspectRatio;
         }
 
         return Center(
@@ -105,10 +131,10 @@ class PhysicalBookSpread extends StatelessWidget {
   }
 
   Widget _buildFocusedEditor({
+    required BuildContext context,
     required BoxConstraints constraints,
     required AlbumThemePreset theme,
   }) {
-    const pageAspectRatio = 9 / 14;
     final focusedLeft =
         focusedPageIndex == leftPageIndex || rightPageIndex == blankPageIndex;
     final companionIndex = focusedLeft ? rightPageIndex : leftPageIndex;
@@ -116,28 +142,44 @@ class PhysicalBookSpread extends StatelessWidget {
     // göstermeyiz. Gerçek bir karşı sayfa varken dar önizleme korunur.
     final companion = companionIndex == blankPageIndex
         ? 0.0
-        : companionPageFraction.clamp(0.08, 0.18);
+        : companionPageFraction.clamp(0.0, 0.18);
     final pageWidthFromViewport = math.max(
       1.0,
       (constraints.maxWidth - 32) / (1 + companion),
     );
     final pageWidthFromHeight = math.max(
       1.0,
-      (constraints.maxHeight - 24) * pageAspectRatio,
+      (constraints.maxHeight - 24) * albumPageAspectRatio,
     );
     final pageWidth = math.min(pageWidthFromViewport, pageWidthFromHeight);
     final virtualWidth = pageWidth * 2 + 32;
-    final virtualHeight = pageWidth / pageAspectRatio + 24;
+    final virtualHeight = pageWidth / albumPageAspectRatio + 24;
     final viewportWidth = math.min(
       constraints.maxWidth,
       pageWidth * (1 + companion) + 32,
     );
     final startLeft = focusedLeft ? 0.0 : viewportWidth - virtualWidth;
-    final targetFocusesLeft = turningForward;
+    final targetLeftPageIndex = _hasTransition
+        ? nextLeftPageIndex!
+        : leftPageIndex;
+    final targetRightPageIndex = _hasTransition
+        ? nextRightPageIndex!
+        : rightPageIndex;
+    final defaultTargetFocusesLeft = _hasTransition
+        ? turningForward || targetRightPageIndex == blankPageIndex
+        : focusedLeft;
+    final targetFocusesLeft = switch (targetFocusedPageIndex) {
+      final index when index == targetLeftPageIndex => true,
+      final index when index == targetRightPageIndex => false,
+      _ => defaultTargetFocusesLeft,
+    };
     final endLeft = targetFocusesLeft ? 0.0 : viewportWidth - virtualWidth;
-    final cameraProgress = _hasTransition
-        ? Curves.easeInOutCubic.transform(turnProgress.clamp(0.0, 1.0))
-        : 0.0;
+    final rawFocusProgress =
+        focusTransitionProgress ??
+        (_hasTransition ? turnProgress.clamp(0.0, 1.0) : 0.0);
+    final cameraProgress = Curves.easeInOutCubic.transform(
+      rawFocusProgress.clamp(0.0, 1.0),
+    );
     final left = _lerp(startLeft, endLeft, cameraProgress);
     final book = _buildBook(
       width: virtualWidth,
@@ -148,8 +190,10 @@ class PhysicalBookSpread extends StatelessWidget {
 
     return Center(
       child: Semantics(
-        label:
-            'Odaklı sayfa görünümü, karşı sayfanın yüzde ${(companion * 100).round()} kadarı görünür',
+        label: context.tr(
+          'Odaklı sayfa görünümü, karşı sayfanın yüzde {percent} kadarı görünür',
+          values: {'percent': (companion * 100).round()},
+        ),
         container: true,
         explicitChildNodes: true,
         child: SizedBox(
@@ -161,6 +205,7 @@ class PhysicalBookSpread extends StatelessWidget {
               clipBehavior: Clip.hardEdge,
               children: [
                 Positioned(
+                  key: const ValueKey('focused-book-position'),
                   left: left,
                   top: 0,
                   width: virtualWidth,
@@ -260,7 +305,11 @@ class PhysicalBookSpread extends StatelessWidget {
     required int openLeftIndex,
     required int openRightIndex,
   }) {
-    final eased = Curves.easeInOutCubic.transform(openingProgress);
+    // The animation controller (or export timeline) owns easing. Applying a
+    // second cubic curve here made the cover barely move at first and then
+    // snap open around the midpoint. Keeping this mapping linear also makes a
+    // directly dragged cover follow the user's finger.
+    final eased = openingProgress.clamp(0.0, 1.0);
     final pageWidth = (width - 32) / 2;
     final coverLeft = _lerp(width * 0.5 - pageWidth / 2, width / 2 + 2, eased);
     final coverTop = _lerp(5, 12, eased);
@@ -478,7 +527,7 @@ class PhysicalBookSpread extends StatelessWidget {
               left: width / 2 - 20,
               width: 40,
               child: IgnorePointer(
-                child: _buildBindingOverlay(album.bindingType),
+                child: _buildBindingOverlay(context, album.bindingType),
               ),
             ),
             if (turningLeaf != null)
@@ -579,9 +628,12 @@ class PhysicalBookSpread extends StatelessWidget {
     );
   }
 
-  Widget _buildBindingOverlay(AlbumBindingType binding) {
+  Widget _buildBindingOverlay(BuildContext context, AlbumBindingType binding) {
     return Semantics(
-      label: 'Cilt merkezi: ${binding.title}',
+      label: context.tr(
+        'Cilt merkezi: {binding}',
+        values: {'binding': context.tr(binding.title)},
+      ),
       image: true,
       child: switch (binding) {
         AlbumBindingType.spiral => const _SpiralBinding(),
@@ -636,7 +688,10 @@ class _CurlingLeaf extends StatelessWidget {
           grabY: grabY.clamp(0.08, 0.92),
           paperColor: paperColor,
           borderRadius: 7,
-          shadowOpacity: 0,
+          // Only the front surface paints the crease shadow. A restrained
+          // value restores contact/depth without bringing back the duplicate
+          // translucent strip that the split front/back mesh removed.
+          shadowOpacity: 0.30,
           allowBindingOverflow: true,
           surface: surface,
           child: orientForEngine(page),
@@ -1081,8 +1136,9 @@ class PhotoCornerMounts extends StatelessWidget {
         ? const Color(0xFFD4AF37)
         : const Color(0xFF2B2118);
     return Stack(
+      fit: StackFit.expand,
       children: [
-        child,
+        Positioned.fill(child: child),
         Positioned(
           top: 0,
           left: 0,

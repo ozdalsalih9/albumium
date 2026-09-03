@@ -4,6 +4,18 @@ import '../themes/album_themes.dart';
 
 enum AlbumElementType { photo, text, sticker, drawing, card }
 
+/// Paint order follows the order of [AlbumPageModel.elements]: the first item
+/// is at the back and the last item is at the front.
+enum AlbumElementLayerAction { moveDown, moveUp, sendToBack, bringToFront }
+
+const albumElementMinScale = 0.35;
+const albumElementMaxScale = 3.5;
+const albumElementScaleStep = 1.12;
+
+/// The crop silhouette applied to a photo independently from its decorative
+/// frame. Existing albums use [free] so their saved layout stays unchanged.
+enum AlbumPhotoShape { free, square, landscape, portrait, circle, arch, torn }
+
 /// Kütüphanede albümler ile bağımsız özel gün kartlarını birlikte saklar.
 enum AlbumProjectType { album, occasionCard }
 
@@ -202,6 +214,7 @@ class AlbumElementModel {
     this.rotation = 0,
     this.scale = 1,
     this.frameStyle = 0,
+    this.photoShape = AlbumPhotoShape.free,
     this.textColor = 0xFF2B2521,
     this.fontSize = 24,
     this.extraData = '',
@@ -216,8 +229,11 @@ class AlbumElementModel {
   double height;
   double rotation;
   double scale;
-  int
-  frameStyle; // 0: Normal, 1: Polaroid, 2: Dark Leather, 3: Soft Pill, 4: Gold Corner Mounts, 5: Black Corner Mounts
+
+  /// Append-only index into the photo-frame catalogue. Existing numeric IDs
+  /// must keep their meaning so older albums render identically.
+  int frameStyle;
+  AlbumPhotoShape photoShape;
   int textColor;
   double fontSize;
   String
@@ -234,6 +250,7 @@ class AlbumElementModel {
     'rotation': rotation,
     'scale': scale,
     'frameStyle': frameStyle,
+    'photoShape': photoShape.name,
     'textColor': textColor,
     'fontSize': fontSize,
     'extraData': extraData,
@@ -251,10 +268,71 @@ class AlbumElementModel {
         rotation: (json['rotation'] as num?)?.toDouble() ?? 0,
         scale: (json['scale'] as num?)?.toDouble() ?? 1,
         frameStyle: json['frameStyle'] as int? ?? 0,
+        photoShape: AlbumPhotoShape.values.firstWhere(
+          (shape) => shape.name == json['photoShape'],
+          orElse: () => AlbumPhotoShape.free,
+        ),
         textColor: json['textColor'] as int? ?? 0xFF2B2521,
         fontSize: (json['fontSize'] as num?)?.toDouble() ?? 24,
         extraData: json['extraData'] as String? ?? '',
       );
+}
+
+bool canMoveAlbumElementLayer(
+  List<AlbumElementModel> elements,
+  String elementId,
+  AlbumElementLayerAction action,
+) {
+  final index = elements.indexWhere((element) => element.id == elementId);
+  if (index < 0 || elements.length < 2) return false;
+  return switch (action) {
+    AlbumElementLayerAction.moveDown ||
+    AlbumElementLayerAction.sendToBack => index > 0,
+    AlbumElementLayerAction.moveUp ||
+    AlbumElementLayerAction.bringToFront => index < elements.length - 1,
+  };
+}
+
+/// Reorders an element without introducing a second z-index source of truth.
+/// Returns false when the requested move is already at its boundary.
+bool moveAlbumElementLayer(
+  List<AlbumElementModel> elements,
+  String elementId,
+  AlbumElementLayerAction action,
+) {
+  if (!canMoveAlbumElementLayer(elements, elementId, action)) return false;
+  final index = elements.indexWhere((element) => element.id == elementId);
+  final targetIndex = switch (action) {
+    AlbumElementLayerAction.moveDown => index - 1,
+    AlbumElementLayerAction.moveUp => index + 1,
+    AlbumElementLayerAction.sendToBack => 0,
+    AlbumElementLayerAction.bringToFront => elements.length - 1,
+  };
+  final element = elements.removeAt(index);
+  elements.insert(targetIndex, element);
+  return true;
+}
+
+bool scaleAlbumElementBy(AlbumElementModel element, double factor) {
+  if (!factor.isFinite || factor <= 0) return false;
+  final current = element.scale.isFinite ? element.scale : 1.0;
+  final next = (current * factor).clamp(
+    albumElementMinScale,
+    albumElementMaxScale,
+  );
+  if ((next - current).abs() < 0.000001) return false;
+  element.scale = next;
+  return true;
+}
+
+bool resetAlbumElementTransform(AlbumElementModel element) {
+  if ((element.scale - 1).abs() < 0.000001 &&
+      element.rotation.abs() < 0.000001) {
+    return false;
+  }
+  element.scale = 1;
+  element.rotation = 0;
+  return true;
 }
 
 class AlbumPageModel {

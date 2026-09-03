@@ -1,11 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'l10n/albumium_localizations.dart';
 import 'screens/home_screen.dart';
 import 'services/error_reporter.dart';
+import 'services/language_controller.dart';
 import 'services/theme_controller.dart';
 import 'theme/albumium_app_theme.dart';
 import 'widgets/albumium_launch_screen.dart';
@@ -28,14 +31,24 @@ Future<void> main() async {
   ]);
 
   final themeController = ThemeController();
-  await themeController.initialize();
-  runApp(AlbumiumApp(themeController: themeController));
+  final languageController = LanguageController();
+  await Future.wait([
+    themeController.initialize(),
+    languageController.initialize(),
+  ]);
+  runApp(
+    AlbumiumApp(
+      themeController: themeController,
+      languageController: languageController,
+    ),
+  );
 }
 
 class AlbumiumApp extends StatefulWidget {
   const AlbumiumApp({
     super.key,
     this.themeController,
+    this.languageController,
     this.showLaunchAnimation = true,
     this.launchAnimationDuration = const Duration(milliseconds: 920),
   });
@@ -43,6 +56,7 @@ class AlbumiumApp extends StatefulWidget {
   /// Optional for tests and embedders. The app owns the controller it creates
   /// when this is null.
   final ThemeController? themeController;
+  final LanguageController? languageController;
 
   /// Can be disabled by focused widget tests and embedders that provide their
   /// own launch experience.
@@ -56,7 +70,9 @@ class AlbumiumApp extends StatefulWidget {
 
 class _AlbumiumAppState extends State<AlbumiumApp> {
   late final ThemeController _themeController;
+  late final LanguageController _languageController;
   late final bool _ownsThemeController;
+  late final bool _ownsLanguageController;
   late bool _showLaunchAnimation;
 
   @override
@@ -64,22 +80,29 @@ class _AlbumiumAppState extends State<AlbumiumApp> {
     super.initState();
     _ownsThemeController = widget.themeController == null;
     _themeController = widget.themeController ?? ThemeController();
+    _ownsLanguageController = widget.languageController == null;
+    _languageController =
+        widget.languageController ?? LanguageController();
     _showLaunchAnimation = widget.showLaunchAnimation;
     if (!_themeController.isInitialized) {
       unawaited(_themeController.initialize());
+    }
+    if (!_languageController.isInitialized) {
+      unawaited(_languageController.initialize());
     }
   }
 
   @override
   void dispose() {
     if (_ownsThemeController) _themeController.dispose();
+    if (_ownsLanguageController) _languageController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: _themeController,
+      animation: Listenable.merge([_themeController, _languageController]),
       builder: (context, _) {
         return MaterialApp(
           title: 'Albumium',
@@ -89,6 +112,14 @@ class _AlbumiumAppState extends State<AlbumiumApp> {
           themeMode: _themeController.themeMode,
           themeAnimationDuration: const Duration(milliseconds: 420),
           themeAnimationCurve: Curves.easeInOutCubic,
+          locale: _languageController.locale,
+          supportedLocales: AlbumiumLocalizations.supportedLocales,
+          localizationsDelegates: const [
+            AlbumiumLocalizationsDelegate(),
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
           builder: (context, child) {
             final theme = Theme.of(context);
             final colors = theme.extension<AlbumiumThemeColors>()!;
@@ -112,7 +143,10 @@ class _AlbumiumAppState extends State<AlbumiumApp> {
               Positioned.fill(
                 child: ExcludeSemantics(
                   excluding: _showLaunchAnimation,
-                  child: HomeScreen(themeController: _themeController),
+                  child: HomeScreen(
+                    themeController: _themeController,
+                    languageController: _languageController,
+                  ),
                 ),
               ),
               if (_showLaunchAnimation)

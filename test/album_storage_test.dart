@@ -64,6 +64,21 @@ void main() {
       final loaded = await storage.loadAlbums();
       expect(loaded.first.id, 'yeni');
     });
+
+    test('büyük kütüphane verisi arka planda güvenle çözülür', () async {
+      final longTitle = List.filled(270000, 'a').join();
+      final album = _album('buyuk', title: longTitle);
+      await _seedRaw(
+        jsonEncode({
+          'schemaVersion': 2,
+          'albums': [album.toJson()],
+        }),
+      );
+
+      final loaded = await storage.loadAlbums();
+      expect(loaded.single.id, 'buyuk');
+      expect(loaded.single.title.length, longTitle.length);
+    });
   });
 
   group('bozuk veri — veri kaybı koruması', () {

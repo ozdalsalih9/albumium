@@ -44,6 +44,8 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Local verification artifacts; the release APK itself is kept for convenient testing.
+# Local verification and release artifacts. Publish APKs separately instead of
+# growing the Git history with a new binary on every release.
 /dist/*.png
 /dist/*.xml
+/dist/*.apk

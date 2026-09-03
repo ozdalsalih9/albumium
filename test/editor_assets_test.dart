@@ -48,29 +48,57 @@ void main() {
   });
 
   test('photo frame catalogue exposes unique, labelled styles', () {
-    expect(albumPhotoFrameCount, greaterThanOrEqualTo(12));
+    const legacyFrameLabels = <String>[
+      'Temiz kenar',
+      'Klasik Polaroid',
+      'Koyu deri',
+      'Yumuşak köşe',
+      'Altın köşebent',
+      'Siyah köşebent',
+      'Yırtık kâğıt',
+      'Analog film',
+      'Altın galeri',
+      'Pudra keten',
+      'Posta pulu',
+      'Washi bant',
+    ];
+
+    expect(albumPhotoFrameCount, greaterThanOrEqualTo(16));
+    expect(
+      albumPhotoFrameLabels.take(legacyFrameLabels.length),
+      orderedEquals(legacyFrameLabels),
+      reason: 'Kaydedilmiş 0-11 çerçeve kimliklerinin anlamı değişmemeli.',
+    );
     expect(albumPhotoFrameLabels.toSet(), hasLength(albumPhotoFrameCount));
     for (var index = 0; index < albumPhotoFrameCount; index++) {
       expect(albumPhotoFrameLabel(index), isNotEmpty);
     }
   });
 
-  test('shape objects contain circle, square and heart variants', () {
-    expect(albumShapeObjects, hasLength(9));
+  test('shape objects expose the expanded geometric catalogue', () {
+    expect(albumShapeObjects, hasLength(27));
     expect(
       albumShapeObjects.where((value) => value.contains(':circle_')),
-      hasLength(3),
+      hasLength(5),
     );
     expect(
       albumShapeObjects.where((value) => value.contains(':square_')),
-      hasLength(3),
+      hasLength(5),
     );
     expect(
       albumShapeObjects.where((value) => value.contains(':heart_')),
-      hasLength(3),
+      hasLength(5),
     );
+    for (final kind in ['triangle', 'star', 'hexagon', 'diamond']) {
+      expect(
+        albumShapeObjects.where((value) => value.contains(':${kind}_')),
+        hasLength(3),
+      );
+    }
+    expect(albumShapeObjects.toSet(), hasLength(albumShapeObjects.length));
     for (final shape in albumShapeObjects) {
       expect(isAlbumShape(shape), isTrue);
+      expect(albumStickerLabel(shape), isNot(equals(shape)));
       expect(albumStickerLabel(shape), isNotEmpty);
     }
   });
