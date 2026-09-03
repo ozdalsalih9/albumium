@@ -15,6 +15,7 @@ import '../l10n/albumium_localizations.dart';
 import '../models/album_models.dart';
 import '../models/cinematic_storyboard.dart';
 import '../models/single_page_export_storyboard.dart';
+import '../services/album_package_service.dart';
 import '../services/cinematic_soundtrack.dart';
 import '../services/video_export_support.dart';
 import '../theme/albumium_app_theme.dart';
@@ -29,7 +30,7 @@ const _exportVideoWidth = 1080;
 const _exportVideoHeight = 1920;
 const _exportPixelRatio = _exportVideoWidth / _exportLogicalWidth;
 
-enum _ShareExportChoice { currentPng, allPng, mp4 }
+enum _ShareExportChoice { interactiveAlbum, currentPng, allPng, mp4 }
 
 class PreviewScreen extends StatefulWidget {
   const PreviewScreen({super.key, required this.album});
@@ -550,6 +551,23 @@ class _PreviewScreenState extends State<PreviewScreen>
               style: Theme.of(sheetContext).textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
+            ListTile(
+              key: const ValueKey('share_interactive_album'),
+              leading: const Icon(Icons.auto_stories_outlined),
+              title: Text(sheetContext.tr('Etkileşimli albüm paylaş')),
+              subtitle: Text(
+                sheetContext.tr('Küçük bir Albumium dosyası · sunucu gerekmez'),
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.pop(
+                sheetContext,
+                _ShareExportChoice.interactiveAlbum,
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Divider(height: 1),
+            ),
             _CinematicExportTile(
               key: const ValueKey('share_mp4'),
               onTap: () => Navigator.pop(sheetContext, _ShareExportChoice.mp4),
@@ -583,6 +601,8 @@ class _PreviewScreenState extends State<PreviewScreen>
     if (!mounted || choice == null) return;
 
     switch (choice) {
+      case _ShareExportChoice.interactiveAlbum:
+        await _exportInteractiveAlbum();
       case _ShareExportChoice.currentPng:
         await _exportPngAndShare(allPositions: false);
       case _ShareExportChoice.allPng:
@@ -592,6 +612,96 @@ class _PreviewScreenState extends State<PreviewScreen>
         if (includeSoundtrack != null && mounted) {
           await _exportMp4AndShare(includeSoundtrack: includeSoundtrack);
         }
+    }
+  }
+
+  Future<void> _exportInteractiveAlbum() async {
+    if (_exporting) return;
+    _timer?.cancel();
+    final localizations =
+        AlbumiumLocalizations.maybeOf(context) ??
+        const AlbumiumLocalizations(Locale('tr'));
+    final shareText = localizations.text(
+      '“{title}” albümünü Albumium’da açmak için bu dosyaya dokun.',
+      values: {'title': widget.album.title},
+    );
+    setState(() {
+      _autoPlay = false;
+      _exporting = true;
+      _exportProgress = 0;
+      _exportStatus = localizations.text('Albüm paketi hazırlanıyor…');
+      _exportProgressDetails = '';
+      _exportCanCancel = false;
+      _exportCancellationRequested = false;
+      _exportingSinglePageVideo = false;
+    });
+
+    try {
+      final result = await AlbumPackageService().createPackage(
+        widget.album,
+        onProgress: (stage, progress) {
+          if (!mounted) return;
+          setState(() {
+            _exportProgress = progress.clamp(0.0, 1.0);
+            _exportStatus = switch (stage) {
+              AlbumPackageStage.preparing => localizations.text(
+                'Albüm paketi hazırlanıyor…',
+              ),
+              AlbumPackageStage.optimizingPhotos => localizations.text(
+                'Fotoğraflar paylaşım için küçültülüyor…',
+              ),
+              AlbumPackageStage.packaging => localizations.text(
+                'Albüm dosyası paketleniyor…',
+              ),
+            };
+          });
+        },
+      );
+      if (!mounted) return;
+      setState(() {
+        _exportProgress = 1;
+        _exportStatus = localizations.text('Paylaşım menüsü açılıyor…');
+        _exportProgressDetails = localizations.text(
+          '{size} · {count} fotoğraf',
+          values: {
+            'size': AlbumPackageService.formatBytes(result.packageBytes),
+            'count': result.mediaCount,
+          },
+        );
+      });
+      final filename = result.file.uri.pathSegments.last;
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(result.file.path, mimeType: albumPackageMimeType)],
+          fileNameOverrides: [filename],
+          title: widget.album.title,
+          subject: '${widget.album.title} · Albumium',
+          text: shareText,
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              localizations.text(
+                'Etkileşimli albüm hazırlanamadı: {error}',
+                values: {
+                  'error': _albumPackageExportError(localizations, error),
+                },
+              ),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _exporting = false;
+          _exportCanCancel = false;
+          _exportCancellationRequested = false;
+        });
+      }
     }
   }
 
@@ -1521,6 +1631,35 @@ class _PreviewScreenState extends State<PreviewScreen>
       ),
     );
   }
+}
+
+String _albumPackageExportError(
+  AlbumiumLocalizations localizations,
+  Object error,
+) {
+  if (error is AlbumPackageException) {
+    return switch (error.failure) {
+      AlbumPackageFailure.missingSource => localizations.text(
+        'Albümde kullanılan bir fotoğraf bulunamadı.',
+      ),
+      AlbumPackageFailure.tooLarge => localizations.text(
+        'Albüm paketi izin verilen boyutu aşıyor.',
+      ),
+      AlbumPackageFailure.invalidArchive => localizations.text(
+        'Dosya geçerli bir Albumium albümü değil.',
+      ),
+      AlbumPackageFailure.unsupportedVersion => localizations.text(
+        'Bu albüm daha yeni bir Albumium sürümü gerektiriyor.',
+      ),
+      AlbumPackageFailure.unsafeContent => localizations.text(
+        'Albüm paketi güvenli olmayan içerik barındırıyor.',
+      ),
+      AlbumPackageFailure.corruptMedia => localizations.text(
+        'Albümdeki fotoğraflardan biri bozuk veya değiştirilmiş.',
+      ),
+    };
+  }
+  return localizations.text('Beklenmeyen bir dosya hatası oluştu.');
 }
 
 class _BookPosition {

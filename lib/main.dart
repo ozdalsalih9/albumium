@@ -6,7 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'l10n/albumium_localizations.dart';
+import 'screens/album_import_screen.dart';
 import 'screens/home_screen.dart';
+import 'services/album_incoming_intent_service.dart';
 import 'services/error_reporter.dart';
 import 'services/language_controller.dart';
 import 'services/theme_controller.dart';
@@ -69,11 +71,16 @@ class AlbumiumApp extends StatefulWidget {
 }
 
 class _AlbumiumAppState extends State<AlbumiumApp> {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  final List<String> _pendingAlbumPackages = <String>[];
   late final ThemeController _themeController;
   late final LanguageController _languageController;
+  late final AlbumIncomingIntentService _incomingIntentService;
   late final bool _ownsThemeController;
   late final bool _ownsLanguageController;
   late bool _showLaunchAnimation;
+  Key _homeKey = UniqueKey();
+  bool _handlingIncomingPackage = false;
 
   @override
   void initState() {
@@ -81,8 +88,8 @@ class _AlbumiumAppState extends State<AlbumiumApp> {
     _ownsThemeController = widget.themeController == null;
     _themeController = widget.themeController ?? ThemeController();
     _ownsLanguageController = widget.languageController == null;
-    _languageController =
-        widget.languageController ?? LanguageController();
+    _languageController = widget.languageController ?? LanguageController();
+    _incomingIntentService = AlbumIncomingIntentService();
     _showLaunchAnimation = widget.showLaunchAnimation;
     if (!_themeController.isInitialized) {
       unawaited(_themeController.initialize());
@@ -90,10 +97,67 @@ class _AlbumiumAppState extends State<AlbumiumApp> {
     if (!_languageController.isInitialized) {
       unawaited(_languageController.initialize());
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(
+        _incomingIntentService.start(
+          onPackage: _queueIncomingAlbumPackage,
+          onError: _showIncomingAlbumError,
+        ),
+      );
+    });
+  }
+
+  void _queueIncomingAlbumPackage(String path) {
+    if (!_pendingAlbumPackages.contains(path)) {
+      _pendingAlbumPackages.add(path);
+    }
+    unawaited(_openNextIncomingAlbumPackage());
+  }
+
+  Future<void> _openNextIncomingAlbumPackage() async {
+    if (!mounted || _handlingIncomingPackage || _pendingAlbumPackages.isEmpty) {
+      return;
+    }
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_openNextIncomingAlbumPackage());
+      });
+      return;
+    }
+    _handlingIncomingPackage = true;
+    final path = _pendingAlbumPackages.removeAt(0);
+    final imported = await navigator.push<bool>(
+      MaterialPageRoute(builder: (_) => AlbumImportScreen(packagePath: path)),
+    );
+    if (mounted && imported == true) {
+      setState(() => _homeKey = UniqueKey());
+    }
+    _handlingIncomingPackage = false;
+    if (_pendingAlbumPackages.isNotEmpty) {
+      unawaited(_openNextIncomingAlbumPackage());
+    }
+  }
+
+  void _showIncomingAlbumError(String message) {
+    if (!mounted) return;
+    final context = _navigatorKey.currentContext;
+    if (context == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          context.tr(
+            'Gelen albüm alınamadı: {error}',
+            values: {'error': message},
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   void dispose() {
+    unawaited(_incomingIntentService.dispose());
     if (_ownsThemeController) _themeController.dispose();
     if (_ownsLanguageController) _languageController.dispose();
     super.dispose();
@@ -105,6 +169,7 @@ class _AlbumiumAppState extends State<AlbumiumApp> {
       animation: Listenable.merge([_themeController, _languageController]),
       builder: (context, _) {
         return MaterialApp(
+          navigatorKey: _navigatorKey,
           title: 'Albumium',
           debugShowCheckedModeBanner: false,
           theme: _themeController.lightTheme,
@@ -144,6 +209,7 @@ class _AlbumiumAppState extends State<AlbumiumApp> {
                 child: ExcludeSemantics(
                   excluding: _showLaunchAnimation,
                   child: HomeScreen(
+                    key: _homeKey,
                     themeController: _themeController,
                     languageController: _languageController,
                   ),
