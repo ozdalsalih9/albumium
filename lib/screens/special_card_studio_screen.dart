@@ -18,6 +18,7 @@ import '../widgets/font_selector_dialog.dart';
 import '../widgets/handmade_craft.dart';
 import '../widgets/occasion_cards.dart';
 import '../widgets/photo_style_picker.dart';
+import '../widgets/photo_crop_editor.dart';
 import '../widgets/sticker_packs.dart';
 
 const _cardRoleBadge = 'card-badge-';
@@ -227,17 +228,39 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
       maxWidth: 2800,
     );
     if (picked == null || !mounted) return;
-    final path = await AlbumStorage.instance.importImage(picked);
+    String path;
+    Size size;
+    try {
+      path = await AlbumStorage.instance.importImage(picked);
+      final info = await loadAlbumPhoto(path);
+      size = albumPhotoSize(
+        info.image.width / info.image.height,
+        maxWidth: .64,
+      );
+      info.dispose();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              context.tr('Fotoğraf açılamadı. Lütfen tekrar dene.'),
+            ),
+          ),
+        );
+      }
+      return;
+    }
     if (!mounted) return;
     setState(() {
       final element = AlbumElementModel(
         id: newId(),
         type: AlbumElementType.photo,
         content: path,
-        x: .18,
-        y: .28,
-        width: .64,
-        height: .38,
+        x: (1 - size.width) / 2,
+        y: (1 - size.height) / 2,
+        width: size.width,
+        height: size.height,
+        photoCrop: fullPhotoCrop,
         rotation: -.025,
         frameStyle: 1,
       );
@@ -245,6 +268,15 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
       _selectedId = element.id;
     });
     _changed();
+  }
+
+  Future<void> _cropSelectedPhoto() async {
+    final element = selectedElement;
+    if (element == null || element.type != AlbumElementType.photo) return;
+    if (await editAlbumPhotoCrop(context, element) && mounted) {
+      setState(() {});
+      _changed();
+    }
   }
 
   Future<void> _addText() async {
@@ -365,6 +397,7 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
         scale: source.scale,
         frameStyle: source.frameStyle,
         photoShape: source.photoShape,
+        photoCrop: source.photoCrop,
         textColor: source.textColor,
         fontSize: source.fontSize,
         extraData: source.extraData,
@@ -619,6 +652,12 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
                               onPressed: _editSelected,
                               tooltip: context.tr('Metni düzenle'),
                               icon: const Icon(Icons.edit_rounded),
+                            ),
+                          if (selectedElement!.type == AlbumElementType.photo)
+                            IconButton(
+                              onPressed: _cropSelectedPhoto,
+                              tooltip: context.tr('Fotoğrafı kırp'),
+                              icon: const Icon(Icons.crop_rounded),
                             ),
                           IconButton(
                             onPressed: _duplicateSelected,

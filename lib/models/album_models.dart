@@ -215,6 +215,7 @@ class AlbumElementModel {
     this.scale = 1,
     this.frameStyle = 0,
     this.photoShape = AlbumPhotoShape.free,
+    this.photoCrop,
     this.textColor = 0xFF2B2521,
     this.fontSize = 24,
     this.extraData = '',
@@ -234,6 +235,10 @@ class AlbumElementModel {
   /// must keep their meaning so older albums render identically.
   int frameStyle;
   AlbumPhotoShape photoShape;
+
+  /// Normalized source-image region. Null preserves legacy cover rendering;
+  /// the full unit rectangle explicitly shows the entire original image.
+  Rect? photoCrop;
   int textColor;
   double fontSize;
   String
@@ -251,6 +256,8 @@ class AlbumElementModel {
     'scale': scale,
     'frameStyle': frameStyle,
     'photoShape': photoShape.name,
+    if (photoCrop case final crop?)
+      'photoCrop': [crop.left, crop.top, crop.right, crop.bottom],
     'textColor': textColor,
     'fontSize': fontSize,
     'extraData': extraData,
@@ -268,6 +275,7 @@ class AlbumElementModel {
         rotation: (json['rotation'] as num?)?.toDouble() ?? 0,
         scale: (json['scale'] as num?)?.toDouble() ?? 1,
         frameStyle: json['frameStyle'] as int? ?? 0,
+        photoCrop: parsePhotoCrop(json['photoCrop']),
         photoShape: AlbumPhotoShape.values.firstWhere(
           (shape) => shape.name == json['photoShape'],
           orElse: () => AlbumPhotoShape.free,
@@ -276,6 +284,20 @@ class AlbumElementModel {
         fontSize: (json['fontSize'] as num?)?.toDouble() ?? 24,
         extraData: json['extraData'] as String? ?? '',
       );
+}
+
+Rect? parsePhotoCrop(Object? raw) {
+  if (raw is! List ||
+      raw.length != 4 ||
+      raw.any((value) => value is! num || !value.isFinite)) {
+    return null;
+  }
+  final values = raw
+      .cast<num>()
+      .map((v) => v.toDouble().clamp(0.0, 1.0))
+      .toList();
+  final rect = Rect.fromLTRB(values[0], values[1], values[2], values[3]);
+  return rect.width >= .01 && rect.height >= .01 ? rect : null;
 }
 
 bool canMoveAlbumElementLayer(

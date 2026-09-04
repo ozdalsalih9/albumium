@@ -10,6 +10,7 @@ import '../themes/theme_image_helper.dart';
 import 'font_selector_dialog.dart';
 import 'handwriting_painter.dart';
 import 'occasion_cards.dart';
+import 'photo_crop_editor.dart';
 import 'physical_book_spread.dart';
 import 'sticker_packs.dart';
 import 'theme_page_decoration.dart';
@@ -34,6 +35,27 @@ const albumPhotoFrameLabels = <String>[
 ];
 
 int get albumPhotoFrameCount => albumPhotoFrameLabels.length;
+
+/// Space consumed by each frame around the image, including Container border
+/// padding (DecoratedBox borders, unlike Container borders, do not add space).
+/// Keep these in sync with _photoFrame; regression tests measure all frames.
+EdgeInsets albumPhotoFrameInsets(int style) =>
+    switch (style % albumPhotoFrameCount) {
+      1 => const EdgeInsets.fromLTRB(8, 8, 8, 24),
+      2 => const EdgeInsets.all(5),
+      3 => const EdgeInsets.all(8),
+      6 => const EdgeInsets.all(9),
+      7 => const EdgeInsets.symmetric(horizontal: 5, vertical: 11),
+      8 => const EdgeInsets.all(12.5),
+      9 => const EdgeInsets.fromLTRB(15.9, 15.9, 15.9, 18.9),
+      10 => const EdgeInsets.all(12),
+      11 => const EdgeInsets.fromLTRB(8, 10, 8, 9),
+      12 => const EdgeInsets.all(14.2),
+      13 => const EdgeInsets.fromLTRB(10, 12, 10, 20),
+      14 => const EdgeInsets.all(10),
+      15 => const EdgeInsets.fromLTRB(7, 7, 7, 18),
+      _ => EdgeInsets.zero,
+    };
 
 String albumPhotoFrameLabel(int style) =>
     albumPhotoFrameLabels[style % albumPhotoFrameLabels.length];
@@ -473,16 +495,37 @@ class _AlbumElementViewState extends State<_AlbumElementView> {
   }
 
   Widget _photo(AlbumElementModel element) {
+    if (element.photoCrop != null &&
+        element.photoShape == AlbumPhotoShape.free) {
+      return CroppedAlbumPhoto(
+        path: element.content,
+        crop: element.photoCrop!,
+        frameInsets: albumPhotoFrameInsets(element.frameStyle),
+        frameBuilder: (photo) => _photoFrame(element, photo),
+      );
+    }
     final image = _PhotoShapeClip(
       shape: element.photoShape,
-      child: ThemeImage(
-        url: element.content,
-        width: double.infinity,
-        height: double.infinity,
-        fit: BoxFit.cover,
-      ),
+      child: element.photoCrop != null
+          ? CroppedAlbumPhoto(
+              path: element.content,
+              crop: element.photoCrop!,
+              fit: element.photoShape == AlbumPhotoShape.free
+                  ? BoxFit.contain
+                  : BoxFit.cover,
+            )
+          : ThemeImage(
+              url: element.content,
+              width: double.infinity,
+              height: double.infinity,
+              fit: BoxFit.cover,
+            ),
     );
 
+    return _photoFrame(element, image);
+  }
+
+  Widget _photoFrame(AlbumElementModel element, Widget image) {
     switch (element.frameStyle % albumPhotoFrameCount) {
       case 1:
         // Polaroid frame
@@ -901,11 +944,8 @@ class _AlbumSelectionOverlayState extends State<_AlbumSelectionOverlay> {
     final corners = [
       for (final corner in _ResizeCorner.values) _cornerPosition(corner),
     ];
-    final showsRotationHandle = widget.element.type == AlbumElementType.photo;
-    final rotationAnchor = showsRotationHandle ? _topEdgeCenter : null;
-    final rotationHandle = rotationAnchor == null
-        ? null
-        : _rotationHandlePosition(rotationAnchor);
+    final rotationAnchor = _topEdgeCenter;
+    final rotationHandle = _rotationHandlePosition(rotationAnchor);
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -961,42 +1001,44 @@ class _AlbumSelectionOverlayState extends State<_AlbumSelectionOverlay> {
               ),
             ),
           ),
-        if (rotationHandle != null)
-          Positioned(
-            left: rotationHandle.dx - 24,
-            top: rotationHandle.dy - 24,
-            width: 48,
-            height: 48,
-            child: Semantics(
-              label: context.tr('Fotoğrafı döndür'),
-              hint: context.tr('Sürükleyerek döndür'),
-              button: true,
-              child: MouseRegion(
-                cursor: SystemMouseCursors.grab,
-                child: GestureDetector(
-                  key: const ValueKey('selection-rotate'),
-                  behavior: HitTestBehavior.opaque,
-                  onPanStart: _handleRotationStart,
-                  onPanUpdate: _handleRotationUpdate,
-                  onPanEnd: (_) => _finishRotation(),
-                  onPanCancel: _finishRotation,
-                  child: Center(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: color, width: 2),
-                        boxShadow: const [
-                          BoxShadow(color: Color(0x55000000), blurRadius: 3),
-                        ],
-                      ),
-                      child: SizedBox.square(
-                        dimension: 32,
-                        child: Icon(
-                          Icons.rotate_right_rounded,
-                          size: 19,
-                          color: color,
-                        ),
+        Positioned(
+          left: rotationHandle.dx - 24,
+          top: rotationHandle.dy - 24,
+          width: 48,
+          height: 48,
+          child: Semantics(
+            label: context.tr(
+              widget.element.type == AlbumElementType.photo
+                  ? 'Fotoğrafı döndür'
+                  : 'Öğeyi döndür',
+            ),
+            hint: context.tr('Sürükleyerek döndür'),
+            button: true,
+            child: MouseRegion(
+              cursor: SystemMouseCursors.grab,
+              child: GestureDetector(
+                key: const ValueKey('selection-rotate'),
+                behavior: HitTestBehavior.opaque,
+                onPanStart: _handleRotationStart,
+                onPanUpdate: _handleRotationUpdate,
+                onPanEnd: (_) => _finishRotation(),
+                onPanCancel: _finishRotation,
+                child: Center(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: color, width: 2),
+                      boxShadow: const [
+                        BoxShadow(color: Color(0x55000000), blurRadius: 3),
+                      ],
+                    ),
+                    child: SizedBox.square(
+                      dimension: 32,
+                      child: Icon(
+                        Icons.rotate_right_rounded,
+                        size: 19,
+                        color: color,
                       ),
                     ),
                   ),
@@ -1004,6 +1046,7 @@ class _AlbumSelectionOverlayState extends State<_AlbumSelectionOverlay> {
               ),
             ),
           ),
+        ),
       ],
     );
   }
