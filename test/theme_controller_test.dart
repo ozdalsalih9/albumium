@@ -58,4 +58,56 @@ void main() {
     expect(controller.themeId, AlbumiumAppTheme.defaultThemeId);
     expect(controller.themeMode, ThemeMode.light);
   });
+
+  test('theme data is reused for rebuilds and brightness changes', () async {
+    final controller = ThemeController();
+    addTearDown(controller.dispose);
+    await controller.initialize();
+    final light = controller.lightTheme;
+    final dark = controller.darkTheme;
+
+    expect(controller.lightTheme, same(light));
+    expect(controller.darkTheme, same(dark));
+    await controller.setThemeMode(ThemeMode.dark);
+    expect(controller.lightTheme, same(light));
+    expect(controller.darkTheme, same(dark));
+
+    await controller.setTheme(AlbumiumThemeId.rose);
+    expect(controller.lightTheme, isNot(same(light)));
+    expect(controller.darkTheme, isNot(same(dark)));
+    expect(
+      controller.lightTheme.colorScheme,
+      AlbumiumAppTheme.light(AlbumiumThemeId.rose).colorScheme,
+    );
+    expect(
+      controller.darkTheme.colorScheme,
+      AlbumiumAppTheme.dark(AlbumiumThemeId.rose).colorScheme,
+    );
+
+    await controller.reset();
+    expect(
+      controller.lightTheme.colorScheme,
+      AlbumiumAppTheme.light(AlbumiumAppTheme.defaultThemeId).colorScheme,
+    );
+  });
+
+  test(
+    'saved palette invalidates theme data read before initialization',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        ThemeController.themeIdPreferenceKey: AlbumiumThemeId.rose.name,
+      });
+      final controller = ThemeController();
+      addTearDown(controller.dispose);
+      final beforeLoad = controller.lightTheme;
+
+      await controller.initialize();
+
+      expect(controller.lightTheme, isNot(same(beforeLoad)));
+      expect(
+        controller.lightTheme.colorScheme,
+        AlbumiumAppTheme.light(AlbumiumThemeId.rose).colorScheme,
+      );
+    },
+  );
 }

@@ -125,42 +125,47 @@ class AlbumPageCanvas extends StatelessWidget {
                   ),
                 ],
               ),
-              child: CustomPaint(
-                painter: _PaperTexturePainter(
-                  backgroundColor: background,
-                  accentColor: theme.accent,
-                ),
-                child: Stack(
-                  clipBehavior: Clip.hardEdge,
-                  children: [
-                    Positioned.fill(
-                      child: ThemePageDecoration(
-                        theme: theme,
-                        paperColor: background,
-                      ),
-                    ),
-                    Positioned.fill(
-                      child: _AlbumElementsLayer(
-                        page: page,
-                        theme: theme,
-                        pageSize: size,
-                        interactive: interactive,
-                        selectedId: selectedId,
-                        onSelect: onSelect,
-                        onChanged: onChanged,
-                      ),
-                    ),
-                    if (showPageNumber)
-                      Positioned(
-                        right: 12,
-                        bottom: 8,
-                        child: Text(
-                          '${page.id.hashCode.abs() % 97 + 1}',
-                          style: _getPageNumberStyle(),
+              child: Stack(
+                clipBehavior: Clip.hardEdge,
+                children: [
+                  Positioned.fill(
+                    // Keep the hundreds of static paper/ornament paint
+                    // operations out of the layer repainted by each drag.
+                    child: RepaintBoundary(
+                      key: ValueKey('album-page-art-${page.id}'),
+                      child: CustomPaint(
+                        painter: _PaperTexturePainter(
+                          backgroundColor: background,
+                          accentColor: theme.accent,
+                        ),
+                        child: ThemePageDecoration(
+                          theme: theme,
+                          paperColor: background,
                         ),
                       ),
-                  ],
-                ),
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: _AlbumElementsLayer(
+                      page: page,
+                      theme: theme,
+                      pageSize: size,
+                      interactive: interactive,
+                      selectedId: selectedId,
+                      onSelect: onSelect,
+                      onChanged: onChanged,
+                    ),
+                  ),
+                  if (showPageNumber)
+                    Positioned(
+                      right: 12,
+                      bottom: 8,
+                      child: Text(
+                        '${page.id.hashCode.abs() % 97 + 1}',
+                        style: _getPageNumberStyle(),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -429,7 +434,14 @@ class _AlbumElementViewState extends State<_AlbumElementView> {
             onScaleStart: widget.interactive ? _handleScaleStart : null,
             onScaleUpdate: widget.interactive ? _handleScaleUpdate : null,
             onScaleEnd: widget.interactive ? _handleScaleEnd : null,
-            child: _elementContent(element),
+            // Transforms can reuse a recorded display list while the element
+            // moves. Read-only/export pages do not need a layer per element.
+            child: widget.interactive
+                ? RepaintBoundary(
+                    key: ValueKey('album-element-art-${element.id}'),
+                    child: _elementContent(element),
+                  )
+                : _elementContent(element),
           ),
         ),
       ),

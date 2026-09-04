@@ -1,7 +1,59 @@
 import 'dart:io';
 
+import '../models/single_page_export_storyboard.dart';
+
 const albumiumExportFilePrefix = 'albumium_export_';
 const albumiumExportRetention = Duration(hours: 24);
+
+/// Both presets retain the same 30 FPS timeline and 9:16 framing. The default
+/// reduces encoder traffic and output size without changing page animations.
+enum VideoExportQuality {
+  balanced(width: 720, height: 1280, videoBitrate: 3000000),
+  fullHd(width: 1080, height: 1920, videoBitrate: 6000000);
+
+  const VideoExportQuality({
+    required this.width,
+    required this.height,
+    required this.videoBitrate,
+  });
+
+  final int width;
+  final int height;
+  final int videoBitrate;
+
+  int get rgbaFrameBytes => width * height * 4;
+}
+
+class VideoExportSettings {
+  const VideoExportSettings({
+    this.quality = VideoExportQuality.balanced,
+    this.includeSoundtrack = true,
+  });
+
+  final VideoExportQuality quality;
+  final bool includeSoundtrack;
+
+  int get fps => 30;
+  int get audioBitrate => includeSoundtrack ? 128000 : 0;
+
+  /// A bitrate-based estimate, not a file-size limit: hardware encoders and
+  /// container overhead can cause the actual result to differ.
+  int estimatedBytes(Duration duration) {
+    if (duration <= Duration.zero) return 0;
+    return ((quality.videoBitrate + audioBitrate) *
+            duration.inMicroseconds /
+            (8 * Duration.microsecondsPerSecond))
+        .ceil();
+  }
+}
+
+/// Holds are visually static in the single-page renderer. Reusing their first
+/// RGBA buffer avoids a GPU readback for each repeated frame. Every frame is
+/// still sent to the encoder, so timestamps and soundtrack remain unchanged.
+bool shouldCaptureSinglePageVideoFrame({
+  required SinglePageExportBeat beat,
+  required int localFrame,
+}) => localFrame == 0 || beat.isTransition;
 
 class VideoExportProgressEstimate {
   const VideoExportProgressEstimate({

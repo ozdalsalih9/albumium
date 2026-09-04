@@ -134,7 +134,7 @@ class _ThemeScreenState extends State<ThemeScreen> {
         backgroundColor: colors.background,
       ),
       body: CraftBackdrop(
-        variant: CraftBackdropVariant.paper,
+        variant: CraftBackdropVariant.studio,
         baseColor: colors.background,
         textureIntensity: .62,
         child: SafeArea(

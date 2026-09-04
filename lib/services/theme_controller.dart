@@ -25,14 +25,34 @@ class ThemeController extends ChangeNotifier {
   SharedPreferences? _preferences;
   Future<void>? _initialization;
   bool _isInitialized = false;
+  AlbumiumThemeId? _cachedThemeId;
+  ThemeData? _lightTheme;
+  ThemeData? _darkTheme;
 
   AlbumiumThemeId get themeId => _themeId;
   ThemeMode get themeMode => _themeMode;
   bool get isInitialized => _isInitialized;
   AlbumiumThemeOption get selectedOption =>
       AlbumiumAppTheme.optionFor(_themeId);
-  ThemeData get lightTheme => AlbumiumAppTheme.light(_themeId);
-  ThemeData get darkTheme => AlbumiumAppTheme.dark(_themeId);
+  ThemeData get lightTheme {
+    _refreshThemeCache();
+    return _lightTheme ??= AlbumiumAppTheme.light(_themeId);
+  }
+
+  ThemeData get darkTheme {
+    _refreshThemeCache();
+    return _darkTheme ??= AlbumiumAppTheme.dark(_themeId);
+  }
+
+  // ThemeData is immutable and expensive to construct. Keep only the current
+  // palette's pair so language and brightness rebuilds reuse the same objects.
+  // Checking the ID also covers saved-preference loading and reset.
+  void _refreshThemeCache() {
+    if (_cachedThemeId == _themeId) return;
+    _cachedThemeId = _themeId;
+    _lightTheme = null;
+    _darkTheme = null;
+  }
 
   /// Loads the saved values. Multiple calls share the same initialization.
   Future<void> initialize() {

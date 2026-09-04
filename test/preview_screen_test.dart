@@ -1,5 +1,6 @@
 import 'package:albumium/models/album_models.dart';
 import 'package:albumium/screens/preview_screen.dart';
+import 'package:albumium/services/video_export_support.dart';
 import 'package:albumium/widgets/page_curl.dart';
 import 'package:albumium/widgets/physical_book_spread.dart';
 import 'package:flutter/material.dart';
@@ -208,7 +209,9 @@ void main() {
     }
   });
 
-  testWidgets('share menu exposes offline PNG and MP4 choices', (tester) async {
+  testWidgets('share menu exposes album, PNG and optimized MP4 choices', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(900, 1600);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.resetPhysicalSize);
@@ -240,14 +243,24 @@ void main() {
     expect(find.byKey(const ValueKey('share_current_png')), findsOneWidget);
     expect(find.byKey(const ValueKey('share_all_png')), findsOneWidget);
     expect(find.byKey(const ValueKey('share_mp4')), findsOneWidget);
-    expect(find.textContaining('internet gerekmez'), findsOneWidget);
+    expect(find.textContaining('internet gerekmez'), findsNothing);
+    expect(find.textContaining('sunucu gerekmez'), findsNothing);
+    expect(find.text('OFFLINE'), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('share_mp4')));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('mp4_export_options')), findsOneWidget);
     expect(find.text('Tek Sayfa MP4'), findsOneWidget);
-    expect(find.text('Full HD · 1080 × 1920'), findsOneWidget);
+    expect(find.text('HD · 720 × 1280'), findsOneWidget);
+    expect(
+      tester
+          .widget<SegmentedButton<VideoExportQuality>>(
+            find.byKey(const ValueKey('mp4_quality_selector')),
+          )
+          .selected,
+      {VideoExportQuality.balanced},
+    );
     expect(find.text('Arka plan sesi'), findsOneWidget);
     expect(
       tester
@@ -258,5 +271,48 @@ void main() {
       isTrue,
     );
     expect(find.byKey(const ValueKey('start_mp4_export')), findsOneWidget);
+    await tester.tap(find.text('Yüksek · 1080p'));
+    await tester.pumpAndSettle();
+    expect(find.text('Full HD · 1080 × 1920'), findsOneWidget);
+    expect(find.text('HD · 720 × 1280'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('direct share opens immediately on phones and tablets', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final now = DateTime(2026);
+    final album = AlbumModel(
+      id: 'direct-share',
+      title: 'Doğrudan Paylaş',
+      themeId: 'minimal_editorial',
+      createdAt: now,
+      updatedAt: now,
+      pages: [
+        AlbumPageModel(id: 'direct-share-page', backgroundColor: 0xFFF0ECE4),
+      ],
+    );
+    for (final size in const [Size(390, 844), Size(960, 600)]) {
+      tester.view.physicalSize = size;
+      await tester.pumpWidget(
+        MaterialApp(home: PreviewScreen(album: album, openShareOnReady: true)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Dışa Aktar & Paylaş'), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const ValueKey('share_mp4')));
+      await tester.tap(find.byKey(const ValueKey('share_mp4')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('mp4_quality_selector')),
+        findsOneWidget,
+      );
+      expect(find.text('HD · 720 × 1280'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+    }
   });
 }

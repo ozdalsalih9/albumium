@@ -120,28 +120,28 @@ abstract final class AlbumiumAppTheme {
     AlbumiumThemeOption(
       id: AlbumiumThemeId.rose,
       name: 'Gül Pembesi',
-      description: 'Toz pembe kâğıtlar ve çiçekli washi bantlar',
+      description: 'Yumuşak gül tonları ve aydınlık stüdyo yüzeyi',
       icon: Icons.local_florist_rounded,
       previewColors: [Color(0xFFC47C82), Color(0xFFF2DDD5), Color(0xFF4B302F)],
     ),
     AlbumiumThemeOption(
       id: AlbumiumThemeId.navy,
       name: 'Gece Mavisi',
-      description: 'Solgun mavi kâğıt ve lacivert mürekkep izleri',
+      description: 'Serin gri yüzeyler ve zarif lacivert vurgular',
       icon: Icons.nightlight_round,
       previewColors: [Color(0xFF526C80), Color(0xFFE4E4DA), Color(0xFF24313C)],
     ),
     AlbumiumThemeOption(
       id: AlbumiumThemeId.obsidian,
       name: 'Obsidyen',
-      description: 'Eskitilmiş gri kâğıt ve kömür kalem dokusu',
+      description: 'Dengeli nötr tonlar ve sade grafik detaylar',
       icon: Icons.dark_mode_rounded,
       previewColors: [Color(0xFF4B4945), Color(0xFFE4DED2), Color(0xFF24231F)],
     ),
     AlbumiumThemeOption(
       id: AlbumiumThemeId.amber,
       name: 'Sıcak Kehribar',
-      description: 'Mantar pano, kraft kâğıt ve sıcak ahşap tonları',
+      description: 'Sıcak fildişi yüzeyler ve kehribar vurgular',
       icon: Icons.wb_sunny_rounded,
       previewColors: [Color(0xFFB9825D), Color(0xFFF3E6D2), Color(0xFF392B24)],
     ),
@@ -454,7 +454,7 @@ abstract final class AlbumiumAppTheme {
   }
 
   static const _roseLight = AlbumiumThemeColors(
-    background: Color(0xFFC89A92),
+    background: Color(0xFFF3EEEC),
     surface: Color(0xFFF2DDD5),
     elevatedSurface: Color(0xFFFFF3E8),
     heroStart: Color(0xFFE8BAB1),
@@ -469,7 +469,7 @@ abstract final class AlbumiumAppTheme {
   );
 
   static const _roseDark = AlbumiumThemeColors(
-    background: Color(0xFF332221),
+    background: Color(0xFF1C1B20),
     surface: Color(0xFF4B3532),
     elevatedSurface: Color(0xFF614641),
     heroStart: Color(0xFF70433F),
@@ -484,7 +484,7 @@ abstract final class AlbumiumAppTheme {
   );
 
   static const _navyLight = AlbumiumThemeColors(
-    background: Color(0xFF81909B),
+    background: Color(0xFFECF0F3),
     surface: Color(0xFFE7E4D8),
     elevatedSurface: Color(0xFFF6F1E4),
     heroStart: Color(0xFFB9C8CC),
@@ -499,7 +499,7 @@ abstract final class AlbumiumAppTheme {
   );
 
   static const _navyDark = AlbumiumThemeColors(
-    background: Color(0xFF202B31),
+    background: Color(0xFF181E27),
     surface: Color(0xFF34434A),
     elevatedSurface: Color(0xFF475A62),
     heroStart: Color(0xFF405966),
@@ -514,7 +514,7 @@ abstract final class AlbumiumAppTheme {
   );
 
   static const _obsidianLight = AlbumiumThemeColors(
-    background: Color(0xFF8B8377),
+    background: Color(0xFFF0EFEC),
     surface: Color(0xFFE6DED1),
     elevatedSurface: Color(0xFFF5EEE2),
     heroStart: Color(0xFFC9C1B5),
@@ -529,7 +529,7 @@ abstract final class AlbumiumAppTheme {
   );
 
   static const _obsidianDark = AlbumiumThemeColors(
-    background: Color(0xFF24231F),
+    background: Color(0xFF1A1D22),
     surface: Color(0xFF393732),
     elevatedSurface: Color(0xFF4A4842),
     heroStart: Color(0xFF555149),
@@ -544,7 +544,7 @@ abstract final class AlbumiumAppTheme {
   );
 
   static const _amberLight = AlbumiumThemeColors(
-    background: Color(0xFFB9825D),
+    background: Color(0xFFF4F1EA),
     surface: Color(0xFFF3E6D2),
     elevatedSurface: Color(0xFFFFF8EC),
     heroStart: Color(0xFFE7C29F),
@@ -559,7 +559,7 @@ abstract final class AlbumiumAppTheme {
   );
 
   static const _amberDark = AlbumiumThemeColors(
-    background: Color(0xFF2A1C16),
+    background: Color(0xFF1D2026),
     surface: Color(0xFF47342B),
     elevatedSurface: Color(0xFF5B4437),
     heroStart: Color(0xFF6B4933),
