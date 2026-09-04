@@ -108,8 +108,6 @@ class AlbumiumLocalizations {
     'Eskitilmiş gri kâğıt ve kömür kalem dokusu':
         'Aged gray paper with charcoal texture',
     'Sıcak Kehribar': 'Warm Amber',
-    'Mantar pano, kraft kâğıt ve sıcak ahşap tonları':
-        'Cork, kraft paper, and warm wood tones',
     'Albümünü Hazırla': 'Create Your Album',
     'Hangi hikâyeyi anlatıyoruz?': 'Which story are we telling?',
     'Ciltleme Türü': 'Binding Style',
@@ -180,11 +178,30 @@ class AlbumiumLocalizations {
     'Gece mürekkebi': 'Midnight ink',
     'Bordo': 'Burgundy',
     'Dışa Aktar & Paylaş': 'Export & Share',
-    'Her seçenek cihazında hazırlanır; internet gerekmez.':
-        'Every option is prepared on your device; no internet required.',
+    'Albümünü nasıl paylaşmak istersin?':
+        'How would you like to share your album?',
+    'Albumium’da sayfaları çevirerek görüntüle':
+        'Flip through the pages in Albumium',
+    'Anılarını yumuşak geçişlerle dikey bir videoya dönüştür.':
+        'Turn your memories into a portrait video with smooth transitions.',
+    'Video kalitesi': 'Video quality',
+    'Dengeli · 720p': 'Balanced · 720p',
+    'Yüksek · 1080p': 'High · 1080p',
+    'Daha küçük dosya, daha hızlı paylaşım.': 'Smaller file, faster sharing.',
+    'Daha fazla ayrıntı, daha büyük dosya.': 'More detail, larger file.',
+    'Hafif bir melodi ve doğal sayfa çevirme sesleri.':
+        'A gentle melody and natural page-turn sounds.',
+    'Albümü görüntüle veya düzenlemek için koleksiyonuna bir kopyasını ekle.':
+        'View the album or add a copy to your collection to edit it.',
+    'Yumuşak gül tonları ve aydınlık stüdyo yüzeyi':
+        'Soft rose tones and a bright studio surface',
+    'Serin gri yüzeyler ve zarif lacivert vurgular':
+        'Cool gray surfaces and refined navy accents',
+    'Dengeli nötr tonlar ve sade grafik detaylar':
+        'Balanced neutral tones and clean graphic details',
+    'Sıcak fildişi yüzeyler ve kehribar vurgular':
+        'Warm ivory surfaces and amber accents',
     'Etkileşimli albüm paylaş': 'Share interactive album',
-    'Küçük bir Albumium dosyası · sunucu gerekmez':
-        'Compact Albumium file · no server required',
     'Albüm paketi hazırlanıyor…': 'Preparing album package…',
     'Fotoğraflar paylaşım için küçültülüyor…': 'Optimizing photos for sharing…',
     'Albüm dosyası paketleniyor…': 'Packaging album file…',
@@ -472,8 +489,6 @@ class AlbumiumLocalizations {
     'Albüm paketi açılamadı': 'The album package could not be opened',
     '{count} sayfa · {size} · {media} fotoğraf':
         '{count} pages · {size} · {media} photos',
-    'Bu albüm sunucu kullanılmadan doğrudan dosya olarak paylaşıldı.':
-        'This album was shared directly as a file without using a server.',
     'Salt okunur görüntüle': 'View read-only',
     'Kopya olarak içe aktar': 'Import a copy',
     'İçe aktarılıyor…': 'Importing…',

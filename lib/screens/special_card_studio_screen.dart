@@ -493,7 +493,7 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
           ],
         ),
         body: CraftBackdrop(
-          variant: CraftBackdropVariant.paper,
+          variant: CraftBackdropVariant.studio,
           baseColor: colors.background,
           textureIntensity: .58,
           child: SafeArea(

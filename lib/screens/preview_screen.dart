@@ -26,16 +26,20 @@ import '../widgets/sticker_packs.dart';
 
 const _exportLogicalWidth = 360.0;
 const _exportLogicalHeight = 640.0;
-const _exportVideoWidth = 1080;
-const _exportVideoHeight = 1920;
-const _exportPixelRatio = _exportVideoWidth / _exportLogicalWidth;
+const _exportPngWidth = 1080;
+const _exportPngPixelRatio = _exportPngWidth / _exportLogicalWidth;
 
 enum _ShareExportChoice { interactiveAlbum, currentPng, allPng, mp4 }
 
 class PreviewScreen extends StatefulWidget {
-  const PreviewScreen({super.key, required this.album});
+  const PreviewScreen({
+    super.key,
+    required this.album,
+    this.openShareOnReady = false,
+  });
 
   final AlbumModel album;
+  final bool openShareOnReady;
 
   @override
   State<PreviewScreen> createState() => _PreviewScreenState();
@@ -91,6 +95,11 @@ class _PreviewScreenState extends State<PreviewScreen>
       vsync: this,
       duration: const Duration(milliseconds: 940),
     );
+    if (widget.openShareOnReady) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_showShareOptions());
+      });
+    }
     // Immersive-reader dalındaki en değerli parçalardan biri: önizleme ekranı
     // albümü yatay tutunca gerçek iki sayfalı bir kitap gibi kullanılabilir.
     unawaited(
@@ -405,6 +414,7 @@ class _PreviewScreenState extends State<PreviewScreen>
     required SinglePageExportBeat beat,
     required double progress,
     required bool settleAssets,
+    required double pixelRatio,
   }) async {
     final localizations =
         AlbumiumLocalizations.maybeOf(context) ??
@@ -440,7 +450,7 @@ class _PreviewScreenState extends State<PreviewScreen>
         localizations.text('Tek sayfa dışa aktarma sahnesi hazırlanamadı.'),
       );
     }
-    final image = await renderObject.toImage(pixelRatio: _exportPixelRatio);
+    final image = await renderObject.toImage(pixelRatio: pixelRatio);
     final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
     image.dispose();
     if (data == null) {
@@ -499,7 +509,7 @@ class _PreviewScreenState extends State<PreviewScreen>
       );
     }
     final boundary = renderObject;
-    final image = await boundary.toImage(pixelRatio: _exportPixelRatio);
+    final image = await boundary.toImage(pixelRatio: _exportPngPixelRatio);
     final data = await image.toByteData(format: format);
     image.dispose();
     if (data == null) {
@@ -545,9 +555,7 @@ class _PreviewScreenState extends State<PreviewScreen>
             ),
             const SizedBox(height: 4),
             Text(
-              sheetContext.tr(
-                'Her seçenek cihazında hazırlanır; internet gerekmez.',
-              ),
+              sheetContext.tr('Albümünü nasıl paylaşmak istersin?'),
               style: Theme.of(sheetContext).textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
@@ -556,7 +564,7 @@ class _PreviewScreenState extends State<PreviewScreen>
               leading: const Icon(Icons.auto_stories_outlined),
               title: Text(sheetContext.tr('Etkileşimli albüm paylaş')),
               subtitle: Text(
-                sheetContext.tr('Küçük bir Albumium dosyası · sunucu gerekmez'),
+                sheetContext.tr('Albumium’da sayfaları çevirerek görüntüle'),
               ),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () => Navigator.pop(
@@ -608,9 +616,9 @@ class _PreviewScreenState extends State<PreviewScreen>
       case _ShareExportChoice.allPng:
         await _exportPngAndShare(allPositions: true);
       case _ShareExportChoice.mp4:
-        final includeSoundtrack = await _showMp4ExportOptions();
-        if (includeSoundtrack != null && mounted) {
-          await _exportMp4AndShare(includeSoundtrack: includeSoundtrack);
+        final settings = await _showMp4ExportOptions();
+        if (settings != null && mounted) {
+          await _exportMp4AndShare(settings: settings);
         }
     }
   }
@@ -705,7 +713,7 @@ class _PreviewScreenState extends State<PreviewScreen>
     }
   }
 
-  Future<bool?> _showMp4ExportOptions() async {
+  Future<VideoExportSettings?> _showMp4ExportOptions() async {
     if (widget.album.pages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -717,22 +725,26 @@ class _PreviewScreenState extends State<PreviewScreen>
       return null;
     }
     var includeSoundtrack = true;
+    var quality = VideoExportQuality.balanced;
     final storyboard = SinglePageExportStoryboard.forPages(
       widget.album.pages.length,
     );
     final durationLabel = formatExportDuration(storyboard.duration);
 
-    return showModalBottomSheet<bool>(
+    return showModalBottomSheet<VideoExportSettings>(
       context: context,
       useSafeArea: true,
       showDragHandle: true,
       isScrollControlled: true,
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setSheetState) {
-          final bitrate = 12000000 + (includeSoundtrack ? 192000 : 0);
+          final settings = VideoExportSettings(
+            quality: quality,
+            includeSoundtrack: includeSoundtrack,
+          );
           final estimatedMegabytes = math.max(
             1,
-            (bitrate * storyboard.duration.inMilliseconds / 8000000000).ceil(),
+            (settings.estimatedBytes(storyboard.duration) / 1000000).ceil(),
           );
           return SingleChildScrollView(
             key: const ValueKey('mp4_export_options'),
@@ -748,16 +760,42 @@ class _PreviewScreenState extends State<PreviewScreen>
                 const SizedBox(height: 4),
                 Text(
                   context.tr(
-                    'Sayfalar editördeki gibi tek tek gösterilir; hiçbir fotoğraf yüklenmez.',
+                    'Anılarını yumuşak geçişlerle dikey bir videoya dönüştür.',
                   ),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 14),
+                Text(
+                  context.tr('Video kalitesi'),
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                SegmentedButton<VideoExportQuality>(
+                  key: const ValueKey('mp4_quality_selector'),
+                  segments: [
+                    ButtonSegment(
+                      value: VideoExportQuality.balanced,
+                      label: Text(context.tr('Dengeli · 720p')),
+                    ),
+                    ButtonSegment(
+                      value: VideoExportQuality.fullHd,
+                      label: Text(context.tr('Yüksek · 1080p')),
+                    ),
+                  ],
+                  selected: {quality},
+                  onSelectionChanged: (selection) =>
+                      setSheetState(() => quality = selection.single),
+                ),
+                const SizedBox(height: 8),
                 Card(
                   margin: EdgeInsets.zero,
                   child: ListTile(
                     leading: const Icon(Icons.high_quality_rounded),
-                    title: const Text('Full HD · 1080 × 1920'),
+                    title: Text(
+                      quality == VideoExportQuality.balanced
+                          ? 'HD · 720 × 1280'
+                          : 'Full HD · 1080 × 1920',
+                    ),
                     subtitle: Text(
                       context.tr(
                         '{fps} FPS · {duration} · yaklaşık {size} MB',
@@ -769,6 +807,15 @@ class _PreviewScreenState extends State<PreviewScreen>
                       ),
                     ),
                   ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  context.tr(
+                    quality == VideoExportQuality.balanced
+                        ? 'Daha küçük dosya, daha hızlı paylaşım.'
+                        : 'Daha fazla ayrıntı, daha büyük dosya.',
+                  ),
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 8),
                 Card(
@@ -782,7 +829,7 @@ class _PreviewScreenState extends State<PreviewScreen>
                     title: Text(context.tr('Arka plan sesi')),
                     subtitle: Text(
                       context.tr(
-                        'Ambient ses ve gerçek sayfa çevirme dokusu cihazda üretilir.',
+                        'Hafif bir melodi ve doğal sayfa çevirme sesleri.',
                       ),
                     ),
                   ),
@@ -801,8 +848,7 @@ class _PreviewScreenState extends State<PreviewScreen>
                       flex: 2,
                       child: FilledButton.icon(
                         key: const ValueKey('start_mp4_export'),
-                        onPressed: () =>
-                            Navigator.pop(sheetContext, includeSoundtrack),
+                        onPressed: () => Navigator.pop(sheetContext, settings),
                         icon: const Icon(Icons.movie_creation_outlined),
                         label: Text(context.tr('MP4 oluştur')),
                       ),
@@ -922,8 +968,11 @@ class _PreviewScreenState extends State<PreviewScreen>
     }
   }
 
-  Future<void> _exportMp4AndShare({required bool includeSoundtrack}) async {
+  Future<void> _exportMp4AndShare({
+    required VideoExportSettings settings,
+  }) async {
     if (_exporting) return;
+    final includeSoundtrack = settings.includeSoundtrack;
     final localizedShareText = context.tr(
       '“{title}” albümümün sayfalarını Albumium ile hazırladım.',
       values: {'title': widget.album.title},
@@ -981,6 +1030,7 @@ class _PreviewScreenState extends State<PreviewScreen>
       _throwIfExportCancelled();
       final storyboard = SinglePageExportStoryboard.forPages(
         widget.album.pages.length,
+        fps: settings.fps,
       );
       if (storyboard.totalFrames == 0) {
         throw StateError(
@@ -1001,13 +1051,13 @@ class _PreviewScreenState extends State<PreviewScreen>
       await FlutterQuickVideoEncoder.setLogLevel(LogLevel.error);
       _throwIfExportCancelled();
       await FlutterQuickVideoEncoder.setup(
-        width: _exportVideoWidth,
-        height: _exportVideoHeight,
+        width: settings.quality.width,
+        height: settings.quality.height,
         fps: storyboard.fps,
-        videoBitrate: 12000000,
+        videoBitrate: settings.quality.videoBitrate,
         profileLevel: ProfileLevel.baselineAutoLevel,
         audioChannels: includeSoundtrack ? CinematicSoundtrack.channelCount : 0,
-        audioBitrate: includeSoundtrack ? 192000 : 0,
+        audioBitrate: settings.audioBitrate,
         sampleRate: includeSoundtrack ? CinematicSoundtrack.sampleRate : 0,
         filepath: path,
       );
@@ -1037,7 +1087,6 @@ class _PreviewScreenState extends State<PreviewScreen>
         }
 
         Uint8List? sampledFrame;
-        const captureCadence = 1;
         for (var localFrame = 0; localFrame < beat.frameCount; localFrame++) {
           _throwIfExportCancelled();
           final progress = beat.frameCount <= 1
@@ -1045,13 +1094,16 @@ class _PreviewScreenState extends State<PreviewScreen>
               : localFrame / (beat.frameCount - 1);
           final shouldCapture =
               sampledFrame == null ||
-              localFrame % captureCadence == 0 ||
-              localFrame == beat.frameCount - 1;
+              shouldCaptureSinglePageVideoFrame(
+                beat: beat,
+                localFrame: localFrame,
+              );
           if (shouldCapture) {
             sampledFrame = await _captureSinglePageVideoFrame(
               beat: beat,
               progress: progress,
               settleAssets: !assetsSettled,
+              pixelRatio: settings.quality.width / _exportLogicalWidth,
             );
             assetsSettled = true;
           }
@@ -1245,7 +1297,7 @@ class _PreviewScreenState extends State<PreviewScreen>
         ],
       ),
       body: CraftBackdrop(
-        variant: CraftBackdropVariant.cork,
+        variant: CraftBackdropVariant.studio,
         baseColor: craftColors.background,
         textureIntensity: .66,
         child: SafeArea(
@@ -2369,10 +2421,9 @@ class _CinematicExportTile extends StatelessWidget {
                         spacing: 6,
                         runSpacing: 5,
                         children: [
-                          const _ExportBadge('1080p'),
+                          const _ExportBadge('720p / 1080p'),
                           const _ExportBadge('30 FPS'),
                           _ExportBadge(context.tr('SES SEÇENEĞİ')),
-                          const _ExportBadge('OFFLINE'),
                         ],
                       ),
                     ],

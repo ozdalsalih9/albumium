@@ -1,9 +1,70 @@
 import 'dart:io';
 
+import 'package:albumium/models/single_page_export_storyboard.dart';
 import 'package:albumium/services/video_export_support.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('video quality and rendering', () {
+    test('balanced defaults reduce size and frame memory at the same FPS', () {
+      const settings = VideoExportSettings();
+      expect(settings.quality, VideoExportQuality.balanced);
+      expect(settings.quality.width, 720);
+      expect(settings.quality.height, 1280);
+      expect(settings.quality.videoBitrate, 3000000);
+      expect(settings.fps, 30);
+      expect(settings.audioBitrate, 128000);
+      expect(settings.estimatedBytes(const Duration(seconds: 60)), 23460000);
+      expect(settings.estimatedBytes(Duration.zero), 0);
+      expect(settings.estimatedBytes(const Duration(seconds: -1)), 0);
+      expect(
+        settings.quality.rgbaFrameBytes / (1080 * 1920 * 4),
+        closeTo(4 / 9, 0.0001),
+      );
+    });
+
+    test('Full HD preserves resolution with a lower target bitrate', () {
+      const settings = VideoExportSettings(
+        quality: VideoExportQuality.fullHd,
+        includeSoundtrack: false,
+      );
+      expect(settings.quality.width, 1080);
+      expect(settings.quality.height, 1920);
+      expect(settings.quality.videoBitrate, 6000000);
+      expect(settings.audioBitrate, 0);
+      expect(settings.estimatedBytes(const Duration(seconds: 60)), 45000000);
+      for (final quality in VideoExportQuality.values) {
+        expect(quality.width / quality.height, 9 / 16);
+        expect(quality.width.isEven, isTrue);
+        expect(quality.height.isEven, isTrue);
+      }
+    });
+
+    test('reuses static captures but captures every animation frame', () {
+      final storyboard = SinglePageExportStoryboard.forPages(4);
+      var captures = 0;
+      var encodedFrames = 0;
+      for (final beat in storyboard.beats) {
+        var beatCaptures = 0;
+        for (var frame = 0; frame < beat.frameCount; frame++) {
+          if (shouldCaptureSinglePageVideoFrame(
+            beat: beat,
+            localFrame: frame,
+          )) {
+            beatCaptures++;
+            captures++;
+          }
+          // Encoding (and its matching audio frame) runs even for reused holds.
+          encodedFrames++;
+        }
+        expect(beatCaptures, beat.isTransition ? beat.frameCount : 1);
+      }
+      expect(encodedFrames, storyboard.totalFrames);
+      expect(captures, lessThan(storyboard.totalFrames ~/ 2));
+      expect(storyboard.fps, const VideoExportSettings().fps);
+    });
+  });
+
   group('video export progress', () {
     test('estimates weighted progress and remaining time', () {
       final estimate = estimateVideoExportProgress(

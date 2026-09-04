@@ -14,6 +14,7 @@ import '../widgets/cinematic_album_opening.dart';
 import '../widgets/handmade_craft.dart';
 import '../widgets/occasion_cards.dart';
 import 'editor_screen.dart';
+import 'preview_screen.dart';
 import 'special_card_studio_screen.dart';
 import 'theme_screen.dart';
 
@@ -37,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   static const _libraryPageSize = 12;
 
   List<AlbumModel> _albums = [];
+  List<AlbumModel>? _matchingAlbumsCache;
   final TextEditingController _searchController = TextEditingController();
   AlbumLibraryFilter _libraryFilter = AlbumLibraryFilter.all;
   AlbumLibrarySort _librarySort = AlbumLibrarySort.updatedNewest;
@@ -57,7 +59,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _resetLibraryPage() {
     _visibleAlbumCount = _libraryPageSize;
+    _matchingAlbumsCache = null;
   }
+
+  List<AlbumModel> get _matchingAlbums =>
+      _matchingAlbumsCache ??= queryAlbumLibrary(
+        _albums,
+        searchQuery: _searchController.text,
+        filter: _libraryFilter,
+        sort: _librarySort,
+      );
 
   void _clearLibraryQuery() {
     setState(() {
@@ -73,6 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     setState(() {
       _albums = albums;
+      _matchingAlbumsCache = null;
       _loading = false;
     });
   }
@@ -176,6 +188,15 @@ class _HomeScreenState extends State<HomeScreen> {
     await _reload();
   }
 
+  Future<void> _shareAlbum(AlbumModel album) async {
+    HapticFeedback.selectionClick();
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => PreviewScreen(album: album, openShareOnReady: true),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = AlbumiumAppTheme.colorsOf(context);
@@ -186,12 +207,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final horizontalInset = centeredInset > minimumHorizontalInset
         ? centeredInset
         : minimumHorizontalInset;
-    final matchingAlbums = queryAlbumLibrary(
-      _albums,
-      searchQuery: _searchController.text,
-      filter: _libraryFilter,
-      sort: _librarySort,
-    );
+    final matchingAlbums = _matchingAlbums;
     final visibleAlbums = matchingAlbums
         .take(_visibleAlbumCount)
         .toList(growable: false);
@@ -199,7 +215,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: CraftBackdrop(
-        variant: CraftBackdropVariant.cork,
+        variant: CraftBackdropVariant.studio,
         baseColor: colors.background,
         textureIntensity: .78,
         child: SafeArea(
@@ -318,13 +334,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: EdgeInsets.symmetric(horizontal: horizontalInset),
                   child: Row(
                     children: [
-                      TornPaperLabel(
-                        rotationDegrees: -.6,
-                        padding: const EdgeInsets.fromLTRB(15, 7, 15, 8),
-                        child: Text(
-                          context.tr('Koleksiyonum'),
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(color: colors.text, fontSize: 25),
+                      Flexible(
+                        child: TornPaperLabel(
+                          rotationDegrees: -.6,
+                          padding: const EdgeInsets.fromLTRB(15, 7, 15, 8),
+                          child: Text(
+                            context.tr('Koleksiyonum'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(color: colors.text, fontSize: 25),
+                          ),
                         ),
                       ),
                       if (_albums.isNotEmpty) ...[
@@ -350,8 +370,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ],
-                      const Spacer(),
-                      if (_albums.isNotEmpty && viewportWidth >= 680)
+                      if (_albums.isNotEmpty && viewportWidth >= 680) ...[
+                        const Spacer(),
                         Text(
                           context.tr('Silmek için basılı tut'),
                           style: TextStyle(
@@ -359,6 +379,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             fontSize: 10.5,
                           ),
                         ),
+                      ],
                     ],
                   ),
                 ),
@@ -426,7 +447,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     gridDelegate:
                         const SliverGridDelegateWithMaxCrossAxisExtent(
                           maxCrossAxisExtent: 280,
-                          childAspectRatio: 0.61,
+                          childAspectRatio: 0.55,
                           crossAxisSpacing: 17,
                           mainAxisSpacing: 23,
                         ),
@@ -436,9 +457,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       return _AlbumGridItem(
                         key: ValueKey('library-item-${album.id}'),
                         album: album,
-                        index: index,
                         onTap: () => _openAlbum(album),
                         onLongPress: () => _delete(album),
+                        onShare: album.projectType == AlbumProjectType.album
+                            ? () => _shareAlbum(album)
+                            : null,
                       );
                     },
                   ),
@@ -742,18 +765,14 @@ class _HeroPanel extends StatelessWidget {
     final colors = AlbumiumAppTheme.colorsOf(context);
     return PaperPanel(
       color: colors.heroEnd,
-      rotationDegrees: .45,
-      borderRadius: BorderRadius.circular(7),
+      borderRadius: BorderRadius.circular(20),
       padding: EdgeInsets.zero,
-      tapePositions: const [
-        CraftTapePosition.topRight,
-        CraftTapePosition.bottomLeft,
-      ],
-      tapeColor: Color.lerp(colors.secondary, colors.elevatedSurface, .55),
-      tapeWidth: 55,
-      tapeHeight: 17,
+      textureIntensity: .06,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 190),
+        constraints: const BoxConstraints(
+          minHeight: 190,
+          minWidth: double.infinity,
+        ),
         child: Stack(
           children: [
             Positioned(
@@ -1009,94 +1028,123 @@ class _AlbumGridItem extends StatelessWidget {
   const _AlbumGridItem({
     super.key,
     required this.album,
-    required this.index,
     required this.onTap,
     required this.onLongPress,
+    this.onShare,
   });
 
   final AlbumModel album;
-  final int index;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
+  final VoidCallback? onShare;
 
   @override
   Widget build(BuildContext context) {
     final colors = AlbumiumAppTheme.colorsOf(context);
     final isCard = album.projectType == AlbumProjectType.occasionCard;
     return RepaintBoundary(
-      child: PaperPanel(
-        rotationDegrees: index.isEven ? -.8 : .75,
-        borderRadius: BorderRadius.circular(5),
-        padding: const EdgeInsets.fromLTRB(8, 13, 8, 9),
-        tapePositions: const [CraftTapePosition.topCenter],
-        tapeWidth: 44,
-        tapeHeight: 14,
-        textureIntensity: .2,
-        child: Semantics(
-          button: true,
-          label: isCard
-              ? context.tr(
-                  '{title}, özel gün kartı',
-                  values: {'title': album.title},
-                )
-              : context.tr(
-                  '{title}, {count} sayfa',
-                  values: {'title': album.title, 'count': album.pages.length},
-                ),
-          child: InkWell(
-            onTap: onTap,
-            onLongPress: onLongPress,
-            borderRadius: BorderRadius.circular(4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 3, bottom: 2),
-                    child: isCard
-                        ? _SpecialCardThumbnail(project: album)
-                        : AlbumCover3D(
-                            album: album,
-                            compact: true,
-                            perspective: false,
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  album.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: colors.text,
-                    fontSize: 19,
-                    height: .95,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  isCard
+      child: Material(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(18),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 14, 12, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: Semantics(
+                  button: true,
+                  label: isCard
                       ? context.tr(
-                          'Özel gün kartı · {badge}',
-                          values: {
-                            'badge': occasionTemplateById(
-                              album.cardThemeId,
-                            ).badge,
-                          },
+                          '{title}, özel gün kartı',
+                          values: {'title': album.title},
                         )
                       : context.tr(
-                          '{count} sayfa · {binding}',
+                          '{title}, {count} sayfa',
                           values: {
+                            'title': album.title,
                             'count': album.pages.length,
-                            'binding': context.tr(album.bindingType.title),
                           },
                         ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: colors.mutedText, fontSize: 9.5),
+                  child: InkWell(
+                    onTap: onTap,
+                    onLongPress: onLongPress,
+                    borderRadius: BorderRadius.circular(4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 3, bottom: 2),
+                            child: isCard
+                                ? _SpecialCardThumbnail(project: album)
+                                : AlbumCover3D(
+                                    album: album,
+                                    compact: true,
+                                    perspective: false,
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        Text(
+                          album.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                color: colors.text,
+                                fontSize: 19,
+                                height: .95,
+                              ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          isCard
+                              ? context.tr(
+                                  'Özel gün kartı · {badge}',
+                                  values: {
+                                    'badge': occasionTemplateById(
+                                      album.cardThemeId,
+                                    ).badge,
+                                  },
+                                )
+                              : context.tr(
+                                  '{count} sayfa · {binding}',
+                                  values: {
+                                    'count': album.pages.length,
+                                    'binding': context.tr(
+                                      album.bindingType.title,
+                                    ),
+                                  },
+                                ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: colors.mutedText,
+                            fontSize: 9.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              if (onShare != null) ...[
+                const SizedBox(height: 8),
+                FilledButton.tonalIcon(
+                  key: ValueKey('library-share-${album.id}'),
+                  onPressed: onShare,
+                  icon: const Icon(Icons.ios_share_rounded, size: 17),
+                  label: Text(context.tr('Paylaş')),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, 48),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                 ),
               ],
-            ),
+            ],
           ),
         ),
       ),

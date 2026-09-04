@@ -18,7 +18,10 @@ ImageProvider<Object> themeImageProvider(
     provider = AssetImage(url);
   } else {
     final file = File(url);
-    provider = file.existsSync() || url.contains('/') || url.contains('\\')
+    // Imported photos already have an absolute/local path. Do not hit the
+    // filesystem synchronously on every image build while dragging or paging.
+    // Preserve the legacy bare-filename fallback for bundled illustrations.
+    provider = url.contains('/') || url.contains('\\') || file.existsSync()
         ? FileImage(file)
         : AssetImage(url);
   }

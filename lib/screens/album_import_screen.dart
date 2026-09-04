@@ -249,7 +249,7 @@ class _ImportDetails extends StatelessWidget {
                 Expanded(
                   child: Text(
                     context.tr(
-                      'Bu albüm sunucu kullanılmadan doğrudan dosya olarak paylaşıldı.',
+                      'Albümü görüntüle veya düzenlemek için koleksiyonuna bir kopyasını ekle.',
                     ),
                   ),
                 ),

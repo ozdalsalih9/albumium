@@ -60,6 +60,21 @@ Future<void> _pumpEditor(
 }
 
 void main() {
+  testWidgets('editor exposes sharing without first opening the reader', (
+    tester,
+  ) async {
+    await _pumpEditor(tester, _album([]), physicalSize: const Size(780, 1688));
+    expect(find.byKey(const ValueKey('editor-share')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('editor-share')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('share_interactive_album')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('share_mp4')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('layer menu labels four moves and disables edge actions', (
     tester,
   ) async {

@@ -826,12 +826,16 @@ class _EditorScreenState extends State<EditorScreen>
     _changed();
   }
 
-  Future<void> _preview() async {
+  Future<void> _preview({bool openShareOptions = false}) async {
+    _saveDebounce?.cancel();
     await AlbumStorage.instance.saveAlbum(album);
     if (!mounted) return;
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => PreviewScreen(album: album)),
+      MaterialPageRoute(
+        builder: (_) =>
+            PreviewScreen(album: album, openShareOnReady: openShareOptions),
+      ),
     );
   }
 
@@ -872,16 +876,24 @@ class _EditorScreenState extends State<EditorScreen>
                 values: {'binding': context.tr(album.bindingType.title)},
               ),
             ),
-            TextButton.icon(
-              onPressed: _preview,
+            IconButton(
+              onPressed: () => _preview(),
               icon: const Icon(Icons.menu_book_rounded),
-              label: Text(context.tr('Kitap Aç')),
+              tooltip: context.tr('Kitap Aç'),
             ),
-            const SizedBox(width: 4),
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: FilledButton.icon(
+                key: const ValueKey('editor-share'),
+                onPressed: () => _preview(openShareOptions: true),
+                icon: const Icon(Icons.ios_share_rounded, size: 18),
+                label: Text(context.tr('Paylaş')),
+              ),
+            ),
           ],
         ),
         body: CraftBackdrop(
-          variant: CraftBackdropVariant.cork,
+          variant: CraftBackdropVariant.studio,
           baseColor: colors.background,
           textureIntensity: .64,
           child: SafeArea(

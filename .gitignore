@@ -49,3 +49,4 @@ app.*.map.json
 /dist/*.png
 /dist/*.xml
 /dist/*.apk
+/dist/*.mp4

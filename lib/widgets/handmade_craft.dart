@@ -5,12 +5,12 @@ import 'package:flutter/material.dart';
 import '../theme/albumium_app_theme.dart';
 
 /// The material simulated by [CraftBackdrop].
-enum CraftBackdropVariant { paper, cork }
+enum CraftBackdropVariant { paper, cork, studio }
 
 /// Places a decorative strip of [CraftTape] over a [PaperPanel].
 enum CraftTapePosition { topLeft, topCenter, topRight, bottomLeft, bottomRight }
 
-/// A full-size, asset-free paper or cork surface.
+/// A full-size, asset-free paper, cork or studio surface.
 ///
 /// Its texture is deterministic and is only repainted when its colors, size or
 /// intensity change. Wrapping the paint in a [RepaintBoundary] also keeps child
@@ -41,8 +41,13 @@ class CraftBackdrop extends StatelessWidget {
         switch (variant) {
           CraftBackdropVariant.paper => palette.paper,
           CraftBackdropVariant.cork => palette.cork,
+          CraftBackdropVariant.studio => palette.studio,
         };
-    final texture = textureColor ?? palette.ink;
+    final texture =
+        textureColor ??
+        (variant == CraftBackdropVariant.studio
+            ? palette.studioAccent
+            : palette.ink);
 
     return SizedBox.expand(
       child: Stack(
@@ -50,13 +55,20 @@ class CraftBackdrop extends StatelessWidget {
         children: <Widget>[
           RepaintBoundary(
             child: CustomPaint(
-              painter: _CraftBackdropPainter(
-                variant: variant,
-                baseColor: background,
-                textureColor: texture,
-                intensity: textureIntensity,
-              ),
-              isComplex: true,
+              painter: variant == CraftBackdropVariant.studio
+                  ? _StudioBackdropPainter(
+                      baseColor: background,
+                      accentColor: texture,
+                      intensity: textureIntensity,
+                    )
+                  : _CraftBackdropPainter(
+                      variant: variant,
+                      baseColor: background,
+                      textureColor: texture,
+                      intensity: textureIntensity,
+                    ),
+              // Studio uses three bounded gradient fills, not a texture mesh.
+              isComplex: variant != CraftBackdropVariant.studio,
               willChange: false,
             ),
           ),
@@ -480,6 +492,76 @@ class StitchedBorder extends StatelessWidget {
   }
 }
 
+/// Quiet ambient lighting: constant draw cost at every screen size, with no
+/// image decoding, texture loops, blur filters or offscreen opacity layers.
+class _StudioBackdropPainter extends CustomPainter {
+  const _StudioBackdropPainter({
+    required this.baseColor,
+    required this.accentColor,
+    required this.intensity,
+  });
+
+  final Color baseColor;
+  final Color accentColor;
+  final double intensity;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    final bounds = Offset.zero & size;
+    final isDark =
+        ThemeData.estimateBrightnessForColor(baseColor) == Brightness.dark;
+    canvas.drawRect(
+      bounds,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[
+            baseColor,
+            Color.lerp(baseColor, isDark ? Colors.black : Colors.white, 0.12)!,
+          ],
+        ).createShader(bounds),
+    );
+    if (intensity == 0) return;
+
+    canvas.drawRect(
+      bounds,
+      Paint()
+        ..shader = RadialGradient(
+          center: const Alignment(-0.85, -0.85),
+          radius: 1.35,
+          colors: <Color>[
+            accentColor.withValues(alpha: intensity * (isDark ? 0.15 : 0.10)),
+            accentColor.withValues(alpha: 0),
+          ],
+          stops: const <double>[0, 1],
+        ).createShader(bounds),
+    );
+    canvas.drawRect(
+      bounds,
+      Paint()
+        ..shader = RadialGradient(
+          center: const Alignment(0.95, 0.45),
+          radius: 1.15,
+          colors: <Color>[
+            (isDark ? const Color(0xFF9CB5D0) : Colors.white).withValues(
+              alpha: intensity * (isDark ? 0.04 : 0.32),
+            ),
+            Colors.white.withValues(alpha: 0),
+          ],
+        ).createShader(bounds),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _StudioBackdropPainter oldDelegate) {
+    return baseColor != oldDelegate.baseColor ||
+        accentColor != oldDelegate.accentColor ||
+        intensity != oldDelegate.intensity;
+  }
+}
+
 class _CraftBackdropPainter extends CustomPainter {
   const _CraftBackdropPainter({
     required this.variant,
@@ -515,6 +597,9 @@ class _CraftBackdropPainter extends CustomPainter {
         _paintPaper(canvas, size);
       case CraftBackdropVariant.cork:
         _paintCork(canvas, size);
+      case CraftBackdropVariant.studio:
+        // Studio has its own constant-cost painter above.
+        break;
     }
   }
 
@@ -885,6 +970,8 @@ class _CraftPalette {
   const _CraftPalette({
     required this.paper,
     required this.cork,
+    required this.studio,
+    required this.studioAccent,
     required this.ink,
     required this.border,
     required this.tape,
@@ -894,6 +981,8 @@ class _CraftPalette {
 
   final Color paper;
   final Color cork;
+  final Color studio;
+  final Color studioAccent;
   final Color ink;
   final Color border;
   final Color tape;
@@ -924,6 +1013,8 @@ class _CraftPalette {
     return _CraftPalette(
       paper: paper,
       cork: cork,
+      studio: background,
+      studioAccent: albumium?.primary ?? scheme.primary,
       ink: ink,
       border: Color.lerp(border, ink, isDark ? 0.15 : 0.08)!,
       tape: tape,
