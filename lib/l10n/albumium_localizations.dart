@@ -25,6 +25,14 @@ class AlbumiumLocalizations {
   }
 
   static const _english = <String, String>{
+    'Fotoğrafı kırp': 'Crop photo',
+    'Uygula': 'Apply',
+    'Tamamını göster': 'Show full photo',
+    'Öğeyi döndür': 'Rotate element',
+    'Fotoğraf açılamadı. Lütfen tekrar dene.':
+        'Could not open the photo. Please try again.',
+    'Köşeleri sürükleyerek kırp. Seçili alanı taşıyarak konumunu ayarla.':
+        'Drag the corners to crop. Drag the selected area to reposition it.',
     'Dili değiştir': 'Change language',
     'Dil': 'Language',
     'Anılarına hoş geldin': 'Welcome to your memories',

@@ -490,6 +490,7 @@ class AlbumPackageService {
               scale: element.scale,
               frameStyle: element.frameStyle,
               photoShape: element.photoShape,
+              photoCrop: element.photoCrop,
               textColor: element.textColor,
               fontSize: element.fontSize,
               extraData: element.extraData,

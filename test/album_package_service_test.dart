@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:albumium/models/album_models.dart';
 import 'package:albumium/services/album_package_service.dart';
@@ -94,6 +95,8 @@ void main() {
     final source = File('${root.path}${Platform.pathSeparator}source.jpg');
     await source.writeAsBytes(image.encodeJpg(sourceImage, quality: 96));
     final original = _album(photoPath: source.path);
+    const crop = Rect.fromLTRB(.1, .2, .8, .9);
+    original.pages.first.elements.first.photoCrop = crop;
 
     final exported = await service.createPackage(original);
     expect(await exported.file.exists(), isTrue);
@@ -117,6 +120,7 @@ void main() {
         .where((element) => element.type == AlbumElementType.photo)
         .toList();
     expect(previewPhotos, hasLength(2));
+    expect(previewPhotos.first.photoCrop, crop);
     expect(previewPhotos.first.content, previewPhotos.last.content);
     expect(await File(previewPhotos.first.content).exists(), isTrue);
 
@@ -131,6 +135,7 @@ void main() {
         .where((element) => element.type == AlbumElementType.photo)
         .toList();
     expect(importedPhotos.first.content, importedPhotos.last.content);
+    expect(importedPhotos.first.photoCrop, crop);
     expect(await File(importedPhotos.first.content).exists(), isTrue);
   });
 

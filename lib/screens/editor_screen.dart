@@ -13,6 +13,7 @@ import '../widgets/handmade_craft.dart';
 import '../widgets/handwriting_painter.dart';
 import '../widgets/occasion_cards.dart';
 import '../widgets/photo_style_picker.dart';
+import '../widgets/photo_crop_editor.dart';
 import '../widgets/physical_book_spread.dart';
 import '../widgets/sticker_packs.dart';
 import 'preview_screen.dart';
@@ -214,10 +215,29 @@ class _EditorScreenState extends State<EditorScreen>
     if (picked.isEmpty || !mounted) return;
     setState(() => _importing = true);
     final paths = <String>[];
-    for (final file in picked) {
-      paths.add(await AlbumStorage.instance.importImage(file));
+    final sizes = <Size>[];
+    try {
+      for (final file in picked) {
+        final path = await AlbumStorage.instance.importImage(file);
+        final info = await loadAlbumPhoto(path);
+        sizes.add(albumPhotoSize(info.image.width / info.image.height));
+        info.dispose();
+        paths.add(path);
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              context.tr('Fotoğraf açılamadı. Lütfen tekrar dene.'),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _importing = false);
     }
-    if (!mounted) return;
+    if (!mounted || paths.isEmpty) return;
     setState(() {
       for (var index = 0; index < paths.length; index++) {
         final target = index == 0
@@ -232,10 +252,11 @@ class _EditorScreenState extends State<EditorScreen>
             id: newId(),
             type: AlbumElementType.photo,
             content: paths[index],
-            x: 0.12 + (offset % 2) * 0.06,
-            y: 0.15 + (offset % 3) * 0.06,
-            width: 0.76,
-            height: 0.54,
+            x: (1 - sizes[index].width) / 2,
+            y: (1 - sizes[index].height) / 2,
+            width: sizes[index].width,
+            height: sizes[index].height,
+            photoCrop: fullPhotoCrop,
             rotation: offset.isEven ? -0.02 : 0.025,
             frameStyle: 1,
           ),
@@ -515,6 +536,7 @@ class _EditorScreenState extends State<EditorScreen>
               scale: e.scale,
               frameStyle: e.frameStyle,
               photoShape: e.photoShape,
+              photoCrop: e.photoCrop,
               textColor: e.textColor,
               fontSize: e.fontSize,
               extraData: e.extraData,
@@ -734,6 +756,7 @@ class _EditorScreenState extends State<EditorScreen>
         scale: selected.scale,
         frameStyle: selected.frameStyle,
         photoShape: selected.photoShape,
+        photoCrop: selected.photoCrop,
         textColor: selected.textColor,
         fontSize: selected.fontSize,
         extraData: selected.extraData,
@@ -742,6 +765,15 @@ class _EditorScreenState extends State<EditorScreen>
       _selectedId = copy.id;
     });
     _changed();
+  }
+
+  Future<void> _cropSelected() async {
+    final element = selectedElement;
+    if (element == null || element.type != AlbumElementType.photo) return;
+    if (await editAlbumPhotoCrop(context, element) && mounted) {
+      setState(() {});
+      _changed();
+    }
   }
 
   Future<void> _styleSelected() async {
@@ -975,6 +1007,7 @@ class _EditorScreenState extends State<EditorScreen>
                   _SelectionToolbar(
                     element: selectedElement!,
                     onStyle: _styleSelected,
+                    onCrop: _cropSelected,
                     canMoveLayer: _canMoveSelectedLayer,
                     onLayerAction: _moveSelectedLayer,
                     onScaleDown:
@@ -1218,6 +1251,7 @@ class _SelectionToolbar extends StatelessWidget {
   const _SelectionToolbar({
     required this.element,
     required this.onStyle,
+    required this.onCrop,
     required this.canMoveLayer,
     required this.onLayerAction,
     required this.onScaleDown,
@@ -1229,6 +1263,7 @@ class _SelectionToolbar extends StatelessWidget {
 
   final AlbumElementModel element;
   final VoidCallback onStyle;
+  final VoidCallback onCrop;
   final bool Function(AlbumElementLayerAction action) canMoveLayer;
   final ValueChanged<AlbumElementLayerAction> onLayerAction;
   final VoidCallback? onScaleDown;
@@ -1294,6 +1329,12 @@ class _SelectionToolbar extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        if (element.type == AlbumElementType.photo)
+          _SelectionIconButton(
+            onPressed: onCrop,
+            tooltip: context.tr('Fotoğrafı kırp'),
+            icon: Icons.crop_rounded,
+          ),
         _SelectionIconButton(
           onPressed: onScaleDown,
           tooltip: context.tr('Küçült'),

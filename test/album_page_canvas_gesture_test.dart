@@ -181,7 +181,7 @@ void main() {
     },
   );
 
-  testWidgets('rotation handle is visible only for a selected photo', (
+  testWidgets('rotation handle is visible for every selected element', (
     tester,
   ) async {
     final photo = _element(type: AlbumElementType.photo);
@@ -192,48 +192,58 @@ void main() {
     expect(tester.getSize(handle), const Size.square(48));
     expect(find.bySemanticsLabel('Fotoğrafı döndür'), findsOneWidget);
 
-    await tester.pumpWidget(_canvas(_element(), selected: true));
-    expect(find.byKey(const ValueKey('selection-rotate')), findsNothing);
+    for (final type in AlbumElementType.values) {
+      await tester.pumpWidget(_canvas(_element(type: type), selected: true));
+      expect(handle, findsOneWidget);
+      await tester.pumpWidget(_canvas(_element(type: type), selected: false));
+      expect(handle, findsNothing);
+    }
   });
 
-  testWidgets(
-    'photo rotation handle works under ancestor scale and commits once',
-    (tester) async {
-      final photo = _element(type: AlbumElementType.photo);
-      final originalX = photo.x;
-      final originalY = photo.y;
-      var changeCount = 0;
-      await tester.pumpWidget(
-        _canvas(
-          photo,
-          ancestorScale: 0.5,
-          selected: true,
-          onChanged: () => changeCount++,
-        ),
-      );
+  for (final type in [
+    AlbumElementType.photo,
+    AlbumElementType.sticker,
+    AlbumElementType.drawing,
+  ]) {
+    testWidgets(
+      '$type rotation handle works under ancestor scale and commits once',
+      (tester) async {
+        final photo = _element(type: type);
+        final originalX = photo.x;
+        final originalY = photo.y;
+        var changeCount = 0;
+        await tester.pumpWidget(
+          _canvas(
+            photo,
+            ancestorScale: 0.5,
+            selected: true,
+            onChanged: () => changeCount++,
+          ),
+        );
 
-      final handle = find.byKey(const ValueKey('selection-rotate'));
-      final gesture = await tester.startGesture(tester.getCenter(handle));
+        final handle = find.byKey(const ValueKey('selection-rotate'));
+        final gesture = await tester.startGesture(tester.getCenter(handle));
 
-      // Cross touch slop before changing the angle around the photo centre.
-      await gesture.moveBy(const Offset(24, 0));
-      await tester.pump();
-      await gesture.moveBy(const Offset(0, 42));
-      await tester.pump();
+        // Cross touch slop before changing the angle around the photo centre.
+        await gesture.moveBy(const Offset(24, 0));
+        await tester.pump();
+        await gesture.moveBy(const Offset(0, 42));
+        await tester.pump();
 
-      expect(photo.rotation.abs(), greaterThan(0.1));
-      expect(photo.rotation.isFinite, isTrue);
-      expect(photo.x, originalX);
-      expect(photo.y, originalY);
-      expect(
-        changeCount,
-        0,
-        reason: 'rotation updates stay in one transaction',
-      );
+        expect(photo.rotation.abs(), greaterThan(0.1));
+        expect(photo.rotation.isFinite, isTrue);
+        expect(photo.x, originalX);
+        expect(photo.y, originalY);
+        expect(
+          changeCount,
+          0,
+          reason: 'rotation updates stay in one transaction',
+        );
 
-      await gesture.up();
-      await tester.pump();
-      expect(changeCount, 1, reason: 'the completed rotation commits once');
-    },
-  );
+        await gesture.up();
+        await tester.pump();
+        expect(changeCount, 1, reason: 'the completed rotation commits once');
+      },
+    );
+  }
 }
