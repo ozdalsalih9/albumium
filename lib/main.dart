@@ -212,6 +212,7 @@ class _AlbumiumAppState extends State<AlbumiumApp> {
                     key: _homeKey,
                     themeController: _themeController,
                     languageController: _languageController,
+                    heroMotionEnabled: !_showLaunchAnimation,
                   ),
                 ),
               ),

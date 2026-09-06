@@ -11,12 +11,14 @@ class AlbumCover3D extends StatelessWidget {
     required this.album,
     this.compact = false,
     this.perspective = true,
+    this.showTitle = true,
     this.onTap,
   });
 
   final AlbumModel album;
   final bool compact;
   final bool perspective;
+  final bool showTitle;
   final VoidCallback? onTap;
 
   @override
@@ -102,6 +104,7 @@ class AlbumCover3D extends StatelessWidget {
                             child: AlbumCover(
                               album: album,
                               compact: compact,
+                              showTitle: showTitle,
                               onTap: onTap,
                             ),
                           ),

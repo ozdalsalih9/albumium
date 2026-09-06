@@ -5,12 +5,12 @@ import 'package:flutter/material.dart';
 import '../theme/albumium_app_theme.dart';
 
 /// The material simulated by [CraftBackdrop].
-enum CraftBackdropVariant { paper, cork, studio }
+enum CraftBackdropVariant { paper, cork, studio, velvet }
 
 /// Places a decorative strip of [CraftTape] over a [PaperPanel].
 enum CraftTapePosition { topLeft, topCenter, topRight, bottomLeft, bottomRight }
 
-/// A full-size, asset-free paper, cork or studio surface.
+/// A full-size paper, cork, studio or fabric surface.
 ///
 /// Its texture is deterministic and is only repainted when its colors, size or
 /// intensity change. Wrapping the paint in a [RepaintBoundary] also keeps child
@@ -42,35 +42,57 @@ class CraftBackdrop extends StatelessWidget {
           CraftBackdropVariant.paper => palette.paper,
           CraftBackdropVariant.cork => palette.cork,
           CraftBackdropVariant.studio => palette.studio,
+          CraftBackdropVariant.velvet => palette.studio,
         };
     final texture =
         textureColor ??
         (variant == CraftBackdropVariant.studio
             ? palette.studioAccent
             : palette.ink);
+    final fabricTint = Color.lerp(background, texture, .10)!;
 
     return SizedBox.expand(
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
           RepaintBoundary(
-            child: CustomPaint(
-              painter: variant == CraftBackdropVariant.studio
-                  ? _StudioBackdropPainter(
-                      baseColor: background,
-                      accentColor: texture,
-                      intensity: textureIntensity,
-                    )
-                  : _CraftBackdropPainter(
-                      variant: variant,
-                      baseColor: background,
-                      textureColor: texture,
-                      intensity: textureIntensity,
+            child: variant == CraftBackdropVariant.velvet
+                ? DecoratedBox(
+                    key: const ValueKey('fabric-texture-image'),
+                    decoration: BoxDecoration(
+                      color: background,
+                      image: DecorationImage(
+                        image: const AssetImage(
+                          'assets/textures/home-fabric.png',
+                        ),
+                        repeat: ImageRepeat.repeat,
+                        scale: 2,
+                        opacity: .76 * textureIntensity,
+                        colorFilter: ColorFilter.mode(
+                          fabricTint,
+                          BlendMode.modulate,
+                        ),
+                        filterQuality: FilterQuality.low,
+                      ),
                     ),
-              // Studio uses three bounded gradient fills, not a texture mesh.
-              isComplex: variant != CraftBackdropVariant.studio,
-              willChange: false,
-            ),
+                  )
+                : CustomPaint(
+                    painter: variant == CraftBackdropVariant.studio
+                        ? _StudioBackdropPainter(
+                            baseColor: background,
+                            accentColor: texture,
+                            intensity: textureIntensity,
+                          )
+                        : _CraftBackdropPainter(
+                            variant: variant,
+                            baseColor: background,
+                            textureColor: texture,
+                            intensity: textureIntensity,
+                          ),
+                    // Studio uses three bounded gradient fills, not a mesh.
+                    isComplex: variant != CraftBackdropVariant.studio,
+                    willChange: false,
+                  ),
           ),
           Padding(padding: padding, child: child),
         ],
@@ -597,6 +619,9 @@ class _CraftBackdropPainter extends CustomPainter {
         _paintPaper(canvas, size);
       case CraftBackdropVariant.cork:
         _paintCork(canvas, size);
+      case CraftBackdropVariant.velvet:
+        // The fabric image is composited by CraftBackdrop itself.
+        break;
       case CraftBackdropVariant.studio:
         // Studio has its own constant-cost painter above.
         break;

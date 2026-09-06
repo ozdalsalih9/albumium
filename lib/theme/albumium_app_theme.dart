@@ -212,8 +212,8 @@ abstract final class AlbumiumAppTheme {
     );
 
     final roundedInputBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(9),
-      borderSide: BorderSide(color: colors.border, width: 1.2),
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(color: colors.border),
     );
 
     final functionalTextTheme = base.textTheme.apply(
@@ -250,7 +250,7 @@ abstract final class AlbumiumAppTheme {
         ),
         titleMedium: functionalTextTheme.titleMedium?.copyWith(
           color: colors.text,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w500,
         ),
         bodyMedium: functionalTextTheme.bodyMedium?.copyWith(
           color: colors.mutedText,
@@ -266,10 +266,10 @@ abstract final class AlbumiumAppTheme {
         centerTitle: false,
         titleTextStyle: TextStyle(
           color: colors.text,
-          fontFamily: 'AlbumiumDisplay',
-          fontSize: 24,
-          fontWeight: FontWeight.w400,
-          letterSpacing: -.2,
+          fontFamily: 'AlbumiumSans',
+          fontSize: 18,
+          fontWeight: FontWeight.w500,
+          letterSpacing: -.3,
         ),
       ),
       cardTheme: CardThemeData(
@@ -278,17 +278,14 @@ abstract final class AlbumiumAppTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: BorderSide(color: colors.border, width: 1.2),
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: colors.border),
         ),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: colors.elevatedSurface,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: colors.border, width: 1.2),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: colors.elevatedSurface,
@@ -296,7 +293,7 @@ abstract final class AlbumiumAppTheme {
         surfaceTintColor: Colors.transparent,
         showDragHandle: true,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -325,14 +322,12 @@ abstract final class AlbumiumAppTheme {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
           textStyle: const TextStyle(
             fontFamily: 'AlbumiumSans',
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w500,
           ),
-          elevation: 2,
-          shadowColor: Colors.black.withValues(alpha: .30),
-          side: BorderSide(
-            color: Color.lerp(colors.primary, Colors.black, .22)!,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
           ),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -345,12 +340,15 @@ abstract final class AlbumiumAppTheme {
             fontFamily: 'AlbumiumSans',
             fontWeight: FontWeight.w500,
           ),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: colors.primary,
+          minimumSize: const Size(48, 48),
           textStyle: const TextStyle(
             fontFamily: 'AlbumiumSans',
             fontWeight: FontWeight.w500,
@@ -361,9 +359,9 @@ abstract final class AlbumiumAppTheme {
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: colors.primary,
         foregroundColor: colors.onPrimary,
-        elevation: 5,
-        focusElevation: 7,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 3,
+        focusElevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: colors.surface,
@@ -390,7 +388,7 @@ abstract final class AlbumiumAppTheme {
         disabledColor: colors.surface,
         side: BorderSide(color: colors.border),
         labelStyle: TextStyle(color: colors.text, fontWeight: FontWeight.w500),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
@@ -415,8 +413,8 @@ abstract final class AlbumiumAppTheme {
         contentTextStyle: TextStyle(color: colors.text),
         actionTextColor: colors.primary,
         behavior: SnackBarBehavior.floating,
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
         color: colors.primary,
@@ -455,8 +453,8 @@ abstract final class AlbumiumAppTheme {
 
   static const _roseLight = AlbumiumThemeColors(
     background: Color(0xFFF3EEEC),
-    surface: Color(0xFFF2DDD5),
-    elevatedSurface: Color(0xFFFFF3E8),
+    surface: Color(0xFFF8F0ED),
+    elevatedSurface: Color(0xFFFFFBF9),
     heroStart: Color(0xFFE8BAB1),
     heroEnd: Color(0xFFF0D6CA),
     primary: Color(0xFF9A4D58),
@@ -464,14 +462,14 @@ abstract final class AlbumiumAppTheme {
     secondary: Color(0xFF747765),
     text: Color(0xFF432E2D),
     mutedText: Color(0xFF78615D),
-    border: Color(0x5C704945),
+    border: Color(0x29704945),
     glow: Color(0x55D89591),
   );
 
   static const _roseDark = AlbumiumThemeColors(
     background: Color(0xFF1C1B20),
-    surface: Color(0xFF4B3532),
-    elevatedSurface: Color(0xFF614641),
+    surface: Color(0xFF292326),
+    elevatedSurface: Color(0xFF352D30),
     heroStart: Color(0xFF70433F),
     heroEnd: Color(0xFF3D2927),
     primary: Color(0xFFE3A29F),
@@ -479,14 +477,14 @@ abstract final class AlbumiumAppTheme {
     secondary: Color(0xFFC7BE9E),
     text: Color(0xFFFFEEDF),
     mutedText: Color(0xFFD6BDB1),
-    border: Color(0x4DFFE4D6),
+    border: Color(0x33FFE4D6),
     glow: Color(0x4DC87977),
   );
 
   static const _navyLight = AlbumiumThemeColors(
     background: Color(0xFFECF0F3),
-    surface: Color(0xFFE7E4D8),
-    elevatedSurface: Color(0xFFF6F1E4),
+    surface: Color(0xFFEEF2F4),
+    elevatedSurface: Color(0xFFF9FBFC),
     heroStart: Color(0xFFB9C8CC),
     heroEnd: Color(0xFFD9DDD7),
     primary: Color(0xFF3F5E73),
@@ -494,14 +492,14 @@ abstract final class AlbumiumAppTheme {
     secondary: Color(0xFF8B664F),
     text: Color(0xFF26343D),
     mutedText: Color(0xFF5E6A6E),
-    border: Color(0x5946545B),
+    border: Color(0x2946545B),
     glow: Color(0x4D7599AA),
   );
 
   static const _navyDark = AlbumiumThemeColors(
     background: Color(0xFF181E27),
-    surface: Color(0xFF34434A),
-    elevatedSurface: Color(0xFF475A62),
+    surface: Color(0xFF232D37),
+    elevatedSurface: Color(0xFF2E3B46),
     heroStart: Color(0xFF405966),
     heroEnd: Color(0xFF27363D),
     primary: Color(0xFF9EC0CC),
@@ -509,14 +507,14 @@ abstract final class AlbumiumAppTheme {
     secondary: Color(0xFFD4BFA8),
     text: Color(0xFFF7ECD9),
     mutedText: Color(0xFFC3C7BE),
-    border: Color(0x4DE3E0D3),
+    border: Color(0x33E3E0D3),
     glow: Color(0x456A99A8),
   );
 
   static const _obsidianLight = AlbumiumThemeColors(
     background: Color(0xFFF0EFEC),
-    surface: Color(0xFFE6DED1),
-    elevatedSurface: Color(0xFFF5EEE2),
+    surface: Color(0xFFF3F2EF),
+    elevatedSurface: Color(0xFFFCFBF8),
     heroStart: Color(0xFFC9C1B5),
     heroEnd: Color(0xFFE0D8CC),
     primary: Color(0xFF45423D),
@@ -524,14 +522,14 @@ abstract final class AlbumiumAppTheme {
     secondary: Color(0xFF78634E),
     text: Color(0xFF2F2D29),
     mutedText: Color(0xFF69645C),
-    border: Color(0x593D3A35),
+    border: Color(0x293D3A35),
     glow: Color(0x3D5C5851),
   );
 
   static const _obsidianDark = AlbumiumThemeColors(
     background: Color(0xFF1A1D22),
-    surface: Color(0xFF393732),
-    elevatedSurface: Color(0xFF4A4842),
+    surface: Color(0xFF282A2D),
+    elevatedSurface: Color(0xFF34363A),
     heroStart: Color(0xFF555149),
     heroEnd: Color(0xFF2D2B27),
     primary: Color(0xFFD9D0C1),
@@ -539,14 +537,14 @@ abstract final class AlbumiumAppTheme {
     secondary: Color(0xFFC0A98B),
     text: Color(0xFFF4EADC),
     mutedText: Color(0xFFC7BFB3),
-    border: Color(0x4DEDE2D2),
+    border: Color(0x33EDE2D2),
     glow: Color(0x3DD7CBB7),
   );
 
   static const _amberLight = AlbumiumThemeColors(
     background: Color(0xFFF4F1EA),
-    surface: Color(0xFFF3E6D2),
-    elevatedSurface: Color(0xFFFFF8EC),
+    surface: Color(0xFFF8F2E8),
+    elevatedSurface: Color(0xFFFFFCF6),
     heroStart: Color(0xFFE7C29F),
     heroEnd: Color(0xFFF0D5B8),
     primary: Color(0xFF8F452E),
@@ -554,14 +552,14 @@ abstract final class AlbumiumAppTheme {
     secondary: Color(0xFF6F725F),
     text: Color(0xFF392B24),
     mutedText: Color(0xFF746055),
-    border: Color(0x666F4C3A),
+    border: Color(0x296F4C3A),
     glow: Color(0x55E4B773),
   );
 
   static const _amberDark = AlbumiumThemeColors(
     background: Color(0xFF1D2026),
-    surface: Color(0xFF47342B),
-    elevatedSurface: Color(0xFF5B4437),
+    surface: Color(0xFF2D2825),
+    elevatedSurface: Color(0xFF39312C),
     heroStart: Color(0xFF6B4933),
     heroEnd: Color(0xFF3A251B),
     primary: Color(0xFFD99664),
@@ -569,7 +567,7 @@ abstract final class AlbumiumAppTheme {
     secondary: Color(0xFFC9B58E),
     text: Color(0xFFF8EAD5),
     mutedText: Color(0xFFCDB9A4),
-    border: Color(0x4DF0D6B6),
+    border: Color(0x33F0D6B6),
     glow: Color(0x4DC97848),
   );
 }

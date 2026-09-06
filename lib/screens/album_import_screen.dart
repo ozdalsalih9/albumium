@@ -6,6 +6,7 @@ import '../services/album_package_service.dart';
 import '../services/album_storage.dart';
 import '../theme/albumium_app_theme.dart';
 import '../widgets/album_cover.dart';
+import '../widgets/handmade_craft.dart';
 import 'preview_screen.dart';
 
 class AlbumImportScreen extends StatefulWidget {
@@ -146,27 +147,41 @@ class _AlbumImportScreenState extends State<AlbumImportScreen> {
 
           final preview = snapshot.data!;
           final album = preview.album;
-          final tablet = MediaQuery.sizeOf(context).shortestSide >= 600;
-          final cover = SizedBox(
-            width: tablet ? 230 : 174,
-            height: tablet ? 338 : 255,
-            child: AlbumCover(album: album),
+          final tablet = MediaQuery.sizeOf(context).width >= 720;
+          final cover = DecoratedBox(
+            decoration: BoxDecoration(
+              boxShadow: [
+                BoxShadow(
+                  color: colors.text.withValues(alpha: .12),
+                  blurRadius: 36,
+                  offset: const Offset(0, 18),
+                ),
+              ],
+            ),
+            child: SizedBox(
+              width: tablet ? 230 : 180,
+              height: tablet ? 338 : 264,
+              child: AlbumCover(album: album),
+            ),
           );
           final details = _ImportDetails(
             preview: preview,
             importing: _importing,
+            alignedLeft: tablet,
             onView: () => _view(preview),
             onImport: () => _import(preview),
           );
 
-          return DecoratedBox(
-            decoration: BoxDecoration(color: colors.background),
+          return CraftBackdrop(
+            variant: CraftBackdropVariant.studio,
+            baseColor: colors.background,
+            textureIntensity: .5,
             child: SafeArea(
               top: false,
               child: SingleChildScrollView(
                 padding: EdgeInsets.symmetric(
                   horizontal: tablet ? 40 : 22,
-                  vertical: tablet ? 34 : 22,
+                  vertical: tablet ? 56 : 32,
                 ),
                 child: Center(
                   child: ConstrainedBox(
@@ -176,14 +191,14 @@ class _AlbumImportScreenState extends State<AlbumImportScreen> {
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               cover,
-                              const SizedBox(width: 38),
+                              const SizedBox(width: 56),
                               Expanded(child: details),
                             ],
                           )
                         : Column(
                             children: [
                               cover,
-                              const SizedBox(height: 26),
+                              const SizedBox(height: 34),
                               details,
                             ],
                           ),
@@ -202,12 +217,14 @@ class _ImportDetails extends StatelessWidget {
   const _ImportDetails({
     required this.preview,
     required this.importing,
+    required this.alignedLeft,
     required this.onView,
     required this.onImport,
   });
 
   final AlbumPackagePreview preview;
   final bool importing;
+  final bool alignedLeft;
   final VoidCallback onView;
   final VoidCallback onImport;
 
@@ -215,13 +232,15 @@ class _ImportDetails extends StatelessWidget {
   Widget build(BuildContext context) {
     final album = preview.album;
     final textTheme = Theme.of(context).textTheme;
+    final colors = Theme.of(context).colorScheme;
+    final alignment = alignedLeft ? TextAlign.left : TextAlign.center;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
           album.title,
-          textAlign: TextAlign.center,
-          style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+          textAlign: alignment,
+          style: textTheme.headlineMedium?.copyWith(height: 1.15),
         ),
         const SizedBox(height: 8),
         Text(
@@ -233,36 +252,32 @@ class _ImportDetails extends StatelessWidget {
               'media': preview.mediaCount,
             },
           ),
-          textAlign: TextAlign.center,
-          style: textTheme.bodyMedium,
-        ),
-        const SizedBox(height: 18),
-        Card(
-          margin: EdgeInsets.zero,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.lock_outline_rounded),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    context.tr(
-                      'Albümü görüntüle veya düzenlemek için koleksiyonuna bir kopyasını ekle.',
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          textAlign: alignment,
+          style: textTheme.bodySmall?.copyWith(
+            color: colors.onSurfaceVariant,
+            height: 1.5,
           ),
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 24),
+        Text(
+          context.tr(
+            'Albümü görüntüle veya düzenlemek için koleksiyonuna bir kopyasını ekle.',
+          ),
+          textAlign: alignment,
+          style: textTheme.bodyMedium?.copyWith(
+            color: colors.onSurfaceVariant,
+            height: 1.65,
+          ),
+        ),
+        const SizedBox(height: 28),
         OutlinedButton.icon(
           key: const ValueKey('view_shared_album'),
           onPressed: importing ? null : onView,
           icon: const Icon(Icons.menu_book_rounded),
-          label: Text(context.tr('Salt okunur görüntüle')),
+          label: Text(
+            context.tr('Salt okunur görüntüle'),
+            textAlign: TextAlign.center,
+          ),
         ),
         const SizedBox(height: 10),
         FilledButton.icon(
@@ -278,6 +293,7 @@ class _ImportDetails extends StatelessWidget {
             importing
                 ? context.tr('İçe aktarılıyor…')
                 : context.tr('Kopya olarak içe aktar'),
+            textAlign: TextAlign.center,
           ),
         ),
       ],

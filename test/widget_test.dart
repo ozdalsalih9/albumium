@@ -1,6 +1,7 @@
 import 'package:albumium/main.dart';
 import 'package:albumium/screens/special_card_studio_screen.dart';
 import 'package:albumium/screens/theme_screen.dart';
+import 'package:albumium/services/language_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -70,9 +71,7 @@ void main() {
     await tester.pumpWidget(const AlbumiumApp(showLaunchAnimation: false));
     await tester.pumpAndSettle();
 
-    final languageButton = find.byKey(
-      const ValueKey('home-language-button'),
-    );
+    final languageButton = find.byKey(const ValueKey('home-language-button'));
     final themeButton = find.byKey(const ValueKey('home-theme-button'));
     expect(languageButton, findsOneWidget);
     expect(themeButton, findsOneWidget);
@@ -83,7 +82,9 @@ void main() {
 
     await tester.tap(languageButton);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('English'));
+    await tester.tap(
+      find.widgetWithText(CheckedPopupMenuItem<AppLanguage>, 'English'),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Welcome to your memories'), findsOneWidget);

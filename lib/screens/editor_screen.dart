@@ -639,56 +639,67 @@ class _EditorScreenState extends State<EditorScreen>
       showDragHandle: true,
       isScrollControlled: true,
       builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * .82,
+          ),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.texture_rounded, size: 23),
-                  const SizedBox(width: 10),
+                  Row(
+                    children: [
+                      const Icon(Icons.texture_rounded, size: 23),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          context.tr('Vintage kâğıt seç'),
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
                   Text(
-                    context.tr('Vintage kâğıt seç'),
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
+                    context.tr(
+                      'Her renk ince lif, tanecik ve kenar patinasıyla uygulanır.',
                     ),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 12,
+                    children: [
+                      for (final choice in colors)
+                        _PaperColorTile(
+                          name: context.tr(choice.name),
+                          color: choice.color,
+                          selected:
+                              page.backgroundColor == choice.color.toARGB32(),
+                          onTap: () {
+                            setState(
+                              () => page.backgroundColor = choice.color
+                                  .toARGB32(),
+                            );
+                            _changed();
+                            Navigator.pop(context);
+                          },
+                        ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 5),
-              Text(
-                context.tr(
-                  'Her renk ince lif, tanecik ve kenar patinasıyla uygulanır.',
-                ),
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Wrap(
-                spacing: 10,
-                runSpacing: 12,
-                children: [
-                  for (final choice in colors)
-                    _PaperColorTile(
-                      name: context.tr(choice.name),
-                      color: choice.color,
-                      selected: page.backgroundColor == choice.color.toARGB32(),
-                      onTap: () {
-                        setState(
-                          () => page.backgroundColor = choice.color.toARGB32(),
-                        );
-                        _changed();
-                        Navigator.pop(context);
-                      },
-                    ),
-                ],
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -874,6 +885,7 @@ class _EditorScreenState extends State<EditorScreen>
   @override
   Widget build(BuildContext context) {
     final colors = AlbumiumAppTheme.colorsOf(context);
+    final wideHeader = MediaQuery.sizeOf(context).width >= 600;
     return PopScope(
       onPopInvokedWithResult: (_, _) =>
           unawaited(AlbumStorage.instance.saveAlbum(album)),
@@ -882,45 +894,70 @@ class _EditorScreenState extends State<EditorScreen>
         appBar: AppBar(
           backgroundColor: colors.background,
           titleSpacing: 0,
-          title: GestureDetector(
-            onTap: _editTitle,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: Text(album.title, overflow: TextOverflow.ellipsis),
+          title: Tooltip(
+            message: context.tr('Albüm adını değiştir'),
+            child: InkWell(
+              onTap: _editTitle,
+              borderRadius: BorderRadius.circular(12),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        album.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.edit_outlined,
+                      size: 15,
+                      color: colors.mutedText,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                 ),
-                const SizedBox(width: 5),
-                Icon(
-                  Icons.edit_outlined,
-                  size: 16,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ],
+              ),
             ),
           ),
           actions: [
-            IconButton(
-              onPressed: _changeBinding,
-              icon: Icon(album.bindingType.icon),
-              tooltip: context.tr(
-                'Cilt Tipi ({binding})',
-                values: {'binding': context.tr(album.bindingType.title)},
+            if (wideHeader)
+              IconButton(
+                onPressed: _changeBinding,
+                icon: Icon(album.bindingType.icon, size: 22),
+                tooltip: context.tr(
+                  'Cilt Tipi ({binding})',
+                  values: {'binding': context.tr(album.bindingType.title)},
+                ),
               ),
-            ),
             IconButton(
               onPressed: () => _preview(),
-              icon: const Icon(Icons.menu_book_rounded),
+              icon: const Icon(Icons.menu_book_rounded, size: 22),
               tooltip: context.tr('Kitap Aç'),
             ),
             Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: FilledButton.icon(
-                key: const ValueKey('editor-share'),
-                onPressed: () => _preview(openShareOptions: true),
-                icon: const Icon(Icons.ios_share_rounded, size: 18),
-                label: Text(context.tr('Paylaş')),
-              ),
+              padding: const EdgeInsets.only(left: 4, right: 12),
+              child: wideHeader
+                  ? FilledButton.icon(
+                      key: const ValueKey('editor-share'),
+                      onPressed: () => _preview(openShareOptions: true),
+                      icon: const Icon(Icons.ios_share_rounded, size: 18),
+                      label: Text(context.tr('Paylaş')),
+                    )
+                  : IconButton.filledTonal(
+                      key: const ValueKey('editor-share'),
+                      onPressed: () => _preview(openShareOptions: true),
+                      tooltip: context.tr('Paylaş'),
+                      icon: const Icon(Icons.ios_share_rounded, size: 20),
+                    ),
             ),
           ],
         ),
@@ -989,6 +1026,9 @@ class _EditorScreenState extends State<EditorScreen>
                                           Text(
                                             context.tr(
                                               'Fotoğraflar hazırlanıyor…',
+                                            ),
+                                            style: const TextStyle(
+                                              color: Colors.white,
                                             ),
                                           ),
                                         ],
@@ -1075,8 +1115,8 @@ class _EditorScreenState extends State<EditorScreen>
             ListTile(
               leading: const Icon(Icons.delete_outline),
               title: Text(context.tr('Sayfayı sil')),
-              textColor: Colors.redAccent,
-              iconColor: Colors.redAccent,
+              textColor: Theme.of(context).colorScheme.error,
+              iconColor: Theme.of(context).colorScheme.error,
               onTap: () {
                 Navigator.pop(context);
                 _deletePage();
@@ -1109,30 +1149,26 @@ class _PageNavigator extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = AlbumiumAppTheme.colorsOf(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 7, 12, 5),
-      child: PaperPanel(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        borderRadius: BorderRadius.circular(7),
-        rotationDegrees: -.15,
-        textureIntensity: .2,
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+      child: DefaultTextStyle.merge(
+        style: TextStyle(color: colors.mutedText),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             IconButton(
               onPressed: onPrevious,
               tooltip: context.tr('Önceki sayfa'),
               icon: const Icon(Icons.chevron_left_rounded),
             ),
-            TornPaperLabel(
-              color: colors.elevatedSurface,
-              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
-              edgeDepth: 2,
+            Expanded(
               child: Text(
                 label,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: colors.text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: colors.mutedText,
                   fontSize: 12,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -1141,12 +1177,12 @@ class _PageNavigator extends StatelessWidget {
               tooltip: context.tr('Sonraki sayfa'),
               icon: const Icon(Icons.chevron_right_rounded),
             ),
-            const Spacer(),
+            const SizedBox(width: 4),
             IconButton(
               onPressed: onAdd,
               tooltip: context.tr('Sayfa ekle'),
               color: colors.primary,
-              icon: const Icon(Icons.add_box_outlined),
+              icon: const Icon(Icons.add_rounded),
             ),
             IconButton(
               onPressed: onMore,
@@ -1184,61 +1220,64 @@ class _MainToolbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AlbumiumAppTheme.colorsOf(context);
-    return PaperPanel(
-      color: colors.surface,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
-      padding: const EdgeInsets.fromLTRB(6, 8, 6, 10),
-      textureIntensity: .24,
-      showShadow: true,
-      child: LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: constraints.maxWidth),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _Tool(
-                  icon: Icons.add_photo_alternate_outlined,
-                  label: context.tr('Fotoğraf'),
-                  onTap: onPhoto,
-                ),
-                _Tool(
-                  icon: Icons.text_fields_rounded,
-                  label: context.tr('Yazı / Font'),
-                  onTap: onText,
-                ),
-                _Tool(
-                  icon: Icons.gesture_rounded,
-                  label: context.tr('Elle Yaz'),
-                  onTap: onDraw,
-                ),
-                _Tool(
-                  icon: Icons.card_membership_rounded,
-                  label: context.tr('Özel Kart'),
-                  onTap: onCard,
-                ),
-                _Tool(
-                  icon: Icons.auto_awesome_outlined,
-                  label: context.tr('Süsler'),
-                  onTap: onSticker,
-                ),
-                _Tool(
-                  icon: Icons.interests_outlined,
-                  label: context.tr('Şekiller'),
-                  onTap: onShape,
-                ),
-                _Tool(
-                  icon: Icons.palette_outlined,
-                  label: context.tr('Sayfa'),
-                  onTap: onBackground,
-                ),
-                _Tool(
-                  icon: Icons.note_add_outlined,
-                  label: context.tr('Yeni'),
-                  onTap: onPage,
-                ),
-              ],
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.elevatedSurface,
+        border: Border(top: BorderSide(color: colors.border)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: constraints.maxWidth),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _Tool(
+                    icon: Icons.add_photo_alternate_outlined,
+                    label: context.tr('Fotoğraf'),
+                    onTap: onPhoto,
+                    emphasized: true,
+                  ),
+                  _Tool(
+                    icon: Icons.text_fields_rounded,
+                    label: context.tr('Yazı / Font'),
+                    onTap: onText,
+                  ),
+                  _Tool(
+                    icon: Icons.gesture_rounded,
+                    label: context.tr('Elle Yaz'),
+                    onTap: onDraw,
+                  ),
+                  _Tool(
+                    icon: Icons.card_membership_rounded,
+                    label: context.tr('Özel Kart'),
+                    onTap: onCard,
+                  ),
+                  _Tool(
+                    icon: Icons.auto_awesome_outlined,
+                    label: context.tr('Süsler'),
+                    onTap: onSticker,
+                  ),
+                  _Tool(
+                    icon: Icons.interests_outlined,
+                    label: context.tr('Şekiller'),
+                    onTap: onShape,
+                  ),
+                  _Tool(
+                    icon: Icons.palette_outlined,
+                    label: context.tr('Sayfa'),
+                    onTap: onBackground,
+                  ),
+                  _Tool(
+                    icon: Icons.note_add_outlined,
+                    label: context.tr('Yeni'),
+                    onTap: onPage,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1300,6 +1339,13 @@ class _SelectionToolbar extends StatelessWidget {
 
     Widget styleButton() => TextButton.icon(
       onPressed: onStyle,
+      style: TextButton.styleFrom(
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        textStyle: Theme.of(
+          context,
+        ).textTheme.labelLarge?.copyWith(fontSize: 12),
+      ),
       icon: Icon(styleIcon, size: 18),
       label: Text(styleLabel, maxLines: 1, overflow: TextOverflow.ellipsis),
     );
@@ -1311,15 +1357,18 @@ class _SelectionToolbar extends StatelessWidget {
       ),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: colors.surface,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: colors.border),
+          color: colors.primary.withValues(alpha: .08),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           child: Text(
             '${(element.scale * 100).round()}%',
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: colors.primary,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ),
@@ -1351,8 +1400,8 @@ class _SelectionToolbar extends StatelessWidget {
           icon: Icons.restart_alt_rounded,
         ),
         SizedBox(
-          width: 42,
-          height: 42,
+          width: 48,
+          height: 48,
           child: PopupMenuButton<AlbumElementLayerAction>(
             key: const ValueKey('selection-layer-menu'),
             tooltip: context.tr('Katman sırası'),
@@ -1385,52 +1434,67 @@ class _SelectionToolbar extends StatelessWidget {
           onPressed: onDelete,
           tooltip: context.tr('Sil'),
           icon: Icons.delete_outline,
-          color: Colors.redAccent,
+          color: Theme.of(context).colorScheme.error,
         ),
       ],
     );
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
-      child: PaperPanel(
-        color: colors.elevatedSurface,
-        padding: const EdgeInsets.fromLTRB(8, 3, 8, 5),
-        borderRadius: BorderRadius.circular(7),
-        rotationDegrees: .2,
-        textureIntensity: .2,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            if (constraints.maxWidth >= 680) {
-              return Row(
-                key: const ValueKey('selection-toolbar-wide'),
-                children: [
-                  Expanded(child: styleButton()),
-                  scaleBadge(),
-                  const SizedBox(width: 6),
-                  actionButtons(),
-                ],
-              );
-            }
-            return Column(
-              key: const ValueKey('selection-toolbar-stacked'),
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Expanded(child: styleButton()),
-                    scaleBadge(),
-                  ],
-                ),
-                Align(
-                  alignment: Alignment.center,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: actionButtons(),
-                  ),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 960),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: colors.elevatedSurface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: colors.border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: .06),
+                  blurRadius: 18,
+                  offset: const Offset(0, 5),
                 ),
               ],
-            );
-          },
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 2, 8, 4),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth >= 680) {
+                    return Row(
+                      key: const ValueKey('selection-toolbar-wide'),
+                      children: [
+                        Expanded(child: styleButton()),
+                        scaleBadge(),
+                        const SizedBox(width: 6),
+                        actionButtons(),
+                      ],
+                    );
+                  }
+                  return Column(
+                    key: const ValueKey('selection-toolbar-stacked'),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(child: styleButton()),
+                          scaleBadge(),
+                        ],
+                      ),
+                      Align(
+                        alignment: Alignment.center,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: actionButtons(),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -1467,13 +1531,17 @@ class _SelectionIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 42,
-      height: 42,
+      width: 48,
+      height: 48,
       child: IconButton(
         onPressed: onPressed,
         tooltip: tooltip,
         padding: EdgeInsets.zero,
-        visualDensity: VisualDensity.compact,
+        style: IconButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
         icon: Icon(icon, size: 20, color: color),
       ),
     );
@@ -1481,33 +1549,49 @@ class _SelectionIconButton extends StatelessWidget {
 }
 
 class _Tool extends StatelessWidget {
-  const _Tool({required this.icon, required this.label, required this.onTap});
+  const _Tool({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.emphasized = false,
+  });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final bool emphasized;
 
   @override
   Widget build(BuildContext context) {
     final colors = AlbumiumAppTheme.colorsOf(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: StitchedBorder(
-        color: colors.border,
-        borderRadius: BorderRadius.circular(8),
-        inset: 2,
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 23, color: colors.primary),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Material(
+        color: emphasized
+            ? colors.primary.withValues(alpha: .09)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 23, color: colors.primary),
+                const SizedBox(height: 5),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: emphasized ? colors.primary : colors.text,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

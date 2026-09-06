@@ -89,6 +89,54 @@ void main() {
     expect(find.text('Original paper'), findsOneWidget);
     expect(_backgroundPaint(tester).isComplex, isTrue);
   });
+
+  testWidgets('fabric surface repeats the supplied texture and follows theme', (
+    tester,
+  ) async {
+    const textureKey = ValueKey('fabric-texture-image');
+    Color? previousColor;
+    for (final theme in <ThemeData>[
+      AlbumiumAppTheme.light(AlbumiumThemeId.rose),
+      AlbumiumAppTheme.dark(AlbumiumThemeId.navy),
+    ]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: theme,
+          home: Builder(
+            builder: (context) {
+              final colors = AlbumiumAppTheme.colorsOf(context);
+              return CraftBackdrop(
+                variant: CraftBackdropVariant.velvet,
+                baseColor: colors.background,
+                child: const SizedBox.expand(),
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final box = tester.widget<DecoratedBox>(find.byKey(textureKey));
+      final decoration = box.decoration as BoxDecoration;
+      final image = decoration.image!;
+      expect(
+        (image.image as AssetImage).assetName,
+        'assets/textures/home-fabric.png',
+      );
+      expect(image.repeat, ImageRepeat.repeat);
+      expect(image.scale, 2);
+      expect(image.colorFilter, isNotNull);
+      expect(decoration.color, isNot(previousColor));
+      previousColor = decoration.color;
+      expect(
+        tester
+            .element(find.byKey(textureKey))
+            .findAncestorWidgetOfExactType<RepaintBoundary>(),
+        isNotNull,
+      );
+      expect(tester.takeException(), isNull);
+    }
+  });
 }
 
 Widget _host({required ThemeData theme, required Widget child}) {
