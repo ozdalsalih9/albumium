@@ -17,6 +17,8 @@ class ThemeScreen extends StatefulWidget {
 class _ThemeScreenState extends State<ThemeScreen> {
   static const _phoneViewportFraction = 0.70;
   static const _tabletViewportFraction = 0.42;
+  static const _bindingCardWidth = 156.0;
+  static const _bindingCardGap = 10.0;
 
   int _selected = 0;
   AlbumBindingType _selectedBinding = AlbumBindingType.spiral;
@@ -110,6 +112,126 @@ class _ThemeScreenState extends State<ThemeScreen> {
           borderRadius: BorderRadius.circular(20),
           child: AlbumCover3D(album: previewAlbum),
         ),
+      ),
+    );
+  }
+
+  Widget _buildBindingSelector(BuildContext context) {
+    final colors = AlbumiumAppTheme.colorsOf(context);
+
+    return SizedBox(
+      height: 130,
+      child: ListView.separated(
+        key: const ValueKey('binding-selector'),
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(24, 5, 24, 7),
+        itemCount: AlbumBindingType.values.length,
+        separatorBuilder: (context, index) =>
+            const SizedBox(width: _bindingCardGap),
+        itemBuilder: (context, index) {
+          final binding = AlbumBindingType.values[index];
+          final selected = binding == _selectedBinding;
+
+          return Semantics(
+            key: ValueKey('binding-card-${binding.name}'),
+            button: true,
+            selected: selected,
+            label: context.tr(binding.title),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(18),
+              onTap: () => setState(() => _selectedBinding = binding),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOut,
+                width: _bindingCardWidth,
+                padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? colors.primary.withValues(alpha: .10)
+                      : colors.surface.withValues(alpha: .70),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: selected
+                        ? colors.primary
+                        : colors.border.withValues(alpha: .70),
+                    width: selected ? 1.6 : 1,
+                  ),
+                  boxShadow: selected
+                      ? [
+                          BoxShadow(
+                            color: colors.primary.withValues(alpha: .16),
+                            blurRadius: 14,
+                            offset: const Offset(0, 6),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: selected
+                                ? colors.primary
+                                : colors.primary.withValues(alpha: .12),
+                          ),
+                          child: Icon(
+                            binding.icon,
+                            size: 17,
+                            color: selected ? colors.onPrimary : colors.primary,
+                          ),
+                        ),
+                        const Spacer(),
+                        AnimatedScale(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOutBack,
+                          scale: selected ? 1 : 0,
+                          child: Icon(
+                            Icons.check_circle_rounded,
+                            size: 19,
+                            color: colors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 11),
+                    Text(
+                      context.tr(binding.title),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: selected
+                            ? FontWeight.w700
+                            : FontWeight.w600,
+                        color: colors.text,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Expanded(
+                      child: Text(
+                        context.tr(binding.description),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          height: 1.32,
+                          color: colors.mutedText,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -232,48 +354,7 @@ class _ThemeScreenState extends State<ThemeScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: AlbumBindingType.values.map((binding) {
-                          final isSelected = _selectedBinding == binding;
-                          return ChoiceChip(
-                            showCheckmark: false,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 10,
-                            ),
-                            selected: isSelected,
-                            onSelected: (_) =>
-                                setState(() => _selectedBinding = binding),
-                            avatar: Icon(
-                              binding.icon,
-                              size: 16,
-                              color: isSelected
-                                  ? Theme.of(context).colorScheme.onPrimary
-                                  : Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
-                            ),
-                            label: Text(context.tr(binding.title)),
-                            labelStyle: TextStyle(
-                              fontSize: 13,
-                              fontWeight: isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.w500,
-                              color: isSelected
-                                  ? Theme.of(context).colorScheme.onPrimary
-                                  : Theme.of(context).colorScheme.onSurface,
-                            ),
-                            selectedColor: Theme.of(
-                              context,
-                            ).colorScheme.primary,
-                          );
-                        }).toList(),
-                      ),
-                    ),
+                    _buildBindingSelector(context),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(24, 26, 24, 8),
                       child: TextField(
