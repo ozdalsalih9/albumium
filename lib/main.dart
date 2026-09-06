@@ -4,13 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'l10n/albumium_localizations.dart';
 import 'screens/album_import_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'services/album_incoming_intent_service.dart';
 import 'services/error_reporter.dart';
 import 'services/language_controller.dart';
+import 'services/photo_selection_service.dart';
 import 'services/theme_controller.dart';
 import 'theme/albumium_app_theme.dart';
 import 'widgets/albumium_launch_screen.dart';
@@ -21,6 +24,7 @@ Future<void> main() async {
   // is bundled under assets/fonts/google, so rendering and exports never make
   // a runtime font request.
   GoogleFonts.config.allowRuntimeFetching = false;
+  PhotoSelectionService.configure();
   // Kancalar her şeyden önce kurulur; başlangıç sırasında oluşan bir hata da
   // yakalansın.
   ErrorReporter.install();
@@ -52,6 +56,7 @@ class AlbumiumApp extends StatefulWidget {
     this.themeController,
     this.languageController,
     this.showLaunchAnimation = true,
+    this.showOnboarding = true,
     this.launchAnimationDuration = const Duration(milliseconds: 920),
   });
 
@@ -63,6 +68,8 @@ class AlbumiumApp extends StatefulWidget {
   /// Can be disabled by focused widget tests and embedders that provide their
   /// own launch experience.
   final bool showLaunchAnimation;
+  final bool showOnboarding;
+  static const onboardingCompletedKey = 'albumium.onboarding.completed.v1';
 
   final Duration launchAnimationDuration;
 
@@ -81,6 +88,39 @@ class _AlbumiumAppState extends State<AlbumiumApp> {
   late bool _showLaunchAnimation;
   Key _homeKey = UniqueKey();
   bool _handlingIncomingPackage = false;
+  bool _onboardingReady = false;
+  bool _needsOnboarding = true;
+
+  Future<void> _loadOnboarding() async {
+    var completed = false;
+    try {
+      completed =
+          (await SharedPreferences.getInstance()).getBool(
+            AlbumiumApp.onboardingCompletedKey,
+          ) ??
+          false;
+    } catch (error, stack) {
+      ErrorReporter.report(error, stack, context: 'Load onboarding');
+    }
+    if (!mounted) return;
+    setState(() {
+      _needsOnboarding = widget.showOnboarding && !completed;
+      _onboardingReady = true;
+    });
+    unawaited(_openNextIncomingAlbumPackage());
+  }
+
+  Future<void> _completeOnboarding() async {
+    final preferences = await SharedPreferences.getInstance();
+    if (!await preferences.setBool(AlbumiumApp.onboardingCompletedKey, true)) {
+      throw StateError('Could not save onboarding');
+    }
+    if (!mounted) return;
+    setState(() => _needsOnboarding = false);
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => unawaited(_openNextIncomingAlbumPackage()),
+    );
+  }
 
   @override
   void initState() {
@@ -91,6 +131,12 @@ class _AlbumiumAppState extends State<AlbumiumApp> {
     _languageController = widget.languageController ?? LanguageController();
     _incomingIntentService = AlbumIncomingIntentService();
     _showLaunchAnimation = widget.showLaunchAnimation;
+    if (widget.showOnboarding) {
+      unawaited(_loadOnboarding());
+    } else {
+      _onboardingReady = true;
+      _needsOnboarding = false;
+    }
     if (!_themeController.isInitialized) {
       unawaited(_themeController.initialize());
     }
@@ -115,7 +161,12 @@ class _AlbumiumAppState extends State<AlbumiumApp> {
   }
 
   Future<void> _openNextIncomingAlbumPackage() async {
-    if (!mounted || _handlingIncomingPackage || _pendingAlbumPackages.isEmpty) {
+    if (!mounted ||
+        !_onboardingReady ||
+        _needsOnboarding ||
+        _showLaunchAnimation ||
+        _handlingIncomingPackage ||
+        _pendingAlbumPackages.isEmpty) {
       return;
     }
     final navigator = _navigatorKey.currentState;
@@ -208,12 +259,21 @@ class _AlbumiumAppState extends State<AlbumiumApp> {
               Positioned.fill(
                 child: ExcludeSemantics(
                   excluding: _showLaunchAnimation,
-                  child: HomeScreen(
-                    key: _homeKey,
-                    themeController: _themeController,
-                    languageController: _languageController,
-                    heroMotionEnabled: !_showLaunchAnimation,
-                  ),
+                  child: !_onboardingReady
+                      ? const Scaffold(
+                          body: Center(child: CircularProgressIndicator()),
+                        )
+                      : _needsOnboarding
+                      ? OnboardingScreen(
+                          onComplete: _completeOnboarding,
+                          languageController: _languageController,
+                        )
+                      : HomeScreen(
+                          key: _homeKey,
+                          themeController: _themeController,
+                          languageController: _languageController,
+                          heroMotionEnabled: !_showLaunchAnimation,
+                        ),
                 ),
               ),
               if (_showLaunchAnimation)
@@ -223,6 +283,7 @@ class _AlbumiumAppState extends State<AlbumiumApp> {
                     onFinished: () {
                       if (!mounted) return;
                       setState(() => _showLaunchAnimation = false);
+                      unawaited(_openNextIncomingAlbumPackage());
                     },
                   ),
                 ),

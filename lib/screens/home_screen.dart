@@ -13,6 +13,7 @@ import '../widgets/app_theme_picker.dart';
 import '../widgets/cinematic_album_opening.dart';
 import '../widgets/handmade_craft.dart';
 import '../widgets/occasion_cards.dart';
+import '../widgets/privacy_policy_button.dart';
 import 'editor_screen.dart';
 import 'special_card_studio_screen.dart';
 import 'theme_screen.dart';
@@ -333,6 +334,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
+              const SliverToBoxAdapter(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 22),
+                    child: PrivacyPolicyButton(),
+                  ),
+                ),
+              ),
               if (_loading)
                 const SliverFillRemaining(
                   child: Center(child: CircularProgressIndicator()),

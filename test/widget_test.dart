@@ -9,7 +9,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   testWidgets('empty library opens the album creation flow', (tester) async {
     SharedPreferences.setMockInitialValues({});
-    await tester.pumpWidget(const AlbumiumApp(showLaunchAnimation: false));
+    await tester.pumpWidget(
+      const AlbumiumApp(showOnboarding: false, showLaunchAnimation: false),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Anılarına hoş geldin'), findsOneWidget);
@@ -36,7 +38,9 @@ void main() {
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
-    await tester.pumpWidget(const AlbumiumApp(showLaunchAnimation: false));
+    await tester.pumpWidget(
+      const AlbumiumApp(showOnboarding: false, showLaunchAnimation: false),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Uygulama temasını değiştir'));
@@ -68,7 +72,9 @@ void main() {
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
-    await tester.pumpWidget(const AlbumiumApp(showLaunchAnimation: false));
+    await tester.pumpWidget(
+      const AlbumiumApp(showOnboarding: false, showLaunchAnimation: false),
+    );
     await tester.pumpAndSettle();
 
     final languageButton = find.byKey(const ValueKey('home-language-button'));
@@ -92,7 +98,9 @@ void main() {
     expect(find.text('EN'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pumpWidget(const AlbumiumApp(showLaunchAnimation: false));
+    await tester.pumpWidget(
+      const AlbumiumApp(showOnboarding: false, showLaunchAnimation: false),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Welcome to your memories'), findsOneWidget);
   });
