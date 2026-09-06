@@ -25,6 +25,31 @@ class AlbumiumLocalizations {
   }
 
   static const _english = <String, String>{
+    'Geri': 'Back',
+    'İleri': 'Next',
+    'Tamam': 'Done',
+    'Gizlilik politikası': 'Privacy policy',
+    'Kaydedilemedi. Lütfen tekrar dene.': 'Could not save. Please try again.',
+    'Anıların için yeni bir sayfa': 'A new page for your memories',
+    'Bir kapak seç, albümünü oluştur. Fotoğraflarını sana özel bir hikâyede bir araya getir.':
+        'Choose a cover and create your album. Bring your photos together in a story of your own.',
+    'Her sayfada senin dokunuşun': 'Your touch on every page',
+    'Fotoğraflarını kırp ve döndür; yazılar, çizimler ve süslemelerle albümünü kişiselleştir.':
+        'Crop and rotate your photos; personalize your album with text, drawings, and decorations.',
+    'Güzel anları birlikte yaşa': 'Share the beautiful moments',
+    'Özel gün kartları tasarla. Albümlerini video veya Albumium dosyası olarak sevdiklerinle paylaş.':
+        'Design occasion cards. Share your albums with loved ones as a video or an Albumium file.',
+    'Fotoğrafların, senin seçimin': 'Your photos, your choice',
+    'Fotoğraf eklediğinde sistem seçicisi açılır. Yalnızca seçtiğin fotoğraflar kullanılır; tüm galerine erişim gerekmez. Tasarımların cihazında saklanır.':
+        'The system picker opens when you add a photo. Only the photos you select are used; access to your entire gallery is not needed. Your designs are stored on your device.',
+    'Fotoğraflarını seç': 'Choose your photos',
+    'Bir sonraki ekranda albümüne eklemek istediğin fotoğrafları seç. Yalnızca seçtiklerin cihazına kopyalanır; tüm galerine erişim izni istemiyoruz.':
+        'On the next screen, choose the photos you want to add. Only your selected photos are copied to your device; we do not request access to your entire gallery.',
+    'Galeriyi aç': 'Open gallery',
+    'Fotoğraf erişimi verilmedi. Cihaz ayarlarından erişimi kontrol edip tekrar deneyebilirsin.':
+        'Photo access was not granted. Check access in your device settings and try again.',
+    'Galeri açılamadı. Lütfen tekrar dene.':
+        'Could not open the gallery. Please try again.',
     'Fotoğrafı kırp': 'Crop photo',
     'Uygula': 'Apply',
     'Tamamını göster': 'Show full photo',

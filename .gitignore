@@ -50,3 +50,6 @@ app.*.map.json
 /dist/*.xml
 /dist/*.apk
 /dist/*.mp4
+/dist/*.aab
+/dist/store/
+/dist/video-tools/

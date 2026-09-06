@@ -42,6 +42,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(
       const AlbumiumApp(
+        showOnboarding: false,
         showLaunchAnimation: true,
         launchAnimationDuration: Duration(milliseconds: 300),
       ),
@@ -76,7 +77,9 @@ void main() {
     tester.platformDispatcher.accessibilityFeaturesTestValue =
         const FakeAccessibilityFeatures(disableAnimations: true);
     addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
-    await tester.pumpWidget(const AlbumiumApp(showLaunchAnimation: false));
+    await tester.pumpWidget(
+      const AlbumiumApp(showOnboarding: false, showLaunchAnimation: false),
+    );
     await tester.pump();
     expect(
       tester
@@ -140,7 +143,10 @@ void main() {
           await tester.pumpWidget(
             const RepaintBoundary(
               key: root,
-              child: AlbumiumApp(showLaunchAnimation: false),
+              child: AlbumiumApp(
+                showOnboarding: false,
+                showLaunchAnimation: false,
+              ),
             ),
           );
           await tester.pumpAndSettle();

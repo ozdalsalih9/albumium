@@ -31,6 +31,18 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
+            "com.albumium.albumium/app_support").setMethodCallHandler { call, result ->
+            if (call.method == "openPrivacyPolicy") {
+                try {
+                    startActivity(Intent(Intent.ACTION_VIEW,
+                        Uri.parse("https://sites.google.com/view/albumium-privacy/ana-sayfa")))
+                    result.success(null)
+                } catch (error: Exception) {
+                    result.error("browser_unavailable", "No browser available", null)
+                }
+            } else result.notImplemented()
+        }
         channel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             CHANNEL,

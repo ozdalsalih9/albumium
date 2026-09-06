@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import '../services/photo_selection_service.dart';
 
 import '../l10n/albumium_localizations.dart';
 import '../models/album_models.dart';
@@ -44,7 +44,6 @@ class EditorScreen extends StatefulWidget {
 
 class _EditorScreenState extends State<EditorScreen>
     with SingleTickerProviderStateMixin {
-  final _picker = ImagePicker();
   late final AnimationController _pageTurnController;
   int _pageIndex = 0;
   String? _selectedId;
@@ -207,11 +206,7 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   Future<void> _addPhotos() async {
-    final picked = await _picker.pickMultiImage(
-      limit: 20,
-      imageQuality: 92,
-      maxWidth: 2600,
-    );
+    final picked = await PhotoSelectionService.pick(context, multiple: true);
     if (picked.isEmpty || !mounted) return;
     setState(() => _importing = true);
     final paths = <String>[];

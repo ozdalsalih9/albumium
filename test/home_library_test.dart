@@ -48,7 +48,7 @@ void main() {
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
-        await tester.pumpWidget(const AlbumiumApp(showLaunchAnimation: false));
+        await tester.pumpWidget(const AlbumiumApp(showOnboarding: false, showLaunchAnimation: false));
         await tester.pumpAndSettle();
         await tester.enterText(
           find.byKey(const ValueKey('library-search')),
@@ -93,7 +93,7 @@ void main() {
     tester,
   ) async {
     _seedLibrary();
-    await tester.pumpWidget(const AlbumiumApp(showLaunchAnimation: false));
+    await tester.pumpWidget(const AlbumiumApp(showOnboarding: false, showLaunchAnimation: false));
     await tester.pumpAndSettle();
 
     expect(find.text('Koleksiyonum'), findsOneWidget);
@@ -113,7 +113,7 @@ void main() {
     tester,
   ) async {
     _seedLibrary();
-    await tester.pumpWidget(const AlbumiumApp(showLaunchAnimation: false));
+    await tester.pumpWidget(const AlbumiumApp(showOnboarding: false, showLaunchAnimation: false));
     await tester.pumpAndSettle();
 
     // project-0 is the oldest item, so it starts beyond the first 12 results.
@@ -140,7 +140,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(const AlbumiumApp(showLaunchAnimation: false));
+    await tester.pumpWidget(const AlbumiumApp(showOnboarding: false, showLaunchAnimation: false));
     await tester.pumpAndSettle();
 
     for (final viewport in const <Size>[

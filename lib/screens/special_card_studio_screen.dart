@@ -5,7 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart';
+import '../services/photo_selection_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -118,7 +118,6 @@ class SpecialCardStudioScreen extends StatefulWidget {
 }
 
 class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
-  final _imagePicker = ImagePicker();
   final _captureKey = GlobalKey();
   Timer? _saveDebounce;
   String? _selectedId;
@@ -222,12 +221,9 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
   }
 
   Future<void> _addPhoto() async {
-    final picked = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 94,
-      maxWidth: 2800,
-    );
-    if (picked == null || !mounted) return;
+    final photos = await PhotoSelectionService.pick(context);
+    if (photos.isEmpty || !mounted) return;
+    final picked = photos.first;
     String path;
     Size size;
     try {
