@@ -9,11 +9,13 @@ class AlbumCover extends StatelessWidget {
     super.key,
     required this.album,
     this.compact = false,
+    this.showTitle = true,
     this.onTap,
   });
 
   final AlbumModel album;
   final bool compact;
+  final bool showTitle;
   final VoidCallback? onTap;
 
   @override
@@ -21,56 +23,58 @@ class AlbumCover extends StatelessWidget {
     final title = album.title.trim().isEmpty
         ? context.tr('İsimsiz Albüm')
         : album.title.trim();
+    final visualTitle = showTitle ? title : '';
     final theme = themeById(album.themeId);
     final subtitle = context.tr(theme.subtitle);
 
     final Widget coverWidget = theme.coverAsset != null
         ? _OrnateAssetCover(
             assetPath: theme.coverAsset!,
-            title: title,
+            title: visualTitle,
+            semanticTitle: title,
             theme: theme,
             cacheWidth: compact ? 600 : themeImageCacheWidth,
             onTap: onTap,
           )
         : switch (album.themeId) {
             'animals' => AnimalsCover(
-              title: title,
+              title: visualTitle,
               subtitle: subtitle,
               onTap: onTap,
             ),
             'soft_romance' => SoftRomanceCover(
-              title: title,
+              title: visualTitle,
               subtitle: subtitle,
               onTap: onTap,
             ),
             'vintage_diary' => VintageDiaryCover(
-              title: title,
+              title: visualTitle,
               subtitle: subtitle,
               onTap: onTap,
             ),
             'travel_postcard' => TravelPostcardCover(
-              title: title,
+              title: visualTitle,
               subtitle: subtitle,
               onTap: onTap,
             ),
             'best_friends' => BestFriendsCover(
-              title: title,
+              title: visualTitle,
               subtitle: subtitle,
               emoji: theme.emoji,
               onTap: onTap,
             ),
             'minimal_editorial' => MinimalEditorialCover(
-              title: title,
+              title: visualTitle,
               subtitle: subtitle,
               onTap: onTap,
             ),
             'dark_leather' => DarkLeatherCover(
-              title: title,
+              title: visualTitle,
               subtitle: subtitle,
               onTap: onTap,
             ),
             _ => SoftRomanceCover(
-              title: title,
+              title: visualTitle,
               subtitle: subtitle,
               onTap: onTap,
             ),
@@ -100,6 +104,7 @@ class _OrnateAssetCover extends StatelessWidget {
   const _OrnateAssetCover({
     required this.assetPath,
     required this.title,
+    required this.semanticTitle,
     required this.theme,
     required this.cacheWidth,
     this.onTap,
@@ -107,6 +112,7 @@ class _OrnateAssetCover extends StatelessWidget {
 
   final String assetPath;
   final String title;
+  final String semanticTitle;
   final AlbumThemePreset theme;
   final int cacheWidth;
   final VoidCallback? onTap;
@@ -116,7 +122,7 @@ class _OrnateAssetCover extends StatelessWidget {
     final gold = Color.lerp(theme.accent, const Color(0xFFFFE4A8), 0.38)!;
     return Semantics(
       button: onTap != null,
-      label: context.tr('{title} albümü', values: {'title': title}),
+      label: context.tr('{title} albümü', values: {'title': semanticTitle}),
       child: GestureDetector(
         onTap: onTap,
         child: ClipRRect(
@@ -146,102 +152,103 @@ class _OrnateAssetCover extends StatelessWidget {
                   errorBuilder: (_, _, _) => const SizedBox.shrink(),
                 ),
                 const _CoverMaterialLighting(),
-                Positioned(
-                  left: 46,
-                  right: 26,
-                  bottom: 38,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: Color.lerp(
-                        theme.coverEnd,
-                        Colors.black,
-                        0.48,
-                      )!.withValues(alpha: 0.90),
-                      borderRadius: BorderRadius.circular(7),
-                      border: Border.all(
-                        color: gold.withValues(alpha: 0.85),
-                        width: 1.1,
-                      ),
-                      boxShadow: [
-                        const BoxShadow(
-                          color: Color(0x88000000),
-                          blurRadius: 14,
-                          offset: Offset(0, 6),
+                if (title.isNotEmpty)
+                  Positioned(
+                    left: 46,
+                    right: 26,
+                    bottom: 38,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Color.lerp(
+                          theme.coverEnd,
+                          Colors.black,
+                          0.48,
+                        )!.withValues(alpha: 0.90),
+                        borderRadius: BorderRadius.circular(7),
+                        border: Border.all(
+                          color: gold.withValues(alpha: 0.85),
+                          width: 1.1,
                         ),
-                        BoxShadow(
-                          color: gold.withValues(alpha: 0.20),
-                          blurRadius: 10,
-                        ),
-                      ],
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 11,
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'ALBUMIUM',
-                            style: TextStyle(
-                              color: gold.withValues(alpha: 0.84),
-                              fontSize: 7.5,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 2.7,
-                            ),
+                        boxShadow: [
+                          const BoxShadow(
+                            color: Color(0x88000000),
+                            blurRadius: 14,
+                            offset: Offset(0, 6),
                           ),
-                          const SizedBox(height: 6),
-                          Container(
-                            height: 0.7,
-                            color: gold.withValues(alpha: 0.5),
-                          ),
-                          const SizedBox(height: 6),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              title,
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: const Color(0xFFFFF4DD),
-                                fontFamily: 'serif',
-                                fontSize: title.length > 18 ? 16 : 21,
-                                height: 1.05,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.2,
-                                shadows: const [
-                                  Shadow(
-                                    color: Color(0xCC000000),
-                                    blurRadius: 3,
-                                    offset: Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Container(
-                            height: 0.7,
-                            color: gold.withValues(alpha: 0.5),
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            theme.name.toUpperCase(),
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: gold.withValues(alpha: 0.78),
-                              fontSize: 6.8,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 1.8,
-                            ),
+                          BoxShadow(
+                            color: gold.withValues(alpha: 0.20),
+                            blurRadius: 10,
                           ),
                         ],
                       ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 11,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'ALBUMIUM',
+                              style: TextStyle(
+                                color: gold.withValues(alpha: 0.84),
+                                fontSize: 7.5,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 2.7,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Container(
+                              height: 0.7,
+                              color: gold.withValues(alpha: 0.5),
+                            ),
+                            const SizedBox(height: 6),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                title,
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: const Color(0xFFFFF4DD),
+                                  fontFamily: 'serif',
+                                  fontSize: title.length > 18 ? 16 : 21,
+                                  height: 1.05,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.2,
+                                  shadows: const [
+                                    Shadow(
+                                      color: Color(0xCC000000),
+                                      blurRadius: 3,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Container(
+                              height: 0.7,
+                              color: gold.withValues(alpha: 0.5),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              theme.name.toUpperCase(),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: gold.withValues(alpha: 0.78),
+                                fontSize: 6.8,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1.8,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
                 Positioned.fill(
                   child: IgnorePointer(
                     child: DecoratedBox(

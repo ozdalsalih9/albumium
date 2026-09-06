@@ -103,12 +103,13 @@ class _ThemeScreenState extends State<ThemeScreen> {
       ],
     );
 
-    return FittedBox(
-      fit: BoxFit.contain,
-      child: SizedBox(
-        width: 300,
-        height: 440,
-        child: AlbumCover3D(album: previewAlbum),
+    return Center(
+      child: AspectRatio(
+        aspectRatio: 15 / 22,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: AlbumCover3D(album: previewAlbum),
+        ),
       ),
     );
   }
@@ -141,39 +142,36 @@ class _ThemeScreenState extends State<ThemeScreen> {
           child: Center(
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxWidth: tablet ? 1040 : double.infinity,
+                maxWidth: tablet ? 820 : double.infinity,
               ),
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Padding(
-                      padding: EdgeInsets.fromLTRB(22, 6, 22, 2),
-                      child: TornPaperLabel(
-                        rotationDegrees: -.45,
-                        color: colors.elevatedSurface,
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 9),
-                        child: Text(
-                          context.tr('Hangi hikâyeyi anlatıyoruz?'),
-                          style: Theme.of(
-                            context,
-                          ).textTheme.headlineSmall?.copyWith(fontSize: 30),
-                        ),
+                      padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
+                      child: Text(
+                        context.tr('Hangi hikâyeyi anlatıyoruz?'),
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              fontSize: tablet ? 38 : 32,
+                              height: 1.12,
+                            ),
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 22),
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Text(
                         '${context.tr(selectedTheme.name)} · ${context.tr(selectedTheme.subtitle)}',
                         key: const ValueKey('selected-theme-summary'),
                         style: TextStyle(
-                          color: colors.text.withValues(alpha: .82),
-                          fontWeight: FontWeight.w600,
+                          color: colors.mutedText,
+                          height: 1.5,
                           fontSize: 13,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 26),
                     SizedBox(
                       height: coverHeight,
                       child: PageView.builder(
@@ -194,10 +192,7 @@ class _ThemeScreenState extends State<ThemeScreen> {
                             child: AnimatedScale(
                               duration: const Duration(milliseconds: 220),
                               scale: selected ? 1 : 0.94,
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(20),
-                                child: _buildThemedCover(theme, currentTitle),
-                              ),
+                              child: _buildThemedCover(theme, currentTitle),
                             ),
                           );
                         },
@@ -226,41 +221,30 @@ class _ThemeScreenState extends State<ThemeScreen> {
                         ],
                       ),
                     ),
-                    const StitchedDivider(
-                      height: 20,
-                      indent: 22,
-                      endIndent: 22,
-                    ),
-                    // Ciltleme Seçenekleri (Binding Styles)
+                    const SizedBox(height: 28),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 22),
-                      child: TornPaperLabel(
-                        rotationDegrees: .35,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        child: Text(
-                          context.tr('Ciltleme Türü'),
-                          style: Theme.of(
-                            context,
-                          ).textTheme.titleLarge?.copyWith(fontSize: 20),
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Text(
+                        context.tr('Ciltleme Türü'),
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: 40,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 22),
-                        scrollDirection: Axis.horizontal,
-                        itemCount: AlbumBindingType.values.length,
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(width: 8),
-                        itemBuilder: (context, index) {
-                          final binding = AlbumBindingType.values[index];
+                    const SizedBox(height: 10),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: AlbumBindingType.values.map((binding) {
                           final isSelected = _selectedBinding == binding;
                           return ChoiceChip(
+                            showCheckmark: false,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 10,
+                            ),
                             selected: isSelected,
                             onSelected: (_) =>
                                 setState(() => _selectedBinding = binding),
@@ -275,9 +259,9 @@ class _ThemeScreenState extends State<ThemeScreen> {
                             ),
                             label: Text(context.tr(binding.title)),
                             labelStyle: TextStyle(
-                              fontSize: 12,
+                              fontSize: 13,
                               fontWeight: isSelected
-                                  ? FontWeight.w800
+                                  ? FontWeight.w600
                                   : FontWeight.w500,
                               color: isSelected
                                   ? Theme.of(context).colorScheme.onPrimary
@@ -287,56 +271,43 @@ class _ThemeScreenState extends State<ThemeScreen> {
                               context,
                             ).colorScheme.primary,
                           );
-                        },
+                        }).toList(),
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(22, 15, 22, 8),
-                      child: PaperPanel(
-                        borderRadius: BorderRadius.circular(7),
-                        padding: const EdgeInsets.all(5),
-                        rotationDegrees: -.2,
-                        tapePositions: const [CraftTapePosition.topRight],
-                        tapeWidth: 42,
-                        tapeHeight: 13,
-                        child: TextField(
-                          controller: _titleController,
-                          textCapitalization: TextCapitalization.sentences,
-                          decoration: InputDecoration(
-                            labelText: context.tr('Albüm adı (isteğe bağlı)'),
-                            hintText: context.tr('Örn. Bizim Yazımız'),
-                            prefixIcon: const Icon(Icons.edit_outlined),
-                            suffixText: selectedTheme.emoji,
-                            suffixStyle: const TextStyle(fontSize: 18),
-                            filled: false,
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                          ),
+                      padding: const EdgeInsets.fromLTRB(24, 26, 24, 8),
+                      child: TextField(
+                        controller: _titleController,
+                        textCapitalization: TextCapitalization.sentences,
+                        textInputAction: TextInputAction.done,
+                        decoration: InputDecoration(
+                          labelText: context.tr('Albüm adı (isteğe bağlı)'),
+                          hintText: context.tr('Örn. Bizim Yazımız'),
+                          prefixIcon: const Icon(Icons.edit_outlined),
+                          suffixText: selectedTheme.emoji,
+                          suffixStyle: const TextStyle(fontSize: 18),
                         ),
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(22, 8, 22, 18),
-                      child: StitchedBorder(
-                        color: colors.onPrimary.withValues(alpha: .78),
-                        inset: 3,
-                        padding: EdgeInsets.zero,
-                        borderRadius: BorderRadius.circular(9),
-                        child: SizedBox(
-                          width: double.infinity,
-                          height: 52,
-                          child: FilledButton.icon(
-                            onPressed: _continue,
-                            icon: const Icon(Icons.auto_stories_rounded),
-                            label: Text(
-                              context.tr(
-                                '{theme} ile Başla',
-                                values: {
-                                  'theme': context.tr(selectedTheme.name),
-                                },
-                              ),
+                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 17,
                             ),
+                          ),
+                          onPressed: _continue,
+                          icon: const Icon(Icons.auto_stories_rounded),
+                          label: Text(
+                            context.tr(
+                              '{theme} ile Başla',
+                              values: {'theme': context.tr(selectedTheme.name)},
+                            ),
+                            textAlign: TextAlign.center,
                           ),
                         ),
                       ),

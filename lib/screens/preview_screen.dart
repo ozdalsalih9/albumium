@@ -543,62 +543,69 @@ class _PreviewScreenState extends State<PreviewScreen>
       context: context,
       useSafeArea: true,
       showDragHandle: true,
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxWidth: 640,
+        maxHeight: MediaQuery.sizeOf(context).height * .9,
+      ),
       builder: (sheetContext) => SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+        padding: const EdgeInsets.fromLTRB(24, 0, 24, 28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               sheetContext.tr('Dışa Aktar & Paylaş'),
-              style: Theme.of(sheetContext).textTheme.titleLarge,
+              style: Theme.of(sheetContext).textTheme.headlineSmall,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             Text(
               sheetContext.tr('Albümünü nasıl paylaşmak istersin?'),
-              style: Theme.of(sheetContext).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 12),
-            ListTile(
-              key: const ValueKey('share_interactive_album'),
-              leading: const Icon(Icons.auto_stories_outlined),
-              title: Text(sheetContext.tr('Etkileşimli albüm paylaş')),
-              subtitle: Text(
-                sheetContext.tr('Albumium’da sayfaları çevirerek görüntüle'),
+              style: Theme.of(sheetContext).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
               ),
-              trailing: const Icon(Icons.chevron_right_rounded),
+            ),
+            const SizedBox(height: 24),
+            _ShareOptionTile(
+              key: const ValueKey('share_interactive_album'),
+              featured: true,
+              icon: Icons.auto_stories_outlined,
+              title: sheetContext.tr('Etkileşimli albüm paylaş'),
+              subtitle: sheetContext.tr(
+                'Albumium’da sayfaları çevirerek görüntüle',
+              ),
               onTap: () => Navigator.pop(
                 sheetContext,
                 _ShareExportChoice.interactiveAlbum,
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Divider(height: 1),
-            ),
-            _CinematicExportTile(
+            const SizedBox(height: 8),
+            _ShareOptionTile(
               key: const ValueKey('share_mp4'),
+              icon: Icons.movie_creation_outlined,
+              title: sheetContext.tr('Tek Sayfa MP4'),
+              subtitle: sheetContext.tr(
+                'Anılarını yumuşak geçişlerle dikey bir videoya dönüştür.',
+              ),
               onTap: () => Navigator.pop(sheetContext, _ShareExportChoice.mp4),
             ),
             const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
+              padding: EdgeInsets.symmetric(vertical: 4),
               child: Divider(height: 1),
             ),
-            ListTile(
+            _ShareOptionTile(
               key: const ValueKey('share_current_png'),
-              leading: const Icon(Icons.image_outlined),
-              title: Text(sheetContext.tr('Bu görünümü PNG paylaş')),
-              subtitle: Text(sheetContext.tr('Hızlı · 1080 × 1920 anı kartı')),
+              icon: Icons.image_outlined,
+              title: sheetContext.tr('Bu görünümü PNG paylaş'),
+              subtitle: sheetContext.tr('Hızlı · 1080 × 1920 anı kartı'),
               onTap: () =>
                   Navigator.pop(sheetContext, _ShareExportChoice.currentPng),
             ),
-            ListTile(
+            _ShareOptionTile(
               key: const ValueKey('share_all_png'),
-              leading: const Icon(Icons.collections_outlined),
-              title: Text(sheetContext.tr('Tüm albümü PNG paylaş')),
-              subtitle: Text(
-                sheetContext.tr('Kapak ve bütün sayfa görünümleri'),
-              ),
+              icon: Icons.collections_outlined,
+              title: sheetContext.tr('Tüm albümü PNG paylaş'),
+              subtitle: sheetContext.tr('Kapak ve bütün sayfa görünümleri'),
               onTap: () =>
                   Navigator.pop(sheetContext, _ShareExportChoice.allPng),
             ),
@@ -736,6 +743,10 @@ class _PreviewScreenState extends State<PreviewScreen>
       useSafeArea: true,
       showDragHandle: true,
       isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxWidth: 640,
+        maxHeight: MediaQuery.sizeOf(context).height * .92,
+      ),
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setSheetState) {
           final settings = VideoExportSettings(
@@ -748,23 +759,26 @@ class _PreviewScreenState extends State<PreviewScreen>
           );
           return SingleChildScrollView(
             key: const ValueKey('mp4_export_options'),
-            padding: const EdgeInsets.fromLTRB(18, 0, 18, 22),
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 28),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
                   context.tr('Tek Sayfa MP4'),
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: Theme.of(context).textTheme.headlineSmall,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Text(
                   context.tr(
                     'Anılarını yumuşak geçişlerle dikey bir videoya dönüştür.',
                   ),
-                  style: Theme.of(context).textTheme.bodySmall,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    height: 1.5,
+                  ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 26),
                 Text(
                   context.tr('Video kalitesi'),
                   style: Theme.of(context).textTheme.titleSmall,
@@ -772,6 +786,7 @@ class _PreviewScreenState extends State<PreviewScreen>
                 const SizedBox(height: 8),
                 SegmentedButton<VideoExportQuality>(
                   key: const ValueKey('mp4_quality_selector'),
+                  showSelectedIcon: false,
                   segments: [
                     ButtonSegment(
                       value: VideoExportQuality.balanced,
@@ -787,24 +802,22 @@ class _PreviewScreenState extends State<PreviewScreen>
                       setSheetState(() => quality = selection.single),
                 ),
                 const SizedBox(height: 8),
-                Card(
-                  margin: EdgeInsets.zero,
-                  child: ListTile(
-                    leading: const Icon(Icons.high_quality_rounded),
-                    title: Text(
-                      quality == VideoExportQuality.balanced
-                          ? 'HD · 720 × 1280'
-                          : 'Full HD · 1080 × 1920',
-                    ),
-                    subtitle: Text(
-                      context.tr(
-                        '{fps} FPS · {duration} · yaklaşık {size} MB',
-                        values: {
-                          'fps': storyboard.fps,
-                          'duration': durationLabel,
-                          'size': estimatedMegabytes,
-                        },
-                      ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.high_quality_rounded),
+                  title: Text(
+                    quality == VideoExportQuality.balanced
+                        ? 'HD · 720 × 1280'
+                        : 'Full HD · 1080 × 1920',
+                  ),
+                  subtitle: Text(
+                    context.tr(
+                      '{fps} FPS · {duration} · yaklaşık {size} MB',
+                      values: {
+                        'fps': storyboard.fps,
+                        'duration': durationLabel,
+                        'size': estimatedMegabytes,
+                      },
                     ),
                   ),
                 ),
@@ -817,24 +830,24 @@ class _PreviewScreenState extends State<PreviewScreen>
                   ),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
+                const SizedBox(height: 20),
+                const Divider(height: 1),
                 const SizedBox(height: 8),
-                Card(
-                  margin: EdgeInsets.zero,
-                  child: SwitchListTile.adaptive(
-                    key: const ValueKey('mp4_soundtrack_toggle'),
-                    value: includeSoundtrack,
-                    onChanged: (value) =>
-                        setSheetState(() => includeSoundtrack = value),
-                    secondary: const Icon(Icons.graphic_eq_rounded),
-                    title: Text(context.tr('Arka plan sesi')),
-                    subtitle: Text(
-                      context.tr(
-                        'Hafif bir melodi ve doğal sayfa çevirme sesleri.',
-                      ),
+                SwitchListTile.adaptive(
+                  key: const ValueKey('mp4_soundtrack_toggle'),
+                  contentPadding: EdgeInsets.zero,
+                  value: includeSoundtrack,
+                  onChanged: (value) =>
+                      setSheetState(() => includeSoundtrack = value),
+                  secondary: const Icon(Icons.graphic_eq_rounded),
+                  title: Text(context.tr('Arka plan sesi')),
+                  subtitle: Text(
+                    context.tr(
+                      'Hafif bir melodi ve doğal sayfa çevirme sesleri.',
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
                 Row(
                   children: [
                     Expanded(
@@ -1306,94 +1319,63 @@ class _PreviewScreenState extends State<PreviewScreen>
               Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 2, 16, 12),
-                    child: PaperPanel(
-                      color: craftColors.surface,
-                      borderRadius: BorderRadius.circular(7),
-                      rotationDegrees: -.25,
-                      padding: const EdgeInsets.fromLTRB(14, 11, 11, 11),
-                      tapePositions: const [CraftTapePosition.topCenter],
-                      tapeColor: Color.lerp(
-                        albumTheme.accent,
-                        craftColors.elevatedSurface,
-                        .58,
-                      ),
-                      tapeWidth: 48,
-                      tapeHeight: 14,
-                      child: Row(
-                        children: [
-                          DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: albumTheme.accent.withValues(alpha: 0.14),
-                              borderRadius: BorderRadius.circular(13),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(9),
-                              child: Icon(
-                                Icons.auto_stories_rounded,
-                                size: 20,
-                                color: albumTheme.accent,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 11),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  widget.album.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.titleLarge
-                                      ?.copyWith(
-                                        color: craftColors.text,
-                                        fontSize: 22,
-                                      ),
-                                ),
-                                AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 220),
-                                  transitionBuilder: (child, animation) =>
-                                      FadeTransition(
-                                        opacity: animation,
-                                        child: SlideTransition(
-                                          position: Tween<Offset>(
-                                            begin: const Offset(0, 0.18),
-                                            end: Offset.zero,
-                                          ).animate(animation),
-                                          child: child,
-                                        ),
-                                      ),
-                                  child: Text(
-                                    _positionLabel(),
-                                    key: ValueKey(_current),
-                                    style: TextStyle(
-                                      color: colors.onSurfaceVariant,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
+                    padding: const EdgeInsets.fromLTRB(24, 10, 24, 18),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.album.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(
+                                      color: craftColors.text,
+                                      fontSize: 26,
                                     ),
+                              ),
+                              AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 220),
+                                transitionBuilder: (child, animation) =>
+                                    FadeTransition(
+                                      opacity: animation,
+                                      child: SlideTransition(
+                                        position: Tween<Offset>(
+                                          begin: const Offset(0, 0.18),
+                                          end: Offset.zero,
+                                        ).animate(animation),
+                                        child: child,
+                                      ),
+                                    ),
+                                child: Text(
+                                  _positionLabel(),
+                                  key: ValueKey(_current),
+                                  style: TextStyle(
+                                    color: colors.onSurfaceVariant,
+                                    fontSize: 12,
+                                    height: 1.5,
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          FilledButton.icon(
-                            key: const ValueKey('preview_share_button'),
-                            onPressed: _target == null && !_exporting
-                                ? _showShareOptions
-                                : null,
-                            icon: const Icon(Icons.ios_share_rounded, size: 18),
-                            label: Text(context.tr('Paylaş')),
-                            style: FilledButton.styleFrom(
-                              minimumSize: const Size(0, 44),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
                               ),
-                            ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton.icon(
+                          key: const ValueKey('preview_share_button'),
+                          onPressed: _target == null && !_exporting
+                              ? _showShareOptions
+                              : null,
+                          icon: const Icon(Icons.ios_share_rounded, size: 18),
+                          label: Text(context.tr('Paylaş')),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 44),
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   Expanded(
@@ -1469,10 +1451,7 @@ class _PreviewScreenState extends State<PreviewScreen>
                           right: 0,
                           bottom: 4,
                           child: Center(
-                            child: TornPaperLabel(
-                              color: craftColors.surface.withValues(alpha: .92),
-                              rotationDegrees: .25,
-                              edgeDepth: 2,
+                            child: Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 12,
                                 vertical: 5,
@@ -1485,9 +1464,10 @@ class _PreviewScreenState extends State<PreviewScreen>
                                     : context.tr(
                                         'Kaydır veya oklarla sayfaları çevir',
                                       ),
+                                textAlign: TextAlign.center,
                                 style: TextStyle(
                                   color: craftColors.mutedText,
-                                  fontSize: 10.5,
+                                  fontSize: 11,
                                 ),
                               ),
                             ),
@@ -1519,52 +1499,60 @@ class _PreviewScreenState extends State<PreviewScreen>
                     )
                   else
                     SizedBox(
-                      height: 34,
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            for (var index = 0; index < previewCount; index++)
-                              Semantics(
-                                label: index == 0
-                                    ? context.tr('Kapak')
-                                    : context.tr(
-                                        'Kitap görünümü {index}',
-                                        values: {'index': index},
-                                      ),
-                                selected: index == _current,
-                                button: true,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(99),
-                                  onTap: _target == null
-                                      ? () => _goTo(
-                                          index,
-                                          animate:
-                                              (index - _current).abs() == 1,
-                                        )
-                                      : null,
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 220),
-                                    width: index == _current ? 22 : 7,
-                                    height: 7,
-                                    margin: const EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                      vertical: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: index == _current
-                                          ? albumTheme.accent
-                                          : colors.onSurface.withValues(
-                                              alpha: 0.2,
+                      height: 44,
+                      child: Center(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              for (var index = 0; index < previewCount; index++)
+                                Semantics(
+                                  label: index == 0
+                                      ? context.tr('Kapak')
+                                      : context.tr(
+                                          'Kitap görünümü {index}',
+                                          values: {'index': index},
+                                        ),
+                                  selected: index == _current,
+                                  button: true,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(99),
+                                    onTap: _target == null
+                                        ? () => _goTo(
+                                            index,
+                                            animate:
+                                                (index - _current).abs() == 1,
+                                          )
+                                        : null,
+                                    child: SizedBox(
+                                      width: 32,
+                                      height: 44,
+                                      child: Center(
+                                        child: AnimatedContainer(
+                                          duration: const Duration(
+                                            milliseconds: 220,
+                                          ),
+                                          width: index == _current ? 22 : 7,
+                                          height: 7,
+                                          decoration: BoxDecoration(
+                                            color: index == _current
+                                                ? albumTheme.accent
+                                                : colors.onSurface.withValues(
+                                                    alpha: 0.2,
+                                                  ),
+                                            borderRadius: BorderRadius.circular(
+                                              99,
                                             ),
-                                      borderRadius: BorderRadius.circular(99),
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -1575,105 +1563,135 @@ class _PreviewScreenState extends State<PreviewScreen>
                 Positioned.fill(
                   child: ColoredBox(
                     color: const Color(0xED12100F),
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 216,
-                            height: 384,
-                            child: FittedBox(
-                              fit: BoxFit.contain,
-                              child: RepaintBoundary(
-                                key: _exportBoundary,
-                                child: _exportingSinglePageVideo
-                                    ? _SinglePageExportFrame(
-                                        album: widget.album,
-                                        focusedPageIndex: _exportFocusedPage,
-                                        targetFocusedPageIndex:
-                                            _exportTargetFocusedPage,
-                                        beatKind: _exportSinglePageBeatKind,
-                                        progress: _exportSinglePageProgress,
-                                      )
-                                    : _ExportBookFrame(
-                                        album: widget.album,
-                                        current: _positionFor(_exportFrom),
-                                        target: _exportTo == null
-                                            ? null
-                                            : _positionFor(_exportTo!),
-                                        turnProgress: _exportTurnProgress,
-                                        turningForward: _exportTurningForward,
-                                        position: _exportFrom,
-                                        positionCount: previewCount,
-                                        beatKind: _exportBeatKind,
-                                        transitionStyle: _exportTransitionStyle,
-                                        beatProgress: _exportBeatProgress,
-                                        shotVariant: _exportShotVariant,
-                                        filmFrame: _exportFilmFrame,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final previewHeight = (constraints.maxHeight - 250)
+                            .clamp(96.0, 384.0);
+                        return Center(
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  width: previewHeight * 9 / 16,
+                                  height: previewHeight,
+                                  child: FittedBox(
+                                    fit: BoxFit.contain,
+                                    child: RepaintBoundary(
+                                      key: _exportBoundary,
+                                      child: _exportingSinglePageVideo
+                                          ? _SinglePageExportFrame(
+                                              album: widget.album,
+                                              focusedPageIndex:
+                                                  _exportFocusedPage,
+                                              targetFocusedPageIndex:
+                                                  _exportTargetFocusedPage,
+                                              beatKind:
+                                                  _exportSinglePageBeatKind,
+                                              progress:
+                                                  _exportSinglePageProgress,
+                                            )
+                                          : _ExportBookFrame(
+                                              album: widget.album,
+                                              current: _positionFor(
+                                                _exportFrom,
+                                              ),
+                                              target: _exportTo == null
+                                                  ? null
+                                                  : _positionFor(_exportTo!),
+                                              turnProgress: _exportTurnProgress,
+                                              turningForward:
+                                                  _exportTurningForward,
+                                              position: _exportFrom,
+                                              positionCount: previewCount,
+                                              beatKind: _exportBeatKind,
+                                              transitionStyle:
+                                                  _exportTransitionStyle,
+                                              beatProgress: _exportBeatProgress,
+                                              shotVariant: _exportShotVariant,
+                                              filmFrame: _exportFilmFrame,
+                                            ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 18),
+                                SizedBox(
+                                  width: 270,
+                                  child: LinearProgressIndicator(
+                                    value: _exportProgress,
+                                    color: const Color(0xFFE4C6A6),
+                                    backgroundColor: const Color(0x33FFFFFF),
+                                    minHeight: 7,
+                                    borderRadius: BorderRadius.circular(99),
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  _exportStatus,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                if (_exportProgressDetails.isNotEmpty)
+                                  Text(
+                                    _exportProgressDetails,
+                                    key: const ValueKey(
+                                      'export_progress_details',
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                      fontFeatures: const [
+                                        FontFeature.tabularFigures(),
+                                      ],
+                                    ),
+                                  ),
+                                if (_exportCanCancel) ...[
+                                  const SizedBox(height: 14),
+                                  OutlinedButton.icon(
+                                    key: const ValueKey('cancel_video_export'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.white,
+                                      disabledForegroundColor: Colors.white54,
+                                      side: const BorderSide(
+                                        color: Colors.white38,
                                       ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-                          SizedBox(
-                            width: 270,
-                            child: LinearProgressIndicator(
-                              value: _exportProgress,
-                              minHeight: 7,
-                              borderRadius: BorderRadius.circular(99),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            _exportStatus,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 4),
-                          if (_exportProgressDetails.isNotEmpty)
-                            Text(
-                              _exportProgressDetails,
-                              key: const ValueKey('export_progress_details'),
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: colors.onSurfaceVariant,
-                                fontSize: 12,
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures(),
+                                    ),
+                                    onPressed: _exportCancellationRequested
+                                        ? null
+                                        : _requestExportCancellation,
+                                    icon: Icon(
+                                      _exportCancellationRequested
+                                          ? Icons.hourglass_top_rounded
+                                          : Icons.close_rounded,
+                                    ),
+                                    label: Text(
+                                      _exportCancellationRequested
+                                          ? context.tr('İptal ediliyor…')
+                                          : context.tr('İptal'),
+                                    ),
+                                  ),
                                 ],
-                              ),
-                            ),
-                          if (_exportCanCancel) ...[
-                            const SizedBox(height: 14),
-                            OutlinedButton.icon(
-                              key: const ValueKey('cancel_video_export'),
-                              onPressed: _exportCancellationRequested
-                                  ? null
-                                  : _requestExportCancellation,
-                              icon: Icon(
-                                _exportCancellationRequested
-                                    ? Icons.hourglass_top_rounded
-                                    : Icons.close_rounded,
-                              ),
-                              label: Text(
-                                _exportCancellationRequested
-                                    ? context.tr('İptal ediliyor…')
-                                    : context.tr('İptal'),
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 4),
-                          Text(
-                            _exportCancellationRequested
-                                ? context.tr('Video güvenle kapatılıyor')
-                                : context.tr('Uygulamayı kapatma'),
-                            style: TextStyle(
-                              color: colors.onSurfaceVariant,
-                              fontSize: 12,
+                                const SizedBox(height: 4),
+                                Text(
+                                  _exportCancellationRequested
+                                      ? context.tr('Video güvenle kapatılıyor')
+                                      : context.tr('Uygulamayı kapatma'),
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -1747,11 +1765,11 @@ class _PageArrow extends StatelessWidget {
       child: Material(
         color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.76),
         shape: const CircleBorder(),
-        elevation: enabled ? 4 : 0,
+        elevation: enabled ? 1 : 0,
         child: IconButton(
           onPressed: enabled ? onTap : null,
           tooltip: tooltip,
-          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
           icon: Icon(icon),
         ),
       ),
@@ -2335,135 +2353,71 @@ class _FilmGrainPainter extends CustomPainter {
       oldDelegate.intensity != intensity;
 }
 
-class _CinematicExportTile extends StatelessWidget {
-  const _CinematicExportTile({super.key, required this.onTap});
+class _ShareOptionTile extends StatelessWidget {
+  const _ShareOptionTile({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.featured = false,
+  });
 
+  final IconData icon;
+  final String title;
+  final String subtitle;
   final VoidCallback onTap;
+  final bool featured;
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(22),
+      color: featured
+          ? colors.primary.withValues(alpha: .07)
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(18),
       clipBehavior: Clip.antiAlias,
-      child: Ink(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF281A20), Color(0xFF7A3344), Color(0xFFC26A4B)],
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x333B1118),
-              blurRadius: 16,
-              offset: Offset(0, 8),
-            ),
-          ],
-        ),
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: .14),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white24),
-                  ),
-                  child: const Icon(
-                    Icons.movie_creation_outlined,
-                    color: Colors.white,
-                  ),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 26,
+                color: featured ? colors.primary : colors.onSurfaceVariant,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        height: 1.5,
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 13),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        context.tr('TEK SAYFA VİDEO'),
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: .72),
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.8,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        context.tr('Sayfalarını sırayla oynat'),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        context.tr(
-                          'Sol → sağ kaydırma · gerçek sayfa çevirme · sade görünüm',
-                        ),
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: .78),
-                          fontSize: 11,
-                          height: 1.25,
-                        ),
-                      ),
-                      const SizedBox(height: 9),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 5,
-                        children: [
-                          const _ExportBadge('720p / 1080p'),
-                          const _ExportBadge('30 FPS'),
-                          _ExportBadge(context.tr('SES SEÇENEĞİ')),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const Padding(
-                  padding: EdgeInsets.only(top: 12),
-                  child: Icon(Icons.arrow_forward_rounded, color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ExportBadge extends StatelessWidget {
-  const _ExportBadge(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: .18),
-        borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: Colors.white24),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 8,
-            fontWeight: FontWeight.w800,
-            letterSpacing: .7,
+              ),
+              const SizedBox(width: 10),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: colors.onSurfaceVariant.withValues(alpha: .65),
+              ),
+            ],
           ),
         ),
       ),

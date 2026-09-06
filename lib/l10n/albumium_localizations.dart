@@ -36,6 +36,8 @@ class AlbumiumLocalizations {
     'Dili değiştir': 'Change language',
     'Dil': 'Language',
     'Anılarına hoş geldin': 'Welcome to your memories',
+    'Hikâyen burada başlıyor': 'Your story starts here',
+    'HİKÂYEN BURADA BAŞLIYOR': 'YOUR STORY STARTS HERE',
     'Albüm ve kartlarını kaldığın yerden düzenle.':
         'Continue editing your albums and cards.',
     'Anılarına hoş geldin. Albüm ve kartlarını kaldığın yerden düzenle.':
@@ -85,6 +87,8 @@ class AlbumiumLocalizations {
     '{title}, özel gün kartı': '{title}, occasion card',
     '{title}, {count} sayfa': '{title}, {count} pages',
     'Özel gün kartı · {badge}': 'Occasion card · {badge}',
+    'Özel gün kartı': 'Occasion card',
+    '1 sayfa · {binding}': '1 page · {binding}',
     '{count} sayfa · {binding}': '{count} pages · {binding}',
     'Kapat': 'Close',
     'Geç': 'Skip',

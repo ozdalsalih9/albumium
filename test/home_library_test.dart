@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:albumium/main.dart';
 import 'package:albumium/models/album_models.dart';
-import 'package:albumium/screens/preview_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -41,40 +40,53 @@ int _visibleGridItems(WidgetTester tester) {
 
 void main() {
   for (final viewport in const [Size(390, 844), Size(1024, 768)]) {
-    testWidgets('album share is reachable from library at $viewport', (
-      tester,
-    ) async {
-      _seedLibrary();
-      tester.view.physicalSize = viewport;
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(const AlbumiumApp(showLaunchAnimation: false));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.byKey(const ValueKey('library-search')),
-        'istanbul',
-      );
-      await tester.pumpAndSettle();
-      final share = find.byKey(const ValueKey('library-share-project-0'));
-      await tester.ensureVisible(share);
-      await tester.pumpAndSettle();
-      expect(tester.getSize(share).height, greaterThanOrEqualTo(48));
-      await tester.tap(share);
-      await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<PreviewScreen>(find.byType(PreviewScreen))
-            .openShareOnReady,
-        isTrue,
-      );
-      expect(
-        find.byKey(const ValueKey('share_interactive_album')),
-        findsOneWidget,
-      );
-      expect(find.byKey(const ValueKey('share_mp4')), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    });
+    testWidgets(
+      'library presents open covers without share buttons at $viewport',
+      (tester) async {
+        _seedLibrary();
+        tester.view.physicalSize = viewport;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await tester.pumpWidget(const AlbumiumApp(showLaunchAnimation: false));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(const ValueKey('library-search')),
+          'istanbul',
+        );
+        await tester.pumpAndSettle();
+        final item = find.byKey(const ValueKey('library-item-project-0'));
+        await tester.ensureVisible(item);
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('library-share-project-0')),
+          findsNothing,
+        );
+        expect(
+          find.descendant(of: item, matching: find.byType(FilledButton)),
+          findsNothing,
+        );
+        final surface = tester.widget<Material>(
+          find.descendant(of: item, matching: find.byType(Material)).first,
+        );
+        expect(surface.color, Colors.transparent);
+        expect(
+          tester
+              .widget<InkWell>(
+                find.descendant(of: item, matching: find.byType(InkWell)).first,
+              )
+              .onTap,
+          isNotNull,
+        );
+        expect(
+          tester
+              .getSize(find.byKey(const ValueKey('library-cover-project-0')))
+              .aspectRatio,
+          closeTo(15 / 22, .001),
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 
   testWidgets('large libraries reveal projects in pages of twelve', (
@@ -153,7 +165,7 @@ void main() {
       );
       final delegate =
           grid.gridDelegate as SliverGridDelegateWithMaxCrossAxisExtent;
-      expect(delegate.maxCrossAxisExtent, 280);
+      expect(delegate.maxCrossAxisExtent, 220);
     }
 
     tester.view.physicalSize = const Size(1366, 900);
