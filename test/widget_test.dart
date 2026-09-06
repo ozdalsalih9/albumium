@@ -153,4 +153,43 @@ void main() {
       );
     }
   });
+
+  testWidgets('binding picker scrolls horizontally and moves the selection', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(450, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(const MaterialApp(home: ThemeScreen()));
+    await tester.pumpAndSettle();
+
+    final selector = find.byKey(const ValueKey('binding-selector'));
+    expect(tester.widget<ListView>(selector).scrollDirection, Axis.horizontal);
+
+    // Spiral is the default and every card carries its description.
+    expect(_isBindingSelected(tester, 'spiral'), isTrue);
+    expect(find.text('🔗 Metal spiral halkalar'), findsOneWidget);
+
+    // The last binding sits off-screen until the row is scrolled.
+    expect(find.text('Nostaljik Kordon'), findsNothing);
+    await tester.drag(selector, const Offset(-420, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('Nostaljik Kordon'), findsOneWidget);
+
+    await tester.tap(find.text('Nostaljik Kordon'));
+    await tester.pumpAndSettle();
+
+    expect(_isBindingSelected(tester, 'vintageCord'), isTrue);
+    expect(tester.takeException(), isNull);
+  });
+}
+
+bool _isBindingSelected(WidgetTester tester, String bindingName) {
+  final semantics = tester.widget<Semantics>(
+    find.byKey(ValueKey('binding-card-$bindingName')),
+  );
+  return semantics.properties.selected ?? false;
 }
