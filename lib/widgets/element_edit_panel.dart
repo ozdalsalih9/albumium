@@ -108,23 +108,19 @@ class ElementEditPanel extends StatefulWidget {
 }
 
 class _ElementEditPanelState extends State<ElementEditPanel> {
-  String _section = 'Araçlar';
+  /// Above this width the summary and the tool strip share a single row.
+  static const _wideBreakpoint = 600.0;
+  static const _styleAction = 'Düzenle';
+
+  /// The extra panels stay collapsed so the strip alone carries the selection.
+  String? _section;
+
   void _change(VoidCallback action) {
     if (widget.element.locked) return;
     setState(action);
     widget.onChanged();
   }
 
-  Widget _button(String label, IconData icon, VoidCallback? action) =>
-      OutlinedButton.icon(
-        onPressed: widget.element.locked ? null : action,
-        icon: Icon(icon, size: 19),
-        label: Text(context.tr(label)),
-        style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, 46),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-        ),
-      );
   void _align(int column, int row) => _change(() {
     final e = widget.element;
     const page = Size(500, 700);
@@ -142,9 +138,121 @@ class _ElementEditPanelState extends State<ElementEditPanel> {
     e.x = cx / 500 - e.width / 2;
     e.y = cy / 700 - e.height / 2;
   });
+
+  Widget _tool(
+    String tooltip,
+    IconData icon,
+    VoidCallback? action, {
+    Color? color,
+  }) => IconButton(
+    tooltip: context.tr(tooltip),
+    onPressed: widget.element.locked ? null : action,
+    icon: Icon(icon, size: 22),
+    color: color,
+    visualDensity: VisualDensity.compact,
+  );
+
+  static String _layerLabel(AlbumElementLayerAction action) => switch (action) {
+    AlbumElementLayerAction.moveUp => 'Bir üste getir',
+    AlbumElementLayerAction.moveDown => 'Bir alta gönder',
+    AlbumElementLayerAction.bringToFront => 'En üste getir',
+    AlbumElementLayerAction.sendToBack => 'En alta gönder',
+  };
+
+  Widget _layerButton() => PopupMenuButton<AlbumElementLayerAction>(
+    tooltip: context.tr('Katman sırası'),
+    icon: const Icon(Icons.layers_rounded, size: 22),
+    enabled: !widget.element.locked,
+    onSelected: widget.onLayer,
+    itemBuilder: (context) => [
+      for (final action in AlbumElementLayerAction.values)
+        PopupMenuItem<AlbumElementLayerAction>(
+          key: ValueKey('layer-action-${action.name}'),
+          value: action,
+          enabled: widget.canMoveLayer(action),
+          child: Text(context.tr(_layerLabel(action))),
+        ),
+    ],
+  );
+
+  Widget _moreButton(List<String> sections) => PopupMenuButton<String>(
+    tooltip: context.tr('Daha fazla'),
+    icon: const Icon(Icons.more_horiz_rounded, size: 22),
+    enabled: !widget.element.locked,
+    onSelected: (value) {
+      if (value == _styleAction) {
+        widget.onStyle();
+        return;
+      }
+      setState(() => _section = _section == value ? null : value);
+    },
+    itemBuilder: (context) => [
+      PopupMenuItem<String>(
+        key: const ValueKey('section-style'),
+        value: _styleAction,
+        child: Row(
+          children: [
+            const Icon(Icons.tune_rounded, size: 18),
+            const SizedBox(width: 10),
+            Text(context.tr('Düzenle')),
+          ],
+        ),
+      ),
+      const PopupMenuDivider(),
+      for (final section in sections)
+        PopupMenuItem<String>(
+          key: ValueKey('section-$section'),
+          value: section,
+          child: Row(
+            children: [
+              Icon(
+                _section == section
+                    ? Icons.check_circle_rounded
+                    : Icons.circle_outlined,
+                size: 18,
+              ),
+              const SizedBox(width: 10),
+              Text(context.tr(section)),
+            ],
+          ),
+        ),
+    ],
+  );
+
+  List<Widget> _tools(AlbumElementModel e, List<String> sections) => [
+    if (e.type == AlbumElementType.photo)
+      _tool('Kırp', Icons.crop_rounded, widget.onCrop),
+    _tool(
+      'Küçült',
+      Icons.zoom_out_rounded,
+      () => _change(() => scaleAlbumElementBy(e, 1 / albumElementScaleStep)),
+    ),
+    _tool(
+      'Büyüt',
+      Icons.zoom_in_rounded,
+      () => _change(() => scaleAlbumElementBy(e, albumElementScaleStep)),
+    ),
+    // One button, one direction: each tap turns the element a further 90°.
+    _tool(
+      '90° döndür',
+      Icons.rotate_right_rounded,
+      () => _change(() => e.rotation += math.pi / 2),
+    ),
+    _layerButton(),
+    _tool('Kopyala', Icons.content_copy_rounded, widget.onDuplicate),
+    _tool(
+      'Sil',
+      Icons.delete_outline_rounded,
+      widget.onDelete,
+      color: Theme.of(context).colorScheme.error,
+    ),
+    _moreButton(sections),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final e = widget.element;
+    final theme = Theme.of(context);
     final type = switch (e.type) {
       AlbumElementType.photo => 'Fotoğraf',
       AlbumElementType.text => 'Yazı',
@@ -152,57 +260,73 @@ class _ElementEditPanelState extends State<ElementEditPanel> {
       AlbumElementType.sticker => 'Şekil / Süs',
       AlbumElementType.drawing => 'Çizim',
     };
-    final tools = Wrap(
-      spacing: 8,
-      runSpacing: 6,
+    final sections = <String>[
+      'Hassas ayar',
+      'Hizala',
+      if (e.type == AlbumElementType.card) 'Renk',
+    ];
+
+    final summary = Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        _button(
-          'Öne al',
-          Icons.flip_to_front,
-          widget.canMoveLayer(AlbumElementLayerAction.moveUp)
-              ? () => widget.onLayer(AlbumElementLayerAction.moveUp)
-              : null,
+        Flexible(
+          child: Text(
+            context.tr(type),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleMedium,
+          ),
         ),
-        _button(
-          'Arkaya al',
-          Icons.flip_to_back,
-          widget.canMoveLayer(AlbumElementLayerAction.moveDown)
-              ? () => widget.onLayer(AlbumElementLayerAction.moveDown)
-              : null,
+        const SizedBox(width: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primary.withValues(alpha: .10),
+            borderRadius: BorderRadius.circular(99),
+          ),
+          child: Text(
+            '${(e.scale * 100).round()}%',
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: theme.colorScheme.primary,
+            ),
+          ),
         ),
-        _button('Düzenle', Icons.edit_outlined, widget.onStyle),
-        _button(
-          'Sola döndür',
-          Icons.rotate_left,
-          () => _change(() => e.rotation -= math.pi / 12),
-        ),
-        _button(
-          'Sağa döndür',
-          Icons.rotate_right,
-          () => _change(() => e.rotation += math.pi / 12),
-        ),
-        if (e.type == AlbumElementType.photo)
-          _button('Kırp', Icons.crop, widget.onCrop),
-        _button(
-          'Küçült',
-          Icons.remove,
-          () =>
-              _change(() => scaleAlbumElementBy(e, 1 / albumElementScaleStep)),
-        ),
-        _button(
-          'Büyüt',
-          Icons.add,
-          () => _change(() => scaleAlbumElementBy(e, albumElementScaleStep)),
-        ),
-        _button(
-          'Sıfırla',
-          Icons.restart_alt,
-          () => _change(() => resetAlbumElementTransform(e)),
-        ),
-        _button('Kopyala', Icons.copy, widget.onDuplicate),
-        _button('Sil', Icons.delete_outline, widget.onDelete),
       ],
     );
+
+    final lockButton = IconButton(
+      tooltip: context.tr(e.locked ? 'Kilidi aç' : 'Sabitle'),
+      onPressed: () {
+        setState(() => e.locked = !e.locked);
+        widget.onChanged();
+      },
+      icon: Icon(e.locked ? Icons.lock : Icons.lock_open, size: 20),
+      visualDensity: VisualDensity.compact,
+    );
+    final doneButton = IconButton(
+      tooltip: context.tr('Bitti'),
+      onPressed: widget.onClose,
+      icon: const Icon(Icons.check),
+      visualDensity: VisualDensity.compact,
+    );
+
+    // With a width the icons spread across the row; without one they stay
+    // packed. Either way an overlong strip still scrolls instead of clipping.
+    Widget strip(List<Widget> children, [double? width]) =>
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: width == null
+              ? Row(mainAxisSize: MainAxisSize.min, children: children)
+              : ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: width),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: children,
+                  ),
+                ),
+        );
+
     final precision = Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -237,6 +361,7 @@ class _ElementEditPanelState extends State<ElementEditPanel> {
         ),
       ],
     );
+
     final align = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -278,8 +403,9 @@ class _ElementEditPanelState extends State<ElementEditPanel> {
           ),
       ],
     );
+
     return Material(
-      color: Theme.of(context).colorScheme.surface,
+      color: theme.colorScheme.surface,
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxHeight: MediaQuery.sizeOf(context).height * .38,
@@ -287,127 +413,81 @@ class _ElementEditPanelState extends State<ElementEditPanel> {
         child: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final wide = constraints.maxWidth >= _wideBreakpoint;
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(
-                      child: Text(
-                        '${context.tr(type)} · ${(e.scale * 100).round()}%',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ),
-                    TextButton.icon(
-                      onPressed: () {
-                        setState(() => e.locked = !e.locked);
-                        widget.onChanged();
-                      },
-                      icon: Icon(
-                        e.locked ? Icons.lock : Icons.lock_open,
-                        size: 18,
-                      ),
-                      label: Text(
-                        context.tr(e.locked ? 'Kilidi aç' : 'Sabitle'),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: widget.onClose,
-                      tooltip: context.tr('Bitti'),
-                      icon: const Icon(Icons.check),
-                    ),
-                  ],
-                ),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      for (final section in [
-                        'Araçlar',
-                        'Katmanlar',
-                        'Hassas ayar',
-                        'Hizala',
-                        if (e.type == AlbumElementType.card) 'Renk',
-                      ])
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: ChoiceChip(
-                            label: Text(context.tr(section)),
-                            selected: _section == section,
-                            onSelected: (_) =>
-                                setState(() => _section = section),
+                    if (wide)
+                      Row(
+                        key: const ValueKey('selection-toolbar-wide'),
+                        children: [
+                          Flexible(flex: 2, child: summary),
+                          const SizedBox(width: 12),
+                          Flexible(
+                            flex: 5,
+                            child: strip([
+                              ..._tools(e, sections),
+                              lockButton,
+                              doneButton,
+                            ]),
                           ),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                if (e.locked)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      context.tr('Nesne sabit. Düzenlemek için kilidi aç.'),
-                    ),
-                  ),
-                if (_section == 'Araçlar') tools,
-                if (_section == 'Katmanlar')
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final action in AlbumElementLayerAction.values)
-                        _button(
-                          switch (action) {
-                            AlbumElementLayerAction.moveUp => 'Bir üste getir',
-                            AlbumElementLayerAction.moveDown =>
-                              'Bir alta gönder',
-                            AlbumElementLayerAction.bringToFront =>
-                              'En üste getir',
-                            AlbumElementLayerAction.sendToBack =>
-                              'En alta gönder',
-                          },
-                          switch (action) {
-                            AlbumElementLayerAction.moveUp =>
-                              Icons.arrow_upward,
-                            AlbumElementLayerAction.moveDown =>
-                              Icons.arrow_downward,
-                            AlbumElementLayerAction.bringToFront =>
-                              Icons.vertical_align_top,
-                            AlbumElementLayerAction.sendToBack =>
-                              Icons.vertical_align_bottom,
-                          },
-                          widget.canMoveLayer(action)
-                              ? () => widget.onLayer(action)
-                              : null,
-                        ),
-                    ],
-                  ),
-                if (_section == 'Hassas ayar') precision,
-                if (_section == 'Hizala') align,
-                if (_section == 'Renk')
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      for (final color in editorCardColors)
-                        IconButton(
-                          tooltip: '#${color.toRadixString(16).substring(2)}',
-                          onPressed: e.locked
-                              ? null
-                              : () => _change(() => e.cardColor = color),
-                          icon: Icon(
-                            e.cardColor == color
-                                ? Icons.check_circle
-                                : Icons.circle,
-                            color: Color(color),
-                            shadows: const [
-                              Shadow(color: Colors.grey, blurRadius: 2),
+                        ],
+                      )
+                    else
+                      Column(
+                        key: const ValueKey('selection-toolbar-stacked'),
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(child: summary),
+                              lockButton,
+                              doneButton,
                             ],
                           ),
+                          const SizedBox(height: 2),
+                          strip(_tools(e, sections), constraints.maxWidth),
+                        ],
+                      ),
+                    if (e.locked)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          context.tr('Nesne sabit. Düzenlemek için kilidi aç.'),
                         ),
-                    ],
-                  ),
-              ],
+                      ),
+                    if (_section == 'Hassas ayar') precision,
+                    if (_section == 'Hizala') align,
+                    if (_section == 'Renk')
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          for (final color in editorCardColors)
+                            IconButton(
+                              tooltip:
+                                  '#${color.toRadixString(16).substring(2)}',
+                              onPressed: e.locked
+                                  ? null
+                                  : () => _change(() => e.cardColor = color),
+                              icon: Icon(
+                                e.cardColor == color
+                                    ? Icons.check_circle
+                                    : Icons.circle,
+                                color: Color(color),
+                                shadows: const [
+                                  Shadow(color: Colors.grey, blurRadius: 2),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                  ],
+                );
+              },
             ),
           ),
         ),

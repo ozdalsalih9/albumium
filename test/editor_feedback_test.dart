@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:albumium/models/album_models.dart';
@@ -54,26 +56,27 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.text('Öne al'));
-      expect(action, AlbumElementLayerAction.moveUp);
-      await tester.tap(find.text('Arkaya al'));
-      expect(action, AlbumElementLayerAction.moveDown);
-      await tester.ensureVisible(find.text('Sağa döndür'));
-      await tester.tap(find.text('Sağa döndür'));
-      expect(e.rotation, greaterThan(0));
-      await tester.ensureVisible(find.text('Katmanlar'));
-      await tester.tap(find.text('Katmanlar'));
-      await tester.pump();
+      // Layer moves now live behind a single menu button.
       for (final entry in {
-        'Bir alta gönder': AlbumElementLayerAction.moveDown,
         'Bir üste getir': AlbumElementLayerAction.moveUp,
+        'Bir alta gönder': AlbumElementLayerAction.moveDown,
         'En alta gönder': AlbumElementLayerAction.sendToBack,
         'En üste getir': AlbumElementLayerAction.bringToFront,
       }.entries) {
-        await tester.ensureVisible(find.text(entry.key));
+        await tester.tap(find.byTooltip('Katman sırası'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text(entry.key));
+        await tester.pumpAndSettle();
         expect(action, entry.value);
       }
+
+      // One rotate button, one direction: each tap adds a quarter turn.
+      await tester.tap(find.byTooltip('90° döndür'));
+      await tester.pump();
+      expect(e.rotation, closeTo(math.pi / 2, .000001));
+      await tester.tap(find.byTooltip('90° döndür'));
+      await tester.pump();
+      expect(e.rotation, closeTo(math.pi, .000001));
       expect(tester.takeException(), isNull);
     });
   }
@@ -193,11 +196,14 @@ void main() {
       ),
     );
     expect(find.byTooltip('Sağa'), findsNothing);
+    // Hassas ayar artık taşma yapmasın diye 'Daha fazla' menüsünde.
+    await tester.tap(find.byTooltip('Daha fazla'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Hassas ayar'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Sağa'));
     expect(e.x, closeTo(.202, .00001));
-    await tester.tap(find.text('Sabitle'));
+    await tester.tap(find.byTooltip('Sabitle'));
     await tester.pump();
     await tester.tap(find.byTooltip('Sağa'));
     expect(e.x, closeTo(.202, .00001));
