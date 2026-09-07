@@ -35,7 +35,12 @@ class _AppThemePicker extends StatelessWidget {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 720),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 28),
+              padding: EdgeInsets.fromLTRB(
+                24,
+                0,
+                24,
+                28 + MediaQuery.viewPaddingOf(context).bottom,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,

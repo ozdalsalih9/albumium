@@ -14,6 +14,7 @@ import 'photo_crop_editor.dart';
 import 'physical_book_spread.dart';
 import 'sticker_packs.dart';
 import 'theme_page_decoration.dart';
+import 'element_edit_panel.dart';
 
 const albumPhotoFrameLabels = <String>[
   'Temiz kenar',
@@ -248,6 +249,14 @@ class _AlbumElementsLayerState extends State<_AlbumElementsLayer> {
           ),
         if (widget.interactive && selected != null)
           Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: AlbumAlignmentPainter(selected, widget.pageSize),
+              ),
+            ),
+          ),
+        if (widget.interactive && selected != null && !selected.locked)
+          Positioned.fill(
             child: _AlbumSelectionOverlay(
               key: ValueKey('selection-overlay-${selected.id}'),
               element: selected,
@@ -364,6 +373,7 @@ class _AlbumElementViewState extends State<_AlbumElementView> {
     element.y = y;
     element.scale = scale;
     element.rotation = rotation;
+    if (details.pointerCount == 1) snapAlbumElement(element, widget.pageSize);
     widget.onGeometryChanged();
   }
 
@@ -450,20 +460,29 @@ class _AlbumElementViewState extends State<_AlbumElementView> {
         angle: element.rotation,
         child: Transform.scale(
           scale: element.scale,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: widget.interactive ? widget.onSelect : null,
-            onScaleStart: widget.interactive ? _handleScaleStart : null,
-            onScaleUpdate: widget.interactive ? _handleScaleUpdate : null,
-            onScaleEnd: widget.interactive ? _handleScaleEnd : null,
-            // Transforms can reuse a recorded display list while the element
-            // moves. Read-only/export pages do not need a layer per element.
-            child: widget.interactive
-                ? RepaintBoundary(
-                    key: ValueKey('album-element-art-${element.id}'),
-                    child: _elementContent(element),
-                  )
-                : _elementContent(element),
+          child: _ElementHitRegion(
+            element: element,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: widget.interactive ? widget.onSelect : null,
+              onScaleStart: widget.interactive && !element.locked
+                  ? _handleScaleStart
+                  : null,
+              onScaleUpdate: widget.interactive && !element.locked
+                  ? _handleScaleUpdate
+                  : null,
+              onScaleEnd: widget.interactive && !element.locked
+                  ? _handleScaleEnd
+                  : null,
+              // Transforms can reuse a recorded display list while the element
+              // moves. Read-only/export pages do not need a layer per element.
+              child: widget.interactive
+                  ? RepaintBoundary(
+                      key: ValueKey('album-element-art-${element.id}'),
+                      child: _elementContent(element),
+                    )
+                  : _elementContent(element),
+            ),
           ),
         ),
       ),
@@ -490,6 +509,9 @@ class _AlbumElementViewState extends State<_AlbumElementView> {
         return OccasionCardView(
           cardId: element.content,
           customDataRaw: element.extraData,
+          backgroundColor: element.cardColor == null
+              ? null
+              : Color(element.cardColor!),
         );
     }
   }
@@ -1722,4 +1744,56 @@ class _PaperTexturePainter extends CustomPainter {
   bool shouldRepaint(covariant _PaperTexturePainter oldDelegate) =>
       oldDelegate.backgroundColor != backgroundColor ||
       oldDelegate.accentColor != accentColor;
+}
+
+// Reject empty artwork regions before the gesture recognizer joins the arena.
+class _ElementHitRegion extends SingleChildRenderObjectWidget {
+  const _ElementHitRegion({required this.element, required super.child});
+  final AlbumElementModel element;
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _ElementHitRender(element);
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _ElementHitRender renderObject,
+  ) {
+    renderObject.element = element;
+  }
+}
+
+class _ElementHitRender extends RenderProxyBox {
+  _ElementHitRender(this.element);
+  AlbumElementModel element;
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    if (element.type == AlbumElementType.sticker) {
+      final aspect = albumStickerAspectRatio(element.content);
+      final fitted = applyBoxFit(
+        BoxFit.contain,
+        Size(aspect, 1),
+        size,
+      ).destination;
+      final rect = Alignment.center.inscribe(fitted, Offset.zero & size);
+      if (!rect.contains(position)) return false;
+      if (isAlbumShape(element.content) &&
+          !albumShapePath(
+            element.content,
+            fitted,
+          ).contains(position - rect.topLeft)) {
+        return false;
+      }
+    }
+    if (element.type == AlbumElementType.photo && element.frameStyle == 0) {
+      if (element.photoShape == AlbumPhotoShape.circle &&
+          !(Path()..addOval(Offset.zero & size)).contains(position)) {
+        return false;
+      }
+      if (element.photoShape == AlbumPhotoShape.arch &&
+          !const _PhotoArchClipper().getClip(size).contains(position)) {
+        return false;
+      }
+    }
+    return super.hitTest(result, position: position);
+  }
 }

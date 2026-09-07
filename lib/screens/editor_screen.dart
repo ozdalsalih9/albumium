@@ -7,7 +7,7 @@ import '../l10n/albumium_localizations.dart';
 import '../models/album_models.dart';
 import '../services/album_storage.dart';
 import '../theme/albumium_app_theme.dart';
-import '../widgets/album_page_canvas.dart';
+import '../widgets/element_edit_panel.dart';
 import '../widgets/font_selector_dialog.dart';
 import '../widgets/handmade_craft.dart';
 import '../widgets/handwriting_painter.dart';
@@ -728,24 +728,6 @@ class _EditorScreenState extends State<EditorScreen>
     _changed();
   }
 
-  void _scaleSelected(double factor) {
-    final selected = selectedElement;
-    if (selected == null) return;
-    var changed = false;
-    setState(() => changed = scaleAlbumElementBy(selected, factor));
-    if (!changed) return;
-    _changed();
-  }
-
-  void _resetSelectedTransform() {
-    final selected = selectedElement;
-    if (selected == null) return;
-    var changed = false;
-    setState(() => changed = resetAlbumElementTransform(selected));
-    if (!changed) return;
-    _changed();
-  }
-
   void _duplicateSelected() {
     final selected = selectedElement;
     if (selected == null) return;
@@ -766,6 +748,7 @@ class _EditorScreenState extends State<EditorScreen>
         textColor: selected.textColor,
         fontSize: selected.fontSize,
         extraData: selected.extraData,
+        cardColor: selected.cardColor,
       );
       page.elements.add(copy);
       _selectedId = copy.id;
@@ -814,7 +797,9 @@ class _EditorScreenState extends State<EditorScreen>
         context: context,
         isScrollControlled: true,
         showDragHandle: true,
-        builder: (context) => const StickerPackPickerSheet(),
+        builder: (context) => isAlbumShape(selected.content)
+            ? const ShapeObjectPickerSheet()
+            : const StickerPackPickerSheet(),
       );
       if (replacement == null || !mounted) return;
       final oldCenterX = selected.x + selected.width / 2;
@@ -963,13 +948,14 @@ class _EditorScreenState extends State<EditorScreen>
           child: SafeArea(
             child: Column(
               children: [
-                _PageNavigator(
-                  label: _spreadLabel,
-                  onPrevious: _canGoPrevious ? _goToPreviousPage : null,
-                  onNext: _canGoNext ? _goToNextPage : null,
-                  onAdd: _addPage,
-                  onMore: () => _showPageMenu(context),
-                ),
+                if (selectedElement == null)
+                  _PageNavigator(
+                    label: _spreadLabel,
+                    onPrevious: _canGoPrevious ? _goToPreviousPage : null,
+                    onNext: _canGoNext ? _goToNextPage : null,
+                    onAdd: _addPage,
+                    onMore: () => _showPageMenu(context),
+                  ),
                 Expanded(
                   child: Center(
                     child: Padding(
@@ -1039,38 +1025,32 @@ class _EditorScreenState extends State<EditorScreen>
                   ),
                 ),
                 if (selectedElement != null)
-                  _SelectionToolbar(
+                  ElementEditPanel(
+                    key: ValueKey(_selectedId),
                     element: selectedElement!,
+                    onChanged: () {
+                      setState(() {});
+                      _changed();
+                    },
+                    onClose: () => setState(() => _selectedId = null),
                     onStyle: _styleSelected,
                     onCrop: _cropSelected,
                     canMoveLayer: _canMoveSelectedLayer,
-                    onLayerAction: _moveSelectedLayer,
-                    onScaleDown:
-                        selectedElement!.scale > albumElementMinScale + .000001
-                        ? () => _scaleSelected(1 / albumElementScaleStep)
-                        : null,
-                    onScaleUp:
-                        selectedElement!.scale < albumElementMaxScale - .000001
-                        ? () => _scaleSelected(albumElementScaleStep)
-                        : null,
-                    onResetTransform:
-                        (selectedElement!.scale - 1).abs() > .000001 ||
-                            selectedElement!.rotation.abs() > .000001
-                        ? _resetSelectedTransform
-                        : null,
+                    onLayer: _moveSelectedLayer,
                     onDuplicate: _duplicateSelected,
                     onDelete: _removeSelected,
                   ),
-                _MainToolbar(
-                  onPhoto: _addPhotos,
-                  onText: _addText,
-                  onDraw: _addHandwriting,
-                  onCard: _addOccasionCard,
-                  onSticker: _addSticker,
-                  onShape: _addShape,
-                  onBackground: _changeBackground,
-                  onPage: _addPage,
-                ),
+                if (selectedElement == null)
+                  _MainToolbar(
+                    onPhoto: _addPhotos,
+                    onText: _addText,
+                    onDraw: _addHandwriting,
+                    onCard: _addOccasionCard,
+                    onSticker: _addSticker,
+                    onShape: _addShape,
+                    onBackground: _changeBackground,
+                    onPage: _addPage,
+                  ),
               ],
             ),
           ),
@@ -1276,268 +1256,6 @@ class _MainToolbar extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _SelectionToolbar extends StatelessWidget {
-  const _SelectionToolbar({
-    required this.element,
-    required this.onStyle,
-    required this.onCrop,
-    required this.canMoveLayer,
-    required this.onLayerAction,
-    required this.onScaleDown,
-    required this.onScaleUp,
-    required this.onResetTransform,
-    required this.onDuplicate,
-    required this.onDelete,
-  });
-
-  final AlbumElementModel element;
-  final VoidCallback onStyle;
-  final VoidCallback onCrop;
-  final bool Function(AlbumElementLayerAction action) canMoveLayer;
-  final ValueChanged<AlbumElementLayerAction> onLayerAction;
-  final VoidCallback? onScaleDown;
-  final VoidCallback? onScaleUp;
-  final VoidCallback? onResetTransform;
-  final VoidCallback onDuplicate;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AlbumiumAppTheme.colorsOf(context);
-    final (styleLabel, styleIcon) = switch (element.type) {
-      AlbumElementType.photo => (
-        '${context.tr(albumPhotoShapeLabel(element.photoShape))} · ${context.tr(albumPhotoFrameLabel(element.frameStyle))}',
-        Icons.crop_original_rounded,
-      ),
-      AlbumElementType.text => (
-        context.tr('Yazıyı / Fontu Düzenle'),
-        Icons.font_download_rounded,
-      ),
-      AlbumElementType.card => (
-        context.tr('Kart Metnini Düzenle'),
-        Icons.edit_note_rounded,
-      ),
-      AlbumElementType.drawing => (
-        context.tr('Döndür'),
-        Icons.rotate_right_rounded,
-      ),
-      AlbumElementType.sticker => (
-        context.tr('Süsü değiştir'),
-        Icons.auto_awesome_rounded,
-      ),
-    };
-
-    Widget styleButton() => TextButton.icon(
-      onPressed: onStyle,
-      style: TextButton.styleFrom(
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        textStyle: Theme.of(
-          context,
-        ).textTheme.labelLarge?.copyWith(fontSize: 12),
-      ),
-      icon: Icon(styleIcon, size: 18),
-      label: Text(styleLabel, maxLines: 1, overflow: TextOverflow.ellipsis),
-    );
-
-    Widget scaleBadge() => Semantics(
-      label: context.tr(
-        'Öğe ölçeği yüzde {percent}',
-        values: {'percent': (element.scale * 100).round()},
-      ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: colors.primary.withValues(alpha: .08),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Text(
-            '${(element.scale * 100).round()}%',
-            style: TextStyle(
-              color: colors.primary,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ),
-    );
-
-    Widget actionButtons() => Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (element.type == AlbumElementType.photo)
-          _SelectionIconButton(
-            onPressed: onCrop,
-            tooltip: context.tr('Fotoğrafı kırp'),
-            icon: Icons.crop_rounded,
-          ),
-        _SelectionIconButton(
-          onPressed: onScaleDown,
-          tooltip: context.tr('Küçült'),
-          icon: Icons.zoom_out_rounded,
-        ),
-        _SelectionIconButton(
-          onPressed: onScaleUp,
-          tooltip: context.tr('Büyüt'),
-          icon: Icons.zoom_in_rounded,
-        ),
-        _SelectionIconButton(
-          onPressed: onResetTransform,
-          tooltip: context.tr('Dönüş ve ölçeği sıfırla'),
-          icon: Icons.restart_alt_rounded,
-        ),
-        SizedBox(
-          width: 48,
-          height: 48,
-          child: PopupMenuButton<AlbumElementLayerAction>(
-            key: const ValueKey('selection-layer-menu'),
-            tooltip: context.tr('Katman sırası'),
-            padding: EdgeInsets.zero,
-            icon: const Icon(Icons.layers_outlined, size: 20),
-            onSelected: onLayerAction,
-            itemBuilder: (context) => [
-              for (final action in AlbumElementLayerAction.values)
-                PopupMenuItem<AlbumElementLayerAction>(
-                  key: ValueKey('layer-action-${action.name}'),
-                  value: action,
-                  enabled: canMoveLayer(action),
-                  child: Row(
-                    children: [
-                      Icon(_layerActionIcon(action), size: 20),
-                      const SizedBox(width: 12),
-                      Text(context.tr(_layerActionLabel(action))),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        ),
-        _SelectionIconButton(
-          onPressed: onDuplicate,
-          tooltip: context.tr('Kopyala'),
-          icon: Icons.copy_rounded,
-        ),
-        _SelectionIconButton(
-          onPressed: onDelete,
-          tooltip: context.tr('Sil'),
-          icon: Icons.delete_outline,
-          color: Theme.of(context).colorScheme.error,
-        ),
-      ],
-    );
-
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 960),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: colors.elevatedSurface,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: colors.border),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: .06),
-                  blurRadius: 18,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 2, 8, 4),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  if (constraints.maxWidth >= 680) {
-                    return Row(
-                      key: const ValueKey('selection-toolbar-wide'),
-                      children: [
-                        Expanded(child: styleButton()),
-                        scaleBadge(),
-                        const SizedBox(width: 6),
-                        actionButtons(),
-                      ],
-                    );
-                  }
-                  return Column(
-                    key: const ValueKey('selection-toolbar-stacked'),
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(child: styleButton()),
-                          scaleBadge(),
-                        ],
-                      ),
-                      Align(
-                        alignment: Alignment.center,
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: actionButtons(),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-String _layerActionLabel(AlbumElementLayerAction action) => switch (action) {
-  AlbumElementLayerAction.moveDown => 'Bir alta gönder',
-  AlbumElementLayerAction.moveUp => 'Bir üste getir',
-  AlbumElementLayerAction.sendToBack => 'En alta gönder',
-  AlbumElementLayerAction.bringToFront => 'En üste getir',
-};
-
-IconData _layerActionIcon(AlbumElementLayerAction action) => switch (action) {
-  AlbumElementLayerAction.moveDown => Icons.arrow_downward_rounded,
-  AlbumElementLayerAction.moveUp => Icons.arrow_upward_rounded,
-  AlbumElementLayerAction.sendToBack => Icons.vertical_align_bottom_rounded,
-  AlbumElementLayerAction.bringToFront => Icons.vertical_align_top_rounded,
-};
-
-class _SelectionIconButton extends StatelessWidget {
-  const _SelectionIconButton({
-    required this.onPressed,
-    required this.tooltip,
-    required this.icon,
-    this.color,
-  });
-
-  final VoidCallback? onPressed;
-  final String tooltip;
-  final IconData icon;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 48,
-      height: 48,
-      child: IconButton(
-        onPressed: onPressed,
-        tooltip: tooltip,
-        padding: EdgeInsets.zero,
-        style: IconButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        icon: Icon(icon, size: 20, color: color),
       ),
     );
   }

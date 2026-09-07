@@ -42,47 +42,196 @@ double albumStickerAspectRatio(String value) {
       _ => 1,
     };
   }
-  if (isAlbumShape(value)) return value.contains(':heart_') ? 1.08 : 1;
+  if (isAlbumShape(value)) {
+    final kind = value.substring(_shapePrefix.length).split('_').first;
+    if ([
+      'rectangle',
+      'capsule',
+      'arrow',
+      'leftarrow',
+      'doublearrow',
+      'label',
+      'ribbon',
+    ].contains(kind)) {
+      return 2.2;
+    }
+    if (kind == 'bubble' || kind == 'cloud') {
+      return 1.3;
+    }
+    if (kind == 'semicircle') {
+      return 1.8;
+    }
+    if (kind == 'pin') {
+      return .72;
+    }
+    return kind == 'heart' ? 1.08 : 1;
+  }
   if (value.contains('washi_') ||
       value.endsWith(':film_strip') ||
       value.contains('ribbon_')) {
     return 3.6;
   }
-  if (value.endsWith(':vintage_ticket')) return 2.2;
+  if (value.endsWith(':vintage_ticket')) {
+    return 2.2;
+  }
   if (value.contains('pressed_') ||
       value.endsWith(':fern') ||
       value.endsWith(':gold_branch')) {
     return .68;
   }
-  if (value.contains('postage_')) return .9;
-  if (value.contains('frame_') || value.contains('camera_')) return 1;
+  if (value.contains('postage_')) {
+    return .9;
+  }
+  if (value.contains('frame_') || value.contains('camera_')) {
+    return 1;
+  }
   if (value.contains('corner_') ||
       value.contains('disco_') ||
       value.contains('button_')) {
     return 1;
   }
-  if (value.endsWith('fabric_lace')) return 2.5;
-  if (value.endsWith('fabric_bow')) return 1.45;
-  if (value.endsWith('fabric_safety_pin')) return .82;
-  if (value.contains('fabric_')) return 1.1;
-  if (value.endsWith('analog_polaroid')) return .82;
-  if (value.endsWith('analog_film_roll')) return 1.08;
-  if (value.endsWith('analog_negative')) return 2.25;
+  if (value.endsWith('fabric_lace')) {
+    return 2.5;
+  }
+  if (value.endsWith('fabric_bow')) {
+    return 1.45;
+  }
+  if (value.endsWith('fabric_safety_pin')) {
+    return .82;
+  }
+  if (value.contains('fabric_')) {
+    return 1.1;
+  }
+  if (value.endsWith('analog_polaroid')) {
+    return .82;
+  }
+  if (value.endsWith('analog_film_roll')) {
+    return 1.08;
+  }
+  if (value.endsWith('analog_negative')) {
+    return 2.25;
+  }
   if (value.endsWith('analog_camcorder') || value.endsWith('analog_cassette')) {
     return 1.35;
   }
-  if (value.contains('words_')) return 2.15;
-  if (value.contains('travel_passport')) return .72;
+  if (value.contains('words_')) {
+    return 2.15;
+  }
+  if (value.contains('travel_passport')) {
+    return .72;
+  }
   if (value.contains('travel_suitcase') ||
       value.contains('travel_airplane_tag') ||
       value.contains('travel_map')) {
     return 1.25;
   }
-  if (value.contains('cat_') || value.contains('monkey_')) return .82;
+  if (value.contains('cat_') || value.contains('monkey_')) {
+    return .82;
+  }
   return 1;
 }
 
 String albumStickerLabel(String value) {
+  const extraLabels = <String, String>{
+    'albumium_shape:rectangle_blush': 'Pudra Dikdörtgen',
+    'albumium_shape:rectangle_navy': 'Lacivert Dikdörtgen',
+    'albumium_shape:rectangle_gold': 'Altın Dikdörtgen',
+    'albumium_shape:rectangle_sage': 'Adaçayı Dikdörtgen',
+    'albumium_shape:rectangle_lavender': 'Lavanta Dikdörtgen',
+    'albumium_shape:capsule_blush': 'Pudra Kapsül',
+    'albumium_shape:capsule_navy': 'Lacivert Kapsül',
+    'albumium_shape:capsule_gold': 'Altın Kapsül',
+    'albumium_shape:capsule_sage': 'Adaçayı Kapsül',
+    'albumium_shape:capsule_lavender': 'Lavanta Kapsül',
+    'albumium_shape:arrow_blush': 'Pudra Sağ ok',
+    'albumium_shape:arrow_navy': 'Lacivert Sağ ok',
+    'albumium_shape:arrow_gold': 'Altın Sağ ok',
+    'albumium_shape:arrow_sage': 'Adaçayı Sağ ok',
+    'albumium_shape:arrow_lavender': 'Lavanta Sağ ok',
+    'albumium_shape:leftarrow_blush': 'Pudra Sol ok',
+    'albumium_shape:leftarrow_navy': 'Lacivert Sol ok',
+    'albumium_shape:leftarrow_gold': 'Altın Sol ok',
+    'albumium_shape:leftarrow_sage': 'Adaçayı Sol ok',
+    'albumium_shape:leftarrow_lavender': 'Lavanta Sol ok',
+    'albumium_shape:doublearrow_blush': 'Pudra Çift yönlü ok',
+    'albumium_shape:doublearrow_navy': 'Lacivert Çift yönlü ok',
+    'albumium_shape:doublearrow_gold': 'Altın Çift yönlü ok',
+    'albumium_shape:doublearrow_sage': 'Adaçayı Çift yönlü ok',
+    'albumium_shape:doublearrow_lavender': 'Lavanta Çift yönlü ok',
+    'albumium_shape:chevron_blush': 'Pudra Yön işareti',
+    'albumium_shape:chevron_navy': 'Lacivert Yön işareti',
+    'albumium_shape:chevron_gold': 'Altın Yön işareti',
+    'albumium_shape:chevron_sage': 'Adaçayı Yön işareti',
+    'albumium_shape:chevron_lavender': 'Lavanta Yön işareti',
+    'albumium_shape:bubble_blush': 'Pudra Konuşma balonu',
+    'albumium_shape:bubble_navy': 'Lacivert Konuşma balonu',
+    'albumium_shape:bubble_gold': 'Altın Konuşma balonu',
+    'albumium_shape:bubble_sage': 'Adaçayı Konuşma balonu',
+    'albumium_shape:bubble_lavender': 'Lavanta Konuşma balonu',
+    'albumium_shape:label_blush': 'Pudra Etiket',
+    'albumium_shape:label_navy': 'Lacivert Etiket',
+    'albumium_shape:label_gold': 'Altın Etiket',
+    'albumium_shape:label_sage': 'Adaçayı Etiket',
+    'albumium_shape:label_lavender': 'Lavanta Etiket',
+    'albumium_shape:ribbon_blush': 'Pudra Kurdele bayrak',
+    'albumium_shape:ribbon_navy': 'Lacivert Kurdele bayrak',
+    'albumium_shape:ribbon_gold': 'Altın Kurdele bayrak',
+    'albumium_shape:ribbon_sage': 'Adaçayı Kurdele bayrak',
+    'albumium_shape:ribbon_lavender': 'Lavanta Kurdele bayrak',
+    'albumium_shape:ring_blush': 'Pudra Halka',
+    'albumium_shape:ring_navy': 'Lacivert Halka',
+    'albumium_shape:ring_gold': 'Altın Halka',
+    'albumium_shape:ring_sage': 'Adaçayı Halka',
+    'albumium_shape:ring_lavender': 'Lavanta Halka',
+    'albumium_shape:semicircle_blush': 'Pudra Yarım daire',
+    'albumium_shape:semicircle_navy': 'Lacivert Yarım daire',
+    'albumium_shape:semicircle_gold': 'Altın Yarım daire',
+    'albumium_shape:semicircle_sage': 'Adaçayı Yarım daire',
+    'albumium_shape:semicircle_lavender': 'Lavanta Yarım daire',
+    'albumium_shape:crescent_blush': 'Pudra Hilal',
+    'albumium_shape:crescent_navy': 'Lacivert Hilal',
+    'albumium_shape:crescent_gold': 'Altın Hilal',
+    'albumium_shape:crescent_sage': 'Adaçayı Hilal',
+    'albumium_shape:crescent_lavender': 'Lavanta Hilal',
+    'albumium_shape:cloud_blush': 'Pudra Bulut',
+    'albumium_shape:cloud_navy': 'Lacivert Bulut',
+    'albumium_shape:cloud_gold': 'Altın Bulut',
+    'albumium_shape:cloud_sage': 'Adaçayı Bulut',
+    'albumium_shape:cloud_lavender': 'Lavanta Bulut',
+    'albumium_shape:burst_blush': 'Pudra Rozet',
+    'albumium_shape:burst_navy': 'Lacivert Rozet',
+    'albumium_shape:burst_gold': 'Altın Rozet',
+    'albumium_shape:burst_sage': 'Adaçayı Rozet',
+    'albumium_shape:burst_lavender': 'Lavanta Rozet',
+    'albumium_shape:plus_blush': 'Pudra Artı',
+    'albumium_shape:plus_navy': 'Lacivert Artı',
+    'albumium_shape:plus_gold': 'Altın Artı',
+    'albumium_shape:plus_sage': 'Adaçayı Artı',
+    'albumium_shape:plus_lavender': 'Lavanta Artı',
+    'albumium_shape:check_blush': 'Pudra Onay işareti',
+    'albumium_shape:check_navy': 'Lacivert Onay işareti',
+    'albumium_shape:check_gold': 'Altın Onay işareti',
+    'albumium_shape:check_sage': 'Adaçayı Onay işareti',
+    'albumium_shape:check_lavender': 'Lavanta Onay işareti',
+    'albumium_shape:pentagon_blush': 'Pudra Beşgen',
+    'albumium_shape:pentagon_navy': 'Lacivert Beşgen',
+    'albumium_shape:pentagon_gold': 'Altın Beşgen',
+    'albumium_shape:pentagon_sage': 'Adaçayı Beşgen',
+    'albumium_shape:pentagon_lavender': 'Lavanta Beşgen',
+    'albumium_shape:octagon_blush': 'Pudra Sekizgen',
+    'albumium_shape:octagon_navy': 'Lacivert Sekizgen',
+    'albumium_shape:octagon_gold': 'Altın Sekizgen',
+    'albumium_shape:octagon_sage': 'Adaçayı Sekizgen',
+    'albumium_shape:octagon_lavender': 'Lavanta Sekizgen',
+    'albumium_shape:pin_blush': 'Pudra Konum işareti',
+    'albumium_shape:pin_navy': 'Lacivert Konum işareti',
+    'albumium_shape:pin_gold': 'Altın Konum işareti',
+    'albumium_shape:pin_sage': 'Adaçayı Konum işareti',
+    'albumium_shape:pin_lavender': 'Lavanta Konum işareti',
+  };
+  if (extraLabels.containsKey(value)) {
+    return extraLabels[value]!;
+  }
   final normalized = isAlbumStickerAsset(value)
       ? '$_assetPrefix${albumStickerAssetPath(value)}'
       : value;
@@ -227,6 +376,102 @@ String albumStickerLabel(String value) {
 }
 
 const albumShapeObjects = <String>[
+  'albumium_shape:rectangle_blush',
+  'albumium_shape:rectangle_navy',
+  'albumium_shape:rectangle_gold',
+  'albumium_shape:rectangle_sage',
+  'albumium_shape:rectangle_lavender',
+  'albumium_shape:capsule_blush',
+  'albumium_shape:capsule_navy',
+  'albumium_shape:capsule_gold',
+  'albumium_shape:capsule_sage',
+  'albumium_shape:capsule_lavender',
+  'albumium_shape:arrow_blush',
+  'albumium_shape:arrow_navy',
+  'albumium_shape:arrow_gold',
+  'albumium_shape:arrow_sage',
+  'albumium_shape:arrow_lavender',
+  'albumium_shape:leftarrow_blush',
+  'albumium_shape:leftarrow_navy',
+  'albumium_shape:leftarrow_gold',
+  'albumium_shape:leftarrow_sage',
+  'albumium_shape:leftarrow_lavender',
+  'albumium_shape:doublearrow_blush',
+  'albumium_shape:doublearrow_navy',
+  'albumium_shape:doublearrow_gold',
+  'albumium_shape:doublearrow_sage',
+  'albumium_shape:doublearrow_lavender',
+  'albumium_shape:chevron_blush',
+  'albumium_shape:chevron_navy',
+  'albumium_shape:chevron_gold',
+  'albumium_shape:chevron_sage',
+  'albumium_shape:chevron_lavender',
+  'albumium_shape:bubble_blush',
+  'albumium_shape:bubble_navy',
+  'albumium_shape:bubble_gold',
+  'albumium_shape:bubble_sage',
+  'albumium_shape:bubble_lavender',
+  'albumium_shape:label_blush',
+  'albumium_shape:label_navy',
+  'albumium_shape:label_gold',
+  'albumium_shape:label_sage',
+  'albumium_shape:label_lavender',
+  'albumium_shape:ribbon_blush',
+  'albumium_shape:ribbon_navy',
+  'albumium_shape:ribbon_gold',
+  'albumium_shape:ribbon_sage',
+  'albumium_shape:ribbon_lavender',
+  'albumium_shape:ring_blush',
+  'albumium_shape:ring_navy',
+  'albumium_shape:ring_gold',
+  'albumium_shape:ring_sage',
+  'albumium_shape:ring_lavender',
+  'albumium_shape:semicircle_blush',
+  'albumium_shape:semicircle_navy',
+  'albumium_shape:semicircle_gold',
+  'albumium_shape:semicircle_sage',
+  'albumium_shape:semicircle_lavender',
+  'albumium_shape:crescent_blush',
+  'albumium_shape:crescent_navy',
+  'albumium_shape:crescent_gold',
+  'albumium_shape:crescent_sage',
+  'albumium_shape:crescent_lavender',
+  'albumium_shape:cloud_blush',
+  'albumium_shape:cloud_navy',
+  'albumium_shape:cloud_gold',
+  'albumium_shape:cloud_sage',
+  'albumium_shape:cloud_lavender',
+  'albumium_shape:burst_blush',
+  'albumium_shape:burst_navy',
+  'albumium_shape:burst_gold',
+  'albumium_shape:burst_sage',
+  'albumium_shape:burst_lavender',
+  'albumium_shape:plus_blush',
+  'albumium_shape:plus_navy',
+  'albumium_shape:plus_gold',
+  'albumium_shape:plus_sage',
+  'albumium_shape:plus_lavender',
+  'albumium_shape:check_blush',
+  'albumium_shape:check_navy',
+  'albumium_shape:check_gold',
+  'albumium_shape:check_sage',
+  'albumium_shape:check_lavender',
+  'albumium_shape:pentagon_blush',
+  'albumium_shape:pentagon_navy',
+  'albumium_shape:pentagon_gold',
+  'albumium_shape:pentagon_sage',
+  'albumium_shape:pentagon_lavender',
+  'albumium_shape:octagon_blush',
+  'albumium_shape:octagon_navy',
+  'albumium_shape:octagon_gold',
+  'albumium_shape:octagon_sage',
+  'albumium_shape:octagon_lavender',
+  'albumium_shape:pin_blush',
+  'albumium_shape:pin_navy',
+  'albumium_shape:pin_gold',
+  'albumium_shape:pin_sage',
+  'albumium_shape:pin_lavender',
+
   'albumium_shape:circle_blush',
   'albumium_shape:circle_navy',
   'albumium_shape:circle_gold',
@@ -619,12 +864,26 @@ class AlbumStickerView extends StatelessWidget {
 
 /// Albüm sayfasına fotoğraf ve yazılarla aynı hareket/ölçek davranışını
 /// paylaşan, emojiden bağımsız geometrik nesneler ekler.
-class ShapeObjectPickerSheet extends StatelessWidget {
+class ShapeObjectPickerSheet extends StatefulWidget {
   const ShapeObjectPickerSheet({super.key});
+  @override
+  State<ShapeObjectPickerSheet> createState() => _ShapeObjectPickerSheetState();
+}
+
+class _ShapeObjectPickerSheetState extends State<ShapeObjectPickerSheet> {
+  String _query = '';
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final shapes = albumShapeObjects
+        .where(
+          (shape) => context
+              .tr(albumStickerLabel(shape))
+              .toLowerCase()
+              .contains(_query.toLowerCase()),
+        )
+        .toList();
     final tablet = MediaQuery.sizeOf(context).shortestSide >= 600;
     return SafeArea(
       child: Padding(
@@ -664,6 +923,14 @@ class ShapeObjectPickerSheet extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 14),
+            TextField(
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search),
+                hintText: context.tr('Şekil veya renk ara'),
+              ),
+              onChanged: (value) => setState(() => _query = value.trim()),
+            ),
+            const SizedBox(height: 12),
             SizedBox(
               height: tablet ? 270 : 236,
               child: GridView.builder(
@@ -673,9 +940,9 @@ class ShapeObjectPickerSheet extends StatelessWidget {
                   crossAxisSpacing: 12,
                   childAspectRatio: 0.88,
                 ),
-                itemCount: albumShapeObjects.length,
+                itemCount: shapes.length,
                 itemBuilder: (context, index) {
-                  final shape = albumShapeObjects[index];
+                  final shape = shapes[index];
                   return InkWell(
                     borderRadius: BorderRadius.circular(16),
                     onTap: () => Navigator.pop(context, shape),
@@ -755,96 +1022,7 @@ class _ShapeObjectPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = math.max(1.2, inset * 0.22);
 
-    Path path;
-    if (id.contains(':circle_')) {
-      path = Path()..addOval(target);
-    } else if (id.contains(':square_')) {
-      path = Path()
-        ..addRRect(
-          RRect.fromRectAndRadius(
-            target,
-            Radius.circular(math.min(target.width, target.height) * 0.16),
-          ),
-        );
-    } else if (id.contains(':triangle_')) {
-      path = Path()
-        ..moveTo(target.center.dx, target.top)
-        ..lineTo(target.right, target.bottom)
-        ..lineTo(target.left, target.bottom)
-        ..close();
-    } else if (id.contains(':star_')) {
-      path = Path();
-      for (var point = 0; point < 10; point++) {
-        final angle = -math.pi / 2 + point * math.pi / 5;
-        final radius = point.isEven ? 0.5 : 0.23;
-        final offset = Offset(
-          target.center.dx + math.cos(angle) * target.width * radius,
-          target.center.dy + math.sin(angle) * target.height * radius,
-        );
-        if (point == 0) {
-          path.moveTo(offset.dx, offset.dy);
-        } else {
-          path.lineTo(offset.dx, offset.dy);
-        }
-      }
-      path.close();
-    } else if (id.contains(':hexagon_')) {
-      path = Path()
-        ..moveTo(target.left + target.width * .25, target.top)
-        ..lineTo(target.left + target.width * .75, target.top)
-        ..lineTo(target.right, target.center.dy)
-        ..lineTo(target.left + target.width * .75, target.bottom)
-        ..lineTo(target.left + target.width * .25, target.bottom)
-        ..lineTo(target.left, target.center.dy)
-        ..close();
-    } else if (id.contains(':diamond_')) {
-      path = Path()
-        ..moveTo(target.center.dx, target.top)
-        ..lineTo(target.right, target.center.dy)
-        ..lineTo(target.center.dx, target.bottom)
-        ..lineTo(target.left, target.center.dy)
-        ..close();
-    } else {
-      final x = target.left;
-      final y = target.top;
-      final w = target.width;
-      final h = target.height;
-      path = Path()
-        ..moveTo(x + w * .5, y + h * .91)
-        ..cubicTo(
-          x + w * .43,
-          y + h * .82,
-          x + w * .06,
-          y + h * .59,
-          x + w * .06,
-          y + h * .31,
-        )
-        ..cubicTo(
-          x + w * .06,
-          y + h * .08,
-          x + w * .34,
-          y + h * .02,
-          x + w * .5,
-          y + h * .24,
-        )
-        ..cubicTo(
-          x + w * .66,
-          y + h * .02,
-          x + w * .94,
-          y + h * .08,
-          x + w * .94,
-          y + h * .31,
-        )
-        ..cubicTo(
-          x + w * .94,
-          y + h * .59,
-          x + w * .57,
-          y + h * .82,
-          x + w * .5,
-          y + h * .91,
-        )
-        ..close();
-    }
+    final path = albumShapePath(id, size);
     canvas.drawShadow(path, const Color(0x55000000), inset * .65, true);
     canvas.drawPath(path, paint);
     canvas.drawPath(path, highlight);
@@ -3412,4 +3590,331 @@ class _IllustratedStickerPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _IllustratedStickerPainter oldDelegate) =>
       oldDelegate.id != id || oldDelegate.english != english;
+}
+
+Path albumShapePath(String id, Size size) {
+  final target = (Offset.zero & size).deflate(
+    math.min(size.width, size.height) * .08,
+  );
+  final kind = id.substring(_shapePrefix.length).split('_').first;
+  Path polygon(List<Offset> points) => Path()
+    ..addPolygon([
+      for (final p in points)
+        Offset(
+          target.left + p.dx * target.width,
+          target.top + p.dy * target.height,
+        ),
+    ], true);
+  if (kind == 'rectangle' || kind == 'capsule') {
+    return Path()..addRRect(
+      RRect.fromRectAndRadius(
+        target,
+        Radius.circular(
+          kind == 'capsule' ? target.height / 2 : target.height * .08,
+        ),
+      ),
+    );
+  }
+  if (kind == 'arrow' || kind == 'leftarrow') {
+    final points = [
+      const Offset(0, .3),
+      const Offset(.65, .3),
+      const Offset(.65, 0),
+      const Offset(1, .5),
+      const Offset(.65, 1),
+      const Offset(.65, .7),
+      const Offset(0, .7),
+    ];
+    return polygon(
+      kind == 'leftarrow'
+          ? points.map((p) => Offset(1 - p.dx, p.dy)).toList()
+          : points,
+    );
+  }
+  if (kind == 'doublearrow') {
+    return polygon([
+      const Offset(0, .5),
+      const Offset(.25, 0),
+      const Offset(.25, .3),
+      const Offset(.75, .3),
+      const Offset(.75, 0),
+      const Offset(1, .5),
+      const Offset(.75, 1),
+      const Offset(.75, .7),
+      const Offset(.25, .7),
+      const Offset(.25, 1),
+    ]);
+  }
+  if (kind == 'chevron') {
+    return polygon([
+      const Offset(.1, 0),
+      const Offset(.5, 0),
+      const Offset(.9, .5),
+      const Offset(.5, 1),
+      const Offset(.1, 1),
+      const Offset(.5, .5),
+    ]);
+  }
+  if (kind == 'label') {
+    return polygon([
+      const Offset(0, 0),
+      const Offset(.8, 0),
+      const Offset(1, .5),
+      const Offset(.8, 1),
+      const Offset(0, 1),
+    ]);
+  }
+  if (kind == 'ribbon') {
+    return polygon([
+      const Offset(0, 0),
+      const Offset(1, 0),
+      const Offset(.85, .5),
+      const Offset(1, 1),
+      const Offset(0, 1),
+      const Offset(.15, .5),
+    ]);
+  }
+  if (kind == 'plus') {
+    return polygon([
+      const Offset(.35, 0),
+      const Offset(.65, 0),
+      const Offset(.65, .35),
+      const Offset(1, .35),
+      const Offset(1, .65),
+      const Offset(.65, .65),
+      const Offset(.65, 1),
+      const Offset(.35, 1),
+      const Offset(.35, .65),
+      const Offset(0, .65),
+      const Offset(0, .35),
+      const Offset(.35, .35),
+    ]);
+  }
+  if (kind == 'check') {
+    return polygon([
+      const Offset(0, .5),
+      const Offset(.18, .32),
+      const Offset(.4, .58),
+      const Offset(.85, .05),
+      const Offset(1, .2),
+      const Offset(.4, .95),
+    ]);
+  }
+  if (kind == 'ring') {
+    return Path()
+      ..fillType = PathFillType.evenOdd
+      ..addOval(target)
+      ..addOval(target.deflate(target.shortestSide * .2));
+  }
+  if (kind == 'crescent') {
+    return Path.combine(
+      PathOperation.difference,
+      Path()..addOval(target),
+      Path()..addOval(
+        target.shift(Offset(target.width * .3, -target.height * .15)),
+      ),
+    );
+  }
+  if (kind == 'semicircle') {
+    return Path()
+      ..moveTo(target.left, target.bottom)
+      ..arcTo(
+        Rect.fromLTWH(target.left, target.top, target.width, target.height * 2),
+        math.pi,
+        math.pi,
+        false,
+      )
+      ..close();
+  }
+  if (kind == 'bubble') {
+    return Path.combine(
+      PathOperation.union,
+      Path()..addRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(
+            target.left,
+            target.top,
+            target.width,
+            target.height * .78,
+          ),
+          Radius.circular(target.height * .18),
+        ),
+      ),
+      polygon([
+        const Offset(.2, .7),
+        const Offset(.2, 1),
+        const Offset(.48, .7),
+      ]),
+    );
+  }
+  if (kind == 'cloud') {
+    Path result = Path()
+      ..addRRect(
+        RRect.fromLTRBR(
+          target.left,
+          target.top + target.height * .4,
+          target.right,
+          target.top + target.height * .95,
+          Radius.circular(target.height * .25),
+        ),
+      );
+    for (final c in [
+      const Offset(.28, .4),
+      const Offset(.52, .3),
+      const Offset(.73, .42),
+    ]) {
+      result = Path.combine(
+        PathOperation.union,
+        result,
+        Path()..addOval(
+          Rect.fromCircle(
+            center: Offset(
+              target.left + c.dx * target.width,
+              target.top + c.dy * target.height,
+            ),
+            radius: target.height * .28,
+          ),
+        ),
+      );
+    }
+    return result;
+  }
+  if (kind == 'pentagon' || kind == 'octagon' || kind == 'burst') {
+    final count = kind == 'pentagon'
+        ? 5
+        : kind == 'octagon'
+        ? 8
+        : 24;
+    return polygon([
+      for (var i = 0; i < count; i++)
+        Offset(
+          .5 +
+              math.cos(-math.pi / 2 + i * math.pi * 2 / count) *
+                  (kind == 'burst' && i.isOdd ? .36 : .5),
+          .5 +
+              math.sin(-math.pi / 2 + i * math.pi * 2 / count) *
+                  (kind == 'burst' && i.isOdd ? .36 : .5),
+        ),
+    ]);
+  }
+  if (kind == 'pin') {
+    final outer = Path.combine(
+      PathOperation.union,
+      Path()..addOval(
+        Rect.fromLTWH(
+          target.left,
+          target.top,
+          target.width,
+          target.height * .72,
+        ),
+      ),
+      polygon([
+        const Offset(.06, .5),
+        const Offset(.94, .5),
+        const Offset(.5, 1),
+      ]),
+    );
+    return Path.combine(
+      PathOperation.difference,
+      outer,
+      Path()..addOval(
+        Rect.fromCenter(
+          center: Offset(target.center.dx, target.top + target.height * .34),
+          width: target.width * .32,
+          height: target.width * .32,
+        ),
+      ),
+    );
+  }
+  Path path;
+  if (id.contains(':circle_')) {
+    path = Path()..addOval(target);
+  } else if (id.contains(':square_')) {
+    path = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          target,
+          Radius.circular(math.min(target.width, target.height) * 0.16),
+        ),
+      );
+  } else if (id.contains(':triangle_')) {
+    path = Path()
+      ..moveTo(target.center.dx, target.top)
+      ..lineTo(target.right, target.bottom)
+      ..lineTo(target.left, target.bottom)
+      ..close();
+  } else if (id.contains(':star_')) {
+    path = Path();
+    for (var point = 0; point < 10; point++) {
+      final angle = -math.pi / 2 + point * math.pi / 5;
+      final radius = point.isEven ? 0.5 : 0.23;
+      final offset = Offset(
+        target.center.dx + math.cos(angle) * target.width * radius,
+        target.center.dy + math.sin(angle) * target.height * radius,
+      );
+      if (point == 0) {
+        path.moveTo(offset.dx, offset.dy);
+      } else {
+        path.lineTo(offset.dx, offset.dy);
+      }
+    }
+    path.close();
+  } else if (id.contains(':hexagon_')) {
+    path = Path()
+      ..moveTo(target.left + target.width * .25, target.top)
+      ..lineTo(target.left + target.width * .75, target.top)
+      ..lineTo(target.right, target.center.dy)
+      ..lineTo(target.left + target.width * .75, target.bottom)
+      ..lineTo(target.left + target.width * .25, target.bottom)
+      ..lineTo(target.left, target.center.dy)
+      ..close();
+  } else if (id.contains(':diamond_')) {
+    path = Path()
+      ..moveTo(target.center.dx, target.top)
+      ..lineTo(target.right, target.center.dy)
+      ..lineTo(target.center.dx, target.bottom)
+      ..lineTo(target.left, target.center.dy)
+      ..close();
+  } else {
+    final x = target.left;
+    final y = target.top;
+    final w = target.width;
+    final h = target.height;
+    path = Path()
+      ..moveTo(x + w * .5, y + h * .91)
+      ..cubicTo(
+        x + w * .43,
+        y + h * .82,
+        x + w * .06,
+        y + h * .59,
+        x + w * .06,
+        y + h * .31,
+      )
+      ..cubicTo(
+        x + w * .06,
+        y + h * .08,
+        x + w * .34,
+        y + h * .02,
+        x + w * .5,
+        y + h * .24,
+      )
+      ..cubicTo(
+        x + w * .66,
+        y + h * .02,
+        x + w * .94,
+        y + h * .08,
+        x + w * .94,
+        y + h * .31,
+      )
+      ..cubicTo(
+        x + w * .94,
+        y + h * .59,
+        x + w * .57,
+        y + h * .82,
+        x + w * .5,
+        y + h * .91,
+      )
+      ..close();
+  }
+  return path;
 }

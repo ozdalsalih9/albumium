@@ -28,6 +28,35 @@ void main() {
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
+  test(
+    'repeated concurrent imports reuse one record and preserve local edits',
+    () async {
+      var copies = 0;
+      Future<AlbumModel> create() async {
+        copies++;
+        return _album('imported');
+      }
+
+      final results = await Future.wait([
+        storage.importAlbumOnce('fingerprint', create),
+        storage.importAlbumOnce('fingerprint', create),
+      ]);
+      expect(copies, 1);
+      expect(results.last.reused, isTrue);
+      results.first.album.title = 'Local edits';
+      await storage.saveAlbum(results.first.album);
+      final again = await storage.importAlbumOnce('fingerprint', create);
+      expect(again.album.title, 'Local edits');
+      expect(await storage.loadAlbums(), hasLength(1));
+      await storage.deleteAlbum(again.album);
+      expect(
+        (await storage.importAlbumOnce('fingerprint', create)).reused,
+        isFalse,
+      );
+      expect(copies, 2);
+    },
+  );
+
   group('temel davranış', () {
     test('kaydedilen albüm geri yüklenir', () async {
       await storage.saveAlbum(_album('a'));

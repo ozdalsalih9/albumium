@@ -59,6 +59,7 @@ class AlbumPackagePreview {
     required this.packagePath,
     required this.packageBytes,
     required this.mediaCount,
+    this.fingerprint,
     required Directory extractedDirectory,
   }) : _extractedDirectory = extractedDirectory;
 
@@ -67,6 +68,7 @@ class AlbumPackagePreview {
   final int packageBytes;
   final int mediaCount;
   final Directory _extractedDirectory;
+  final String? fingerprint;
 
   Future<void> dispose() => _deleteDirectoryQuietly(_extractedDirectory);
 }
@@ -191,7 +193,8 @@ class AlbumPackageService {
         );
       }
 
-      final albumJson = _deepJsonMap(album.toJson());
+      final albumJson = _deepJsonMap(album.toJson())
+        ..remove('importFingerprint');
       final pages = albumJson['pages']! as List<dynamic>;
       for (final page in pages.cast<Map<String, dynamic>>()) {
         final elements = page['elements']! as List<dynamic>;
@@ -427,6 +430,7 @@ class AlbumPackageService {
       }
       return AlbumPackagePreview(
         album: album,
+        fingerprint: albumPackageFingerprint(albumRaw),
         packagePath: path,
         packageBytes: packageBytes,
         mediaCount: declaredMedia.length,
@@ -494,6 +498,8 @@ class AlbumPackageService {
               textColor: element.textColor,
               fontSize: element.fontSize,
               extraData: element.extraData,
+              locked: element.locked,
+              cardColor: element.cardColor,
             ),
           );
         }
@@ -509,6 +515,7 @@ class AlbumPackageService {
       return AlbumModel(
         id: newId(),
         title: preview.album.title,
+        importFingerprint: preview.fingerprint,
         themeId: preview.album.themeId,
         bindingType: preview.album.bindingType,
         createdAt: now,
@@ -655,4 +662,22 @@ Future<void> _deleteDirectoryQuietly(Directory directory) async {
   } catch (_) {
     // Temporary cleanup is best effort and must not hide the primary result.
   }
+}
+
+// Package media paths are content hashes, so this identity survives renaming,
+// re-downloading and ZIP timestamps. Local edits retain their import identity.
+String albumPackageFingerprint(Map<String, dynamic> album) {
+  Object? canonical(Object? value) {
+    if (value is Map) {
+      final keys = value.keys.cast<String>().toList()..sort();
+      return {for (final key in keys) key: canonical(value[key])};
+    }
+    if (value is List) return value.map(canonical).toList();
+    return value;
+  }
+
+  final content = Map<String, dynamic>.from(album)
+    ..remove('updatedAt')
+    ..remove('importFingerprint');
+  return sha256.convert(utf8.encode(jsonEncode(canonical(content)))).toString();
 }
