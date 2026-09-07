@@ -64,11 +64,21 @@ class _AlbumImportScreenState extends State<AlbumImportScreen> {
     if (_importing) return;
     setState(() => _importing = true);
     try {
-      final album = await _service.importCopy(preview);
-      await AlbumStorage.instance.saveAlbum(album);
+      final result = await AlbumStorage.instance.importAlbumOnce(
+        preview.fingerprint,
+        () => _service.importCopy(preview),
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.tr('Albüm içe aktarıldı'))),
+        SnackBar(
+          content: Text(
+            context.tr(
+              result.reused
+                  ? 'Bu albüm zaten koleksiyonunda. Yeni kopya oluşturulmadı.'
+                  : 'Albüm içe aktarıldı',
+            ),
+          ),
+        ),
       );
       Navigator.pop(context, true);
     } catch (error) {
@@ -261,7 +271,7 @@ class _ImportDetails extends StatelessWidget {
         const SizedBox(height: 24),
         Text(
           context.tr(
-            'Albümü görüntüle veya düzenlemek için koleksiyonuna bir kopyasını ekle.',
+            'Albümü görüntüle veya koleksiyonuna ekle. Aynı albümü tekrar eklemek kopya oluşturmaz.',
           ),
           textAlign: alignment,
           style: textTheme.bodyMedium?.copyWith(
@@ -292,7 +302,7 @@ class _ImportDetails extends StatelessWidget {
           label: Text(
             importing
                 ? context.tr('İçe aktarılıyor…')
-                : context.tr('Kopya olarak içe aktar'),
+                : context.tr('Koleksiyonuma ekle'),
             textAlign: TextAlign.center,
           ),
         ),

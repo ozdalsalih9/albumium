@@ -219,6 +219,8 @@ class AlbumElementModel {
     this.textColor = 0xFF2B2521,
     this.fontSize = 24,
     this.extraData = '',
+    this.locked = false,
+    this.cardColor,
   });
 
   final String id;
@@ -230,6 +232,8 @@ class AlbumElementModel {
   double height;
   double rotation;
   double scale;
+  bool locked;
+  int? cardColor;
 
   /// Append-only index into the photo-frame catalogue. Existing numeric IDs
   /// must keep their meaning so older albums render identically.
@@ -261,6 +265,8 @@ class AlbumElementModel {
     'textColor': textColor,
     'fontSize': fontSize,
     'extraData': extraData,
+    'locked': locked,
+    if (cardColor != null) 'cardColor': cardColor,
   };
 
   factory AlbumElementModel.fromJson(Map<String, dynamic> json) =>
@@ -283,6 +289,8 @@ class AlbumElementModel {
         textColor: json['textColor'] as int? ?? 0xFF2B2521,
         fontSize: (json['fontSize'] as num?)?.toDouble() ?? 24,
         extraData: json['extraData'] as String? ?? '',
+        locked: json['locked'] as bool? ?? false,
+        cardColor: json['cardColor'] as int?,
       );
 }
 
@@ -392,6 +400,7 @@ class AlbumModel {
     required this.pages,
     this.projectType = AlbumProjectType.album,
     this.cardThemeId = 'birthday',
+    this.importFingerprint,
   });
 
   final String id;
@@ -403,6 +412,7 @@ class AlbumModel {
   final List<AlbumPageModel> pages;
   AlbumProjectType projectType;
   String cardThemeId;
+  String? importFingerprint;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -414,6 +424,7 @@ class AlbumModel {
     'pages': pages.map((page) => page.toJson()).toList(),
     'projectType': projectType.name,
     'cardThemeId': cardThemeId,
+    if (importFingerprint != null) 'importFingerprint': importFingerprint,
   };
 
   factory AlbumModel.fromJson(Map<String, dynamic> json) => AlbumModel(
@@ -434,6 +445,7 @@ class AlbumModel {
       orElse: () => AlbumProjectType.album,
     ),
     cardThemeId: json['cardThemeId'] as String? ?? 'birthday',
+    importFingerprint: json['importFingerprint'] as String?,
   );
 }
 

@@ -76,6 +76,7 @@ class AlbumStorage {
 
   Future<_Library> _read() async {
     final preferences = await SharedPreferences.getInstance();
+    await preferences.reload();
     final raw = preferences.getString(_albumsKey);
     if (raw == null || raw.isEmpty) {
       return _Library(albums: <AlbumModel>[], isIntact: true, raw: null);
@@ -147,6 +148,27 @@ class AlbumStorage {
       }),
     );
   }
+
+  Future<({AlbumModel album, bool reused})> importAlbumOnce(
+    String? fingerprint,
+    Future<AlbumModel> Function() create,
+  ) => _serialized(() async {
+    final library = await _read();
+    if (fingerprint != null) {
+      for (final album in library.albums) {
+        if (album.importFingerprint == fingerprint) {
+          return (album: album, reused: true);
+        }
+      }
+    }
+    final album = await create();
+    album.importFingerprint = fingerprint;
+    final preferences = await SharedPreferences.getInstance();
+    if (!library.isIntact) await _quarantine(preferences, library.raw);
+    library.albums.insert(0, album);
+    await _persist(preferences, library.albums);
+    return (album: album, reused: false);
+  });
 
   Future<void> saveAlbum(AlbumModel album) => _serialized(() async {
     final library = await _read();

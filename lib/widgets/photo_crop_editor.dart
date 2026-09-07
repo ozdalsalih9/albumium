@@ -259,8 +259,7 @@ class _PhotoCropEditorState extends State<PhotoCropEditor> {
     super.dispose();
   }
 
-  void _start(DragStartDetails details, Size size) {
-    final point = details.localPosition;
+  void _start(Offset point, Size size) {
     final rect = Rect.fromLTRB(
       _crop.left * size.width,
       _crop.top * size.height,
@@ -274,10 +273,12 @@ class _PhotoCropEditorState extends State<PhotoCropEditor> {
       rect.bottomLeft,
     ];
     _corner = null;
+    var nearest = 48.0;
     for (var i = 0; i < corners.length; i++) {
-      if ((point - corners[i]).distance <= 40) {
+      final distance = (point - corners[i]).distance;
+      if (distance <= nearest) {
         _corner = i;
-        break;
+        nearest = distance;
       }
     }
     _moving = _corner == null && rect.contains(point);
@@ -288,7 +289,7 @@ class _PhotoCropEditorState extends State<PhotoCropEditor> {
   void _update(DragUpdateDetails details, Size size) {
     final start = _startCrop;
     if (start == null || (_corner == null && !_moving)) return;
-    final delta = details.localPosition - _startPoint;
+    final delta = details.localPosition - const Offset(28, 28) - _startPoint;
     final dx = delta.dx / size.width;
     final dy = delta.dy / size.height;
     setState(() {
@@ -328,28 +329,41 @@ class _PhotoCropEditorState extends State<PhotoCropEditor> {
             ),
           ),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: AspectRatio(
-                  aspectRatio: _image.width / _image.height,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final size = constraints.biggest;
-                      return GestureDetector(
-                        key: const ValueKey('photo-crop-surface'),
-                        behavior: HitTestBehavior.opaque,
-                        onPanStart: (details) => _start(details, size),
-                        onPanUpdate: (details) => _update(details, size),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final fitted = applyBoxFit(
+                  BoxFit.contain,
+                  Size(_image.width.toDouble(), _image.height.toDouble()),
+                  Size(
+                    math.max(1, constraints.maxWidth - 72),
+                    math.max(1, constraints.maxHeight - 56),
+                  ),
+                ).destination;
+                return Center(
+                  child: SizedBox(
+                    width: fitted.width + 56,
+                    height: fitted.height + 56,
+                    child: GestureDetector(
+                      key: const ValueKey('photo-crop-surface'),
+                      behavior: HitTestBehavior.opaque,
+                      onPanDown: (details) => _start(
+                        details.localPosition - const Offset(28, 28),
+                        fitted,
+                      ),
+                      onPanUpdate: (details) => _update(details, fitted),
+                      onPanEnd: (_) => _startCrop = null,
+                      onPanCancel: () => _startCrop = null,
+                      child: Padding(
+                        padding: const EdgeInsets.all(28),
                         child: CustomPaint(
                           foregroundPainter: _CropOverlay(_crop),
                           child: RawImage(image: _image, fit: BoxFit.contain),
                         ),
-                      );
-                    },
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
           Padding(
@@ -427,7 +441,8 @@ class _CropOverlay extends CustomPainter {
       rect.bottomLeft,
       rect.bottomRight,
     ]) {
-      canvas.drawCircle(corner, 7, Paint()..color = Colors.white);
+      canvas.drawCircle(corner, 13, Paint()..color = Colors.black54);
+      canvas.drawCircle(corner, 10, Paint()..color = Colors.white);
     }
   }
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../widgets/reader_zoom_view.dart';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -1397,26 +1398,27 @@ class _PreviewScreenState extends State<PreviewScreen>
                           ),
                         ),
                         LayoutBuilder(
-                          builder: (context, bookConstraints) =>
-                              GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTapUp: (details) =>
-                                    _handleBookTap(details, bookConstraints),
-                                onHorizontalDragStart: (details) =>
-                                    _handleDragStart(details, bookConstraints),
-                                onHorizontalDragUpdate: _handleDragUpdate,
-                                onHorizontalDragEnd: _handleDragEnd,
-                                onHorizontalDragCancel: _handleDragCancel,
-                                child: Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    10,
-                                    10,
-                                    10,
-                                    30,
-                                  ),
-                                  child: _buildBookPreview(),
+                          builder: (context, bookConstraints) => ReaderZoomView(
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTapUp: (details) =>
+                                  _handleBookTap(details, bookConstraints),
+                              onHorizontalDragStart: (details) =>
+                                  _handleDragStart(details, bookConstraints),
+                              onHorizontalDragUpdate: _handleDragUpdate,
+                              onHorizontalDragEnd: _handleDragEnd,
+                              onHorizontalDragCancel: _handleDragCancel,
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  10,
+                                  10,
+                                  10,
+                                  30,
                                 ),
+                                child: _buildBookPreview(),
                               ),
+                            ),
+                          ),
                         ),
                         Positioned(
                           left: 14,

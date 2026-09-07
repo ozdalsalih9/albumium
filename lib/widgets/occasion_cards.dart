@@ -169,6 +169,7 @@ class OccasionCardView extends StatelessWidget {
     super.key,
     required this.cardId,
     this.customDataRaw = '',
+    this.backgroundColor,
     this.customTitle,
     this.customSubtitle,
     this.customBadge,
@@ -176,6 +177,7 @@ class OccasionCardView extends StatelessWidget {
 
   final String cardId;
   final String customDataRaw;
+  final Color? backgroundColor;
   final String? customTitle;
   final String? customSubtitle;
   final String? customBadge;
@@ -191,7 +193,7 @@ class OccasionCardView extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: t.primaryColor,
+        color: backgroundColor ?? t.primaryColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: t.secondaryColor, width: 1.5),
         boxShadow: const [

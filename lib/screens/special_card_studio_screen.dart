@@ -14,8 +14,10 @@ import '../models/album_models.dart';
 import '../services/album_storage.dart';
 import '../theme/albumium_app_theme.dart';
 import '../widgets/album_page_canvas.dart';
+import '../widgets/element_edit_panel.dart';
 import '../widgets/font_selector_dialog.dart';
 import '../widgets/handmade_craft.dart';
+import '../widgets/handwriting_painter.dart';
 import '../widgets/occasion_cards.dart';
 import '../widgets/photo_style_picker.dart';
 import '../widgets/photo_crop_editor.dart';
@@ -223,47 +225,48 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
   Future<void> _addPhoto() async {
     final photos = await PhotoSelectionService.pick(context);
     if (photos.isEmpty || !mounted) return;
-    final picked = photos.first;
-    String path;
-    Size size;
-    try {
-      path = await AlbumStorage.instance.importImage(picked);
-      final info = await loadAlbumPhoto(path);
-      size = albumPhotoSize(
-        info.image.width / info.image.height,
-        maxWidth: .64,
-      );
-      info.dispose();
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              context.tr('Fotoğraf açılamadı. Lütfen tekrar dene.'),
-            ),
-          ),
+    for (final picked in photos) {
+      String path;
+      Size size;
+      try {
+        path = await AlbumStorage.instance.importImage(picked);
+        final info = await loadAlbumPhoto(path);
+        size = albumPhotoSize(
+          info.image.width / info.image.height,
+          maxWidth: .64,
         );
+        info.dispose();
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                context.tr('Fotoğraf açılamadı. Lütfen tekrar dene.'),
+              ),
+            ),
+          );
+        }
+        continue;
       }
-      return;
+      if (!mounted) return;
+      setState(() {
+        final element = AlbumElementModel(
+          id: newId(),
+          type: AlbumElementType.photo,
+          content: path,
+          x: (1 - size.width) / 2,
+          y: (1 - size.height) / 2,
+          width: size.width,
+          height: size.height,
+          photoCrop: fullPhotoCrop,
+          rotation: -.025,
+          frameStyle: 1,
+        );
+        page.elements.add(element);
+        _selectedId = element.id;
+      });
+      _changed();
     }
-    if (!mounted) return;
-    setState(() {
-      final element = AlbumElementModel(
-        id: newId(),
-        type: AlbumElementType.photo,
-        content: path,
-        x: (1 - size.width) / 2,
-        y: (1 - size.height) / 2,
-        width: size.width,
-        height: size.height,
-        photoCrop: fullPhotoCrop,
-        rotation: -.025,
-        frameStyle: 1,
-      );
-      page.elements.add(element);
-      _selectedId = element.id;
-    });
-    _changed();
   }
 
   Future<void> _cropSelectedPhoto() async {
@@ -273,6 +276,81 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
       setState(() {});
       _changed();
     }
+  }
+
+  Future<void> _addHandwriting() async {
+    final drawingData = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const HandwritingCanvasDialog(),
+        fullscreenDialog: true,
+      ),
+    );
+    if (drawingData == null || drawingData.isEmpty || !mounted) return;
+
+    final decoded = HandwritingData.decode(drawingData);
+    final ratio = decoded.aspectRatio > 0.05 ? decoded.aspectRatio : 1.0;
+
+    // Preserve the drawing aspect on the 5:7 card.
+    const baseHeight = 0.28;
+    final baseWidth = (baseHeight * ratio * (7.0 / 5.0)).clamp(0.25, 0.85);
+
+    setState(() {
+      final element = AlbumElementModel(
+        id: newId(),
+        type: AlbumElementType.drawing,
+        content: drawingData,
+        x: (0.5 - baseWidth / 2).clamp(0.05, 0.7),
+        y: 0.35,
+        width: baseWidth,
+        height: baseHeight,
+        rotation: -0.01,
+      );
+      page.elements.add(element);
+      _selectedId = element.id;
+    });
+    _changed();
+  }
+
+  Future<void> _addOccasionCard() async {
+    final result = await showModalBottomSheet<OccasionCardPickerResult>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => const OccasionCardPickerSheet(),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      final element = AlbumElementModel(
+        id: newId(),
+        type: AlbumElementType.card,
+        content: result.template.id,
+        extraData: result.customData.encode(),
+        x: 0.08,
+        y: 0.22,
+        width: 0.84,
+        height: 0.28,
+        rotation: 0.01,
+      );
+      page.elements.add(element);
+      _selectedId = element.id;
+    });
+    _changed();
+  }
+
+  Future<void> _editSelectedCard(AlbumElementModel element) async {
+    final customData = await showDialog<OccasionCardCustomData>(
+      context: context,
+      builder: (_) => EditOccasionCardDialog(
+        cardId: element.content,
+        initialDataRaw: element.extraData,
+      ),
+    );
+    if (customData == null || !mounted) return;
+    setState(() {
+      element.extraData = customData.encode();
+    });
+    _changed();
   }
 
   Future<void> _addText() async {
@@ -302,7 +380,31 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
 
   Future<void> _editSelected() async {
     final element = selectedElement;
-    if (element == null || element.type != AlbumElementType.text) return;
+    if (element == null || element.locked) return;
+    if (element.type == AlbumElementType.card) {
+      await _editSelectedCard(element);
+      return;
+    }
+    if (element.type == AlbumElementType.drawing) {
+      setState(() => element.rotation += .18);
+      _changed();
+      return;
+    }
+    if (element.type == AlbumElementType.sticker) {
+      final replacement = await showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (_) => isAlbumShape(element.content)
+            ? const ShapeObjectPickerSheet()
+            : const StickerPackPickerSheet(),
+      );
+      if (replacement == null || !mounted) return;
+      setState(() => element.content = replacement);
+      _changed();
+      return;
+    }
+    if (element.type != AlbumElementType.text) return;
     final result = await showDialog<TextElementResult>(
       context: context,
       builder: (_) => TextEditorDialog(
@@ -397,6 +499,7 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
         textColor: source.textColor,
         fontSize: source.fontSize,
         extraData: source.extraData,
+        cardColor: source.cardColor,
       );
       page.elements.add(copy);
       _selectedId = copy.id;
@@ -554,16 +657,50 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
               builder: (context, constraints) {
                 final sidePanel =
                     constraints.maxWidth >= _cardStudioSidePanelBreakpoint;
-                final controls = _CardControls(
-                  sidePanel: sidePanel,
-                  project: project,
-                  selectedTemplate: template,
-                  onTemplateSelected: _selectTemplate,
-                  onPhoto: _addPhoto,
-                  onText: _addText,
-                  onSticker: _addSticker,
-                  onShape: _addShape,
-                );
+                final controls = selectedElement != null
+                    ? ElementEditPanel(
+                        key: ValueKey(_selectedId),
+                        element: selectedElement!,
+                        onChanged: () {
+                          setState(() {});
+                          _changed();
+                        },
+                        onClose: () => setState(() => _selectedId = null),
+                        onStyle: selectedElement!.type == AlbumElementType.photo
+                            ? _styleSelectedPhoto
+                            : _editSelected,
+                        onCrop: _cropSelectedPhoto,
+                        onDuplicate: _duplicateSelected,
+                        onDelete: _deleteSelected,
+                        canMoveLayer: (action) => canMoveAlbumElementLayer(
+                          page.elements,
+                          _selectedId!,
+                          action,
+                        ),
+                        onLayer: (action) {
+                          setState(
+                            () => moveAlbumElementLayer(
+                              page.elements,
+                              _selectedId!,
+                              action,
+                            ),
+                          );
+                          _changed();
+                        },
+                      )
+                    : _CardControls(
+                        sidePanel: sidePanel,
+                        project: project,
+                        selectedTemplate: template,
+                        onTemplateSelected: _selectTemplate,
+                        onPhoto: _addPhoto,
+                        onText: _addText,
+                        onSticker: _addSticker,
+                        onShape: _addShape,
+                        onColor: _changeCardColor,
+                        onDraw: _addHandwriting,
+                        onCard: _addOccasionCard,
+                      );
                 final canvas = _buildCanvas(tablet: tablet);
 
                 if (sidePanel) {
@@ -590,6 +727,36 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _changeCardColor() async {
+    final color = await showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(context.tr('Kart rengi')),
+        content: Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            for (final color in editorCardColors)
+              IconButton.filledTonal(
+                tooltip: '#${color.toRadixString(16).substring(2)}',
+                style: IconButton.styleFrom(backgroundColor: Color(color)),
+                onPressed: () => Navigator.pop(context, color),
+                icon: Icon(
+                  page.backgroundColor == color
+                      ? Icons.check
+                      : Icons.circle_outlined,
+                  color: Colors.black54,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (color == null || !mounted) return;
+    setState(() => page.backgroundColor = color);
+    _changed();
   }
 
   Widget _buildCanvas({required bool tablet}) {
@@ -636,63 +803,6 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
                 ),
               ),
             ),
-            if (selectedElement != null)
-              Positioned(
-                left: 16,
-                right: 16,
-                bottom: 9,
-                child: Center(
-                  child: Material(
-                    elevation: 3,
-                    shadowColor: Colors.black.withValues(alpha: .15),
-                    borderRadius: BorderRadius.circular(18),
-                    color: AlbumiumAppTheme.colorsOf(context).elevatedSurface,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 5,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (selectedElement!.type == AlbumElementType.photo)
-                            IconButton(
-                              key: const ValueKey('style-card-photo'),
-                              onPressed: _styleSelectedPhoto,
-                              tooltip: context.tr(
-                                'Fotoğraf biçimi ve çerçevesi',
-                              ),
-                              icon: const Icon(Icons.filter_frames_outlined),
-                            ),
-                          if (selectedElement!.type == AlbumElementType.text)
-                            IconButton(
-                              onPressed: _editSelected,
-                              tooltip: context.tr('Metni düzenle'),
-                              icon: const Icon(Icons.edit_rounded),
-                            ),
-                          if (selectedElement!.type == AlbumElementType.photo)
-                            IconButton(
-                              onPressed: _cropSelectedPhoto,
-                              tooltip: context.tr('Fotoğrafı kırp'),
-                              icon: const Icon(Icons.crop_rounded),
-                            ),
-                          IconButton(
-                            onPressed: _duplicateSelected,
-                            tooltip: context.tr('Çoğalt'),
-                            icon: const Icon(Icons.copy_rounded),
-                          ),
-                          IconButton(
-                            onPressed: _deleteSelected,
-                            tooltip: context.tr('Sil'),
-                            color: Theme.of(context).colorScheme.error,
-                            icon: const Icon(Icons.delete_outline_rounded),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
           ],
         );
       },
@@ -710,6 +820,9 @@ class _CardControls extends StatelessWidget {
     required this.onText,
     required this.onSticker,
     required this.onShape,
+    required this.onColor,
+    required this.onDraw,
+    required this.onCard,
   });
 
   final bool sidePanel;
@@ -720,6 +833,9 @@ class _CardControls extends StatelessWidget {
   final VoidCallback onText;
   final VoidCallback onSticker;
   final VoidCallback onShape;
+  final VoidCallback onColor;
+  final VoidCallback onDraw;
+  final VoidCallback onCard;
 
   @override
   Widget build(BuildContext context) {
@@ -756,6 +872,21 @@ class _CardControls extends StatelessWidget {
   Widget _buildContent(BuildContext context) {
     final colors = AlbumiumAppTheme.colorsOf(context);
     final tools = [
+      _CardTool(
+        icon: Icons.draw_outlined,
+        label: context.tr('Çizim'),
+        onTap: onDraw,
+      ),
+      _CardTool(
+        icon: Icons.celebration_outlined,
+        label: context.tr('Özel Kart'),
+        onTap: onCard,
+      ),
+      _CardTool(
+        icon: Icons.palette_outlined,
+        label: context.tr('Renk'),
+        onTap: onColor,
+      ),
       _CardTool(
         icon: Icons.add_photo_alternate_outlined,
         label: context.tr('Fotoğraf'),
@@ -870,9 +1001,14 @@ class _CardControls extends StatelessWidget {
         const SizedBox(height: 12),
         Divider(height: 1, color: colors.border),
         const SizedBox(height: 8),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [for (final tool in tools) Expanded(child: tool)],
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final tool in tools) SizedBox(width: 72, child: tool),
+            ],
+          ),
         ),
         if (sidePanel) ...[
           const SizedBox(height: 18),
