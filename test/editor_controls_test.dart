@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:albumium/models/album_models.dart';
 import 'package:albumium/screens/editor_screen.dart';
 import 'package:flutter/material.dart';
@@ -122,7 +124,7 @@ void main() {
     expect(elements.map((element) => element.id), ['front', 'back', 'middle']);
   });
 
-  testWidgets('scale buttons and reset transform update the selected object', (
+  testWidgets('scale and rotate buttons update the selected object', (
     tester,
   ) async {
     final element = _sticker('transform', '🟣', .35, rotation: .45);
@@ -151,14 +153,14 @@ void main() {
     expect(element.scale, closeTo(albumElementScaleStep, .000001));
     expect(element.rotation, .45);
 
-    await tester.tap(find.byTooltip('Dönüş ve ölçeği sıfırla'));
-    await tester.pump();
-    expect(element.scale, 1);
-    expect(element.rotation, 0);
-
     await tester.tap(find.byTooltip('Küçült'));
     await tester.pump();
-    expect(element.scale, closeTo(1 / albumElementScaleStep, .000001));
+    expect(element.scale, closeTo(1, .000001));
+
+    // One rotate button, one direction: each tap adds a quarter turn.
+    await tester.tap(find.byTooltip('90° döndür'));
+    await tester.pump();
+    expect(element.rotation, closeTo(.45 + math.pi / 2, .000001));
   });
 
   testWidgets('landscape tablet uses the compact single-row inspector', (
