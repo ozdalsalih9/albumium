@@ -76,7 +76,8 @@ void main() {
   });
 
   test('shape objects expose the expanded geometric catalogue', () {
-    expect(albumShapeObjects, hasLength(27));
+    // Twenty-two shapes ship in five colours; four classics ship in three.
+    expect(albumShapeObjects, hasLength(22 * 5 + 4 * 3));
     expect(
       albumShapeObjects.where((value) => value.contains(':circle_')),
       hasLength(5),
