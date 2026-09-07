@@ -33,7 +33,7 @@ void main() {
           .toList(growable: false);
 
       expect(missing, isEmpty);
-      expect(albumShapeObjects, hasLength(27));
+      expect(albumShapeObjects, hasLength(22 * 5 + 4 * 3));
       expect(albumShapeObjects.toSet(), hasLength(albumShapeObjects.length));
     },
   );
@@ -67,7 +67,8 @@ void main() {
     await tester.pumpWidget(_englishApp(const ShapeObjectPickerSheet()));
     await tester.pump();
     expect(find.text('Shape Objects'), findsOneWidget);
-    expect(find.text('Blush circle'), findsOneWidget);
+    // The sheet follows catalogue order, so it opens on the first shape.
+    expect(find.text('Blush Rectangle'), findsOneWidget);
     expect(find.text('Şekil Nesneleri'), findsNothing);
     expect(tester.takeException(), isNull);
 
