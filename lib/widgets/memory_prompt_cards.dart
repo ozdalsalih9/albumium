@@ -2,40 +2,21 @@ import 'package:flutter/material.dart';
 import '../l10n/albumium_localizations.dart';
 import '../models/memory_period.dart';
 
-const _rose = Color(0xFFE9A7AB);
-const _ink = Color(0xFFF6E7DF);
-
 class MemoryPromptCards extends StatelessWidget {
   const MemoryPromptCards({super.key, required this.onSelect});
   final ValueChanged<MemoryKind> onSelect;
+
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, box) {
-      final width = box.maxWidth >= 620 ? (box.maxWidth - 28) / 3 : 230.0;
-      final height =
-          450.0 + (MediaQuery.textScalerOf(context).scale(16) - 16) * 8;
-      return SizedBox(
-        height: height,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final kind in MemoryKind.values)
-                Padding(
-                  padding: EdgeInsets.only(
-                    right: kind == MemoryKind.year ? 0 : 14,
-                  ),
-                  child: SizedBox(
-                    width: width,
-                    child: _MemoryCard(kind: kind, onTap: () => onSelect(kind)),
-                  ),
-                ),
-            ],
-          ),
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      for (final kind in MemoryKind.values) ...[
+        if (kind != MemoryKind.weekend) const SizedBox(width: 8),
+        Expanded(
+          child: _MemoryCard(kind: kind, onTap: () => onSelect(kind)),
         ),
-      );
-    },
+      ],
+    ],
   );
 }
 
@@ -43,6 +24,7 @@ class _MemoryCard extends StatelessWidget {
   const _MemoryCard({required this.kind, required this.onTap});
   final MemoryKind kind;
   final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) {
     final title = switch (kind) {
@@ -50,81 +32,78 @@ class _MemoryCard extends StatelessWidget {
       MemoryKind.month => 'BU AYIN HİKÂYESİ',
       MemoryKind.year => 'YILLIK KİLOMETRE TAŞLARI',
     };
-    final description = switch (kind) {
-      MemoryKind.weekend =>
-        'Küçük kaçamaklar, güzel sofralar… Hafta sonundan sana kalanları biriktir.',
-      MemoryKind.month =>
-        'Bir ay, bir sürü anı. En güzel karelerini kendi hikâyene dönüştür.',
-      MemoryKind.year =>
-        'Yeni başlangıçlar, başarılar ve unutulmaz anlar. Bu yıl senin hikâyen.',
-    };
-    final heading = Text(
-      context.tr(title),
-      textAlign: TextAlign.center,
-      style: const TextStyle(
-        color: _ink,
-        fontSize: 18,
-        fontWeight: FontWeight.w700,
-        height: 1.15,
-      ),
-    );
+    final textScale = MediaQuery.textScalerOf(context);
     return Material(
-      color: const Color(0xFF352C30),
-      borderRadius: BorderRadius.circular(24),
+      color: Theme.of(context).colorScheme.surfaceContainer,
+      borderRadius: BorderRadius.circular(16),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         key: ValueKey('memory-card-${kind.name}'),
         onTap: onTap,
-        child: DecoratedBox(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFF655055)),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
           ),
           child: Column(
             children: [
-              if (kind != MemoryKind.weekend)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-                  child: heading,
-                ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: switch (kind) {
-                    MemoryKind.weekend => const _WeekendArtwork(),
-                    MemoryKind.month => const _MonthArtwork(),
-                    MemoryKind.year => const _YearArtwork(),
-                  },
-                ),
-              ),
-              if (kind == MemoryKind.weekend)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: heading,
-                ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                child: Text(
-                  context.tr(description),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFFC8B7B7),
-                    fontSize: 12,
-                    height: 1.4,
+              SizedBox(
+                height: 76,
+                width: double.infinity,
+                child: FittedBox(
+                  fit: BoxFit.contain,
+                  child: SizedBox(
+                    width: 210,
+                    height: 190,
+                    child: switch (kind) {
+                      MemoryKind.weekend => const _WeekendArtwork(),
+                      MemoryKind.month => const _MonthArtwork(),
+                      MemoryKind.year => const _YearArtwork(),
+                    },
                   ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 18),
-                child: FilledButton.icon(
+              const SizedBox(height: 10),
+              SizedBox(
+                height: textScale.scale(11) * 1.25 * 4,
+                child: Center(
+                  child: Text(
+                    context.tr(title),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      height: 1.25,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
                   onPressed: onTap,
                   style: FilledButton.styleFrom(
-                    backgroundColor: _rose,
-                    foregroundColor: const Color(0xFF392E32),
-                    minimumSize: const Size(110, 44),
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                    minimumSize: const Size(0, 40),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 8,
+                    ),
+                    textStyle: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: Text(context.tr('Ekle')),
+                  child: Text(
+                    '+ ${context.tr('Ekle')}',
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
             ],
@@ -146,13 +125,17 @@ class _MonthArtwork extends StatelessWidget {
           width: box.maxWidth * .66,
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFF4B393F),
+            color: Theme.of(context).colorScheme.secondaryContainer,
             borderRadius: BorderRadius.circular(14),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.calendar_month_outlined, color: _rose, size: 24),
+              Icon(
+                Icons.calendar_month_outlined,
+                color: Theme.of(context).colorScheme.primary,
+                size: 24,
+              ),
               const SizedBox(height: 8),
               for (var row = 0; row < 4; row++)
                 Row(
@@ -166,8 +149,11 @@ class _MonthArtwork extends StatelessWidget {
                           height: 9,
                           decoration: BoxDecoration(
                             color: row == 1 && col == 4
-                                ? _rose
-                                : const Color(0xFF897079),
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context)
+                                      .colorScheme
+                                      .onSecondaryContainer
+                                      .withValues(alpha: .4),
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -177,22 +163,22 @@ class _MonthArtwork extends StatelessWidget {
             ],
           ),
         ),
-        const Positioned(
+        Positioned(
           left: 0,
           top: 2,
           child: _MiniPhoto(asset: 'travel_keepsake', angle: -.18),
         ),
-        const Positioned(
+        Positioned(
           right: 0,
           top: 14,
           child: _MiniPhoto(asset: 'seaside_keepsake', angle: .17),
         ),
-        const Positioned(
+        Positioned(
           left: 2,
           bottom: 4,
           child: _MiniPhoto(asset: 'cafe_keepsake', angle: -.12),
         ),
-        const Positioned(
+        Positioned(
           right: 0,
           bottom: 0,
           child: _MiniPhoto(asset: 'celebration_keepsake', angle: .16),
@@ -214,14 +200,14 @@ class _MiniPhoto extends StatelessWidget {
       height: 55,
       padding: const EdgeInsets.fromLTRB(3, 3, 3, 9),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF0E3),
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(3),
         boxShadow: const [
           BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 3)),
         ],
       ),
       child: ColoredBox(
-        color: const Color(0xFFE8CCD1),
+        color: Theme.of(context).colorScheme.primaryContainer,
         child: Icon(
           switch (asset) {
             'travel_keepsake' => Icons.landscape_outlined,
@@ -230,7 +216,7 @@ class _MiniPhoto extends StatelessWidget {
             'friendship_keepsake' => Icons.favorite_outline,
             _ => Icons.auto_awesome_outlined,
           },
-          color: const Color(0xFF90626F),
+          color: Theme.of(context).colorScheme.onPrimaryContainer,
           size: 24,
         ),
       ),
@@ -256,17 +242,26 @@ class _YearArtwork extends StatelessWidget {
         Expanded(
           child: Row(
             children: [
-              Icon(entry.$1, color: _rose, size: 27),
+              Icon(
+                entry.$1,
+                color: Theme.of(context).colorScheme.primary,
+                size: 27,
+              ),
               const SizedBox(width: 12),
-              Container(width: 1, color: _rose.withValues(alpha: .4)),
+              Container(
+                width: 1,
+                color: Theme.of(
+                  context,
+                ).colorScheme.primary.withValues(alpha: .4),
+              ),
               const SizedBox(width: 12),
               _MiniPhoto(asset: entry.$2),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   context.tr(entry.$3),
-                  style: const TextStyle(
-                    color: Color(0xFFC8B7B7),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 10,
                   ),
                 ),
@@ -289,7 +284,10 @@ class _WeekendArtwork extends StatelessWidget {
         height: 145,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: _rose.withValues(alpha: .18), width: 1),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: .18),
+            width: 1,
+          ),
         ),
       ),
       Transform.rotate(
@@ -299,7 +297,7 @@ class _WeekendArtwork extends StatelessWidget {
           height: 132,
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 24),
           decoration: BoxDecoration(
-            color: const Color(0xFF94717B),
+            color: Theme.of(context).colorScheme.secondaryContainer,
             borderRadius: BorderRadius.circular(9),
           ),
         ),
@@ -311,7 +309,7 @@ class _WeekendArtwork extends StatelessWidget {
           height: 132,
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 24),
           decoration: BoxDecoration(
-            color: const Color(0xFFF0D8D5),
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(9),
             boxShadow: const [
               BoxShadow(
@@ -321,25 +319,33 @@ class _WeekendArtwork extends StatelessWidget {
               ),
             ],
           ),
-          child: const ColoredBox(
-            color: Color(0xFFC699A2),
+          child: ColoredBox(
+            color: Theme.of(context).colorScheme.primaryContainer,
             child: Icon(
               Icons.landscape_outlined,
-              color: Color(0xFFF9E7DF),
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
               size: 64,
             ),
           ),
         ),
       ),
-      const Positioned(
+      Positioned(
         right: 10,
         top: 12,
-        child: Icon(Icons.auto_awesome, color: _rose, size: 24),
+        child: Icon(
+          Icons.auto_awesome,
+          color: Theme.of(context).colorScheme.primary,
+          size: 24,
+        ),
       ),
-      const Positioned(
+      Positioned(
         left: 4,
         bottom: 12,
-        child: Icon(Icons.favorite, color: _rose, size: 22),
+        child: Icon(
+          Icons.favorite,
+          color: Theme.of(context).colorScheme.primary,
+          size: 22,
+        ),
       ),
     ],
   );
