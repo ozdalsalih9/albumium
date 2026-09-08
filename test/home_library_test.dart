@@ -24,7 +24,7 @@ AlbumModel _project(int index) {
 }
 
 void _seedLibrary() {
-  final projects = List.generate(13, _project);
+  final projects = List.generate(14, _project);
   SharedPreferences.setMockInitialValues({
     _albumsKey: jsonEncode({
       'schemaVersion': 2,
@@ -38,6 +38,21 @@ int _visibleGridItems(WidgetTester tester) {
   return grid.delegate.estimatedChildCount ?? 0;
 }
 
+Future<void> _showLibrary(WidgetTester tester) async {
+  await tester.scrollUntilVisible(
+    find.byKey(const ValueKey('library-search')),
+    260,
+    scrollable: find
+        .descendant(
+          of: find.byType(CustomScrollView),
+          matching: find.byType(Scrollable),
+        )
+        .first,
+  );
+  await tester.drag(find.byType(CustomScrollView), const Offset(0, 120));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   for (final viewport in const [Size(390, 844), Size(1024, 768)]) {
     testWidgets(
@@ -48,15 +63,27 @@ void main() {
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
-        await tester.pumpWidget(const AlbumiumApp(showOnboarding: false, showLaunchAnimation: false));
+        await tester.pumpWidget(
+          const AlbumiumApp(showOnboarding: false, showLaunchAnimation: false),
+        );
         await tester.pumpAndSettle();
+        await _showLibrary(tester);
         await tester.enterText(
           find.byKey(const ValueKey('library-search')),
           'istanbul',
         );
         await tester.pumpAndSettle();
         final item = find.byKey(const ValueKey('library-item-project-0'));
-        await tester.ensureVisible(item);
+        await tester.scrollUntilVisible(
+          item,
+          200,
+          scrollable: find
+              .descendant(
+                of: find.byType(CustomScrollView),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        );
         await tester.pumpAndSettle();
         expect(
           find.byKey(const ValueKey('library-share-project-0')),
@@ -93,9 +120,12 @@ void main() {
     tester,
   ) async {
     _seedLibrary();
-    await tester.pumpWidget(const AlbumiumApp(showOnboarding: false, showLaunchAnimation: false));
+    await tester.pumpWidget(
+      const AlbumiumApp(showOnboarding: false, showLaunchAnimation: false),
+    );
     await tester.pumpAndSettle();
 
+    await _showLibrary(tester);
     expect(find.text('Koleksiyonum'), findsOneWidget);
     expect(_visibleGridItems(tester), 12);
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -2400));
@@ -113,9 +143,12 @@ void main() {
     tester,
   ) async {
     _seedLibrary();
-    await tester.pumpWidget(const AlbumiumApp(showOnboarding: false, showLaunchAnimation: false));
+    await tester.pumpWidget(
+      const AlbumiumApp(showOnboarding: false, showLaunchAnimation: false),
+    );
     await tester.pumpAndSettle();
 
+    await _showLibrary(tester);
     // project-0 is the oldest item, so it starts beyond the first 12 results.
     await tester.enterText(
       find.byKey(const ValueKey('library-search')),
@@ -140,7 +173,9 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(const AlbumiumApp(showOnboarding: false, showLaunchAnimation: false));
+    await tester.pumpWidget(
+      const AlbumiumApp(showOnboarding: false, showLaunchAnimation: false),
+    );
     await tester.pumpAndSettle();
 
     for (final viewport in const <Size>[
@@ -158,6 +193,7 @@ void main() {
             'Home layout should not overflow at '
             '${viewport.width}×${viewport.height}.',
       );
+      await _showLibrary(tester);
       final grid = tester.widget<SliverGrid>(find.byType(SliverGrid));
       expect(
         grid.gridDelegate,
@@ -171,6 +207,8 @@ void main() {
     tester.view.physicalSize = const Size(1366, 900);
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, 2400));
+    await tester.pumpAndSettle();
     expect(
       tester.getSize(find.byKey(const ValueKey('home-hero-content'))).width,
       1280,

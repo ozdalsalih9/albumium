@@ -10,6 +10,13 @@ import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.io.IOException
 import java.util.UUID
+import android.Manifest
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import org.json.JSONObject
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.segmentation.subject.SubjectSegmentation
+import com.google.mlkit.vision.segmentation.subject.SubjectSegmenterOptions
 
 class MainActivity : FlutterActivity() {
     private companion object {
@@ -28,9 +35,60 @@ class MainActivity : FlutterActivity() {
     private var listening = false
     private var pendingPackagePath: String? = null
     private var pendingError: String? = null
+    private var memoryChannel: MethodChannel? = null
+    private var memoryListening = false
+    private var permissionResult: MethodChannel.Result? = null
+
+    private fun memoryPayload(intent: Intent?): Map<String, Any>? {
+        val raw = intent?.getStringExtra(MemoryReminders.EXTRA) ?: return null
+        intent.removeExtra(MemoryReminders.EXTRA)
+        return try {
+            val json = JSONObject(raw)
+            mapOf("kinds" to json.getString("kinds"), "year" to json.getInt("year"), "month" to json.getInt("month"), "day" to json.getInt("day"))
+        } catch (_: Exception) { null }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 730) {
+            permissionResult?.success(grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED)
+            permissionResult = null
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        memoryChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.albumium.albumium/memories").also { bridge ->
+            bridge.setMethodCallHandler { call, result ->
+                when(call.method) {
+                    "initialMemory" -> { memoryListening = true; result.success(memoryPayload(intent)) }
+                    "configure" -> { MemoryReminders.configure(this, call.arguments as Map<*, *>); result.success(null) }
+                    "requestPermission" -> {
+                        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                            if (permissionResult != null) result.error("busy", "Permission request in progress", null)
+                            else { permissionResult = result; requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 730) }
+                        } else result.success(true)
+                    }
+                    "segment" -> {
+                        try {
+                            val input = InputImage.fromFilePath(this, Uri.fromFile(File(call.argument<String>("path")!!)))
+                            val segmenter = SubjectSegmentation.getClient(SubjectSegmenterOptions.Builder().enableForegroundBitmap().build())
+                            segmenter.process(input).addOnSuccessListener { output ->
+                                try {
+                                    val bitmap = output.foregroundBitmap ?: throw IOException("No foreground")
+                                    val file = File(cacheDir, "sticker_${UUID.randomUUID()}.png")
+                                    file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                                    result.success(file.path)
+                                } catch (error: Exception) { result.error("segmentation_failed", error.message, null) }
+                                finally { segmenter.close() }
+                            }.addOnFailureListener { error -> segmenter.close(); result.error("segmentation_unavailable", error.message, null) }
+                        } catch (error: Exception) { result.error("segmentation_unavailable", error.message, null) }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+        }
+        MemoryReminders.schedule(this)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
             "com.albumium.albumium/app_support").setMethodCallHandler { call, result ->
             if (call.method == "openPrivacyPolicy") {
@@ -69,6 +127,7 @@ class MainActivity : FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (memoryListening) memoryPayload(intent)?.let { memoryChannel?.invokeMethod("openMemory", it) }
         handleIncomingIntent(intent)
     }
 

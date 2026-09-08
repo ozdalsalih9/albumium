@@ -1,3 +1,4 @@
+import 'personal_sticker_storage.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
@@ -124,9 +125,18 @@ class AlbumPackageService {
     await exportDirectory.create(recursive: true);
     await _cleanupOldPackageExports(exportDirectory);
 
-    final photoSources = <String>[];
+    final photoSources = <String>[
+      if (album.coverPhotoPath != null) album.coverPhotoPath!,
+    ];
+    final transparentSources = <String>{};
     for (final page in album.pages) {
       for (final element in page.elements) {
+        if (element.type == AlbumElementType.sticker &&
+            isPersonalSticker(element.content)) {
+          final path = personalStickerPath(element.content);
+          transparentSources.add(path);
+          if (!photoSources.contains(path)) photoSources.add(path);
+        }
         if (element.type == AlbumElementType.photo &&
             element.content.trim().isNotEmpty &&
             !photoSources.contains(element.content)) {
@@ -159,13 +169,15 @@ class AlbumPackageService {
         }
         originalMediaBytes += sourceLength;
         final original = await sourceFile.readAsBytes();
-        final optimized = await Isolate.run<Uint8List?>(() {
-          return _optimizeAlbumPhoto(
-            original,
-            longEdge: _photoLongEdge,
-            quality: _jpegQuality,
-          );
-        });
+        final optimized = transparentSources.contains(source)
+            ? null
+            : await Isolate.run<Uint8List?>(() {
+                return _optimizeAlbumPhoto(
+                  original,
+                  longEdge: _photoLongEdge,
+                  quality: _jpegQuality,
+                );
+              });
         final outputBytes = optimized ?? original;
         if (outputBytes.length > maxMediaFileBytes) {
           throw AlbumPackageException(AlbumPackageFailure.tooLarge, source);
@@ -195,10 +207,21 @@ class AlbumPackageService {
 
       final albumJson = _deepJsonMap(album.toJson())
         ..remove('importFingerprint');
+      if (album.coverPhotoPath != null) {
+        albumJson['coverPhotoPath'] = sourceToPackagePath[album.coverPhotoPath];
+      }
       final pages = albumJson['pages']! as List<dynamic>;
       for (final page in pages.cast<Map<String, dynamic>>()) {
         final elements = page['elements']! as List<dynamic>;
         for (final element in elements.cast<Map<String, dynamic>>()) {
+          if (element['type'] == AlbumElementType.sticker.name &&
+              isPersonalSticker(element['content'] as String)) {
+            final old = element['content'] as String;
+            element['content'] = relocatePersonalSticker(
+              old,
+              sourceToPackagePath[personalStickerPath(old)]!,
+            );
+          }
           if (element['type'] == AlbumElementType.photo.name) {
             final source = element['content'] as String;
             final packagePath = sourceToPackagePath[source];
@@ -401,10 +424,28 @@ class AlbumPackageService {
       }
 
       final albumJson = _deepJsonMap(albumRaw);
+      if (albumJson['coverPhotoPath'] != null) {
+        final cover = extractedPaths[albumJson['coverPhotoPath']];
+        if (cover == null) {
+          throw const AlbumPackageException(AlbumPackageFailure.corruptMedia);
+        }
+        albumJson['coverPhotoPath'] = cover;
+      }
       final pages = albumJson['pages']! as List<dynamic>;
       for (final page in pages.cast<Map<String, dynamic>>()) {
         final elements = page['elements']! as List<dynamic>;
         for (final element in elements.cast<Map<String, dynamic>>()) {
+          if (element['type'] == AlbumElementType.sticker.name &&
+              isPersonalSticker(element['content'] as String)) {
+            final old = element['content'] as String;
+            final path = extractedPaths[personalStickerPath(old)];
+            if (path == null) {
+              throw const AlbumPackageException(
+                AlbumPackageFailure.corruptMedia,
+              );
+            }
+            element['content'] = relocatePersonalSticker(old, path);
+          }
           if (element['type'] != AlbumElementType.photo.name) continue;
           final mediaPath = element['content'];
           final extractedPath = extractedPaths[mediaPath];
@@ -480,6 +521,12 @@ class AlbumPackageService {
         for (final element in page.elements) {
           final content = element.type == AlbumElementType.photo
               ? await copyPhoto(element.content)
+              : element.type == AlbumElementType.sticker &&
+                    isPersonalSticker(element.content)
+              ? relocatePersonalSticker(
+                  element.content,
+                  await copyPhoto(personalStickerPath(element.content)),
+                )
               : element.content;
           elements.add(
             AlbumElementModel(
@@ -496,6 +543,7 @@ class AlbumPackageService {
               photoShape: element.photoShape,
               photoCrop: element.photoCrop,
               textColor: element.textColor,
+              textAlign: element.textAlign,
               fontSize: element.fontSize,
               extraData: element.extraData,
               locked: element.locked,
@@ -517,6 +565,10 @@ class AlbumPackageService {
         title: preview.album.title,
         importFingerprint: preview.fingerprint,
         themeId: preview.album.themeId,
+        memoryPeriod: preview.album.memoryPeriod,
+        coverPhotoPath: preview.album.coverPhotoPath == null
+            ? null
+            : await copyPhoto(preview.album.coverPhotoPath!),
         bindingType: preview.album.bindingType,
         createdAt: now,
         updatedAt: now,

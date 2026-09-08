@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../l10n/albumium_localizations.dart';
@@ -27,7 +28,52 @@ class AlbumCover extends StatelessWidget {
     final theme = themeById(album.themeId);
     final subtitle = context.tr(theme.subtitle);
 
-    final Widget coverWidget = theme.coverAsset != null
+    final Widget coverWidget = album.coverPhotoPath != null
+        ? GestureDetector(
+            onTap: onTap,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.file(
+                    File(album.coverPhotoPath!),
+                    fit: BoxFit.cover,
+                    cacheWidth: compact ? 600 : 1200,
+                    errorBuilder: (_, _, _) =>
+                        ColoredBox(color: theme.coverStart),
+                  ),
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Colors.transparent, Color(0xCC000000)],
+                      ),
+                    ),
+                  ),
+                  if (showTitle)
+                    Align(
+                      alignment: Alignment.bottomLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.all(18),
+                        child: Text(
+                          visualTitle,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          )
+        : theme.coverAsset != null
         ? _OrnateAssetCover(
             assetPath: theme.coverAsset!,
             title: visualTitle,

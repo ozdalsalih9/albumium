@@ -19,6 +19,7 @@ abstract final class PhotoSelectionService {
   static Future<List<XFile>> pick(
     BuildContext context, {
     bool multiple = false,
+    bool preserveTransparency = false,
   }) async {
     if (_busy) return [];
     _busy = true;
@@ -65,8 +66,8 @@ abstract final class PhotoSelectionService {
       }
       final file = await picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 94,
-        maxWidth: 2800,
+        imageQuality: preserveTransparency ? null : 94,
+        maxWidth: preserveTransparency ? null : 2800,
         requestFullMetadata: false,
       );
       return file == null ? [] : [file];

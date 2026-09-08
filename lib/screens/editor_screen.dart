@@ -1,3 +1,4 @@
+import 'personal_stickers_screen.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -345,32 +346,6 @@ class _EditorScreenState extends State<EditorScreen>
     _changed();
   }
 
-  Future<void> _addOccasionCard() async {
-    final result = await showModalBottomSheet<OccasionCardPickerResult>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => const OccasionCardPickerSheet(),
-    );
-    if (result == null || !mounted) return;
-    setState(() {
-      final element = AlbumElementModel(
-        id: newId(),
-        type: AlbumElementType.card,
-        content: result.template.id,
-        extraData: result.customData.encode(),
-        x: 0.08,
-        y: 0.22,
-        width: 0.84,
-        height: 0.28,
-        rotation: 0.01,
-      );
-      page.elements.add(element);
-      _selectedId = element.id;
-    });
-    _changed();
-  }
-
   Future<void> _editSelectedCard(AlbumElementModel element) async {
     final customData = await showDialog<OccasionCardCustomData>(
       context: context,
@@ -386,25 +361,34 @@ class _EditorScreenState extends State<EditorScreen>
     _changed();
   }
 
-  Future<void> _addSticker() async {
-    final sticker = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) => const StickerPackPickerSheet(),
-    );
+  Future<void> _addSticker({bool personal = false}) async {
+    final String? sticker;
+    if (personal) {
+      sticker = await Navigator.push<String>(
+        context,
+        MaterialPageRoute(builder: (_) => const PersonalStickersScreen()),
+      );
+    } else {
+      sticker = await showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (_) => const StickerPackPickerSheet(),
+      );
+    }
     if (sticker == null || !mounted) return;
-    final size = _stickerSize(sticker);
+    final chosenSticker = sticker;
+    final size = _stickerSize(chosenSticker);
     setState(() {
       final element = AlbumElementModel(
         id: newId(),
         type: AlbumElementType.sticker,
-        content: sticker,
+        content: chosenSticker,
         x: (0.5 - size.width / 2).clamp(0.04, 0.84),
         y: 0.12,
         width: size.width,
         height: size.height,
-        rotation: _stickerRotation(sticker),
+        rotation: _stickerRotation(chosenSticker),
       );
       page.elements.add(element);
       _selectedId = element.id;
@@ -533,6 +517,7 @@ class _EditorScreenState extends State<EditorScreen>
               photoShape: e.photoShape,
               photoCrop: e.photoCrop,
               textColor: e.textColor,
+              textAlign: e.textAlign,
               fontSize: e.fontSize,
               extraData: e.extraData,
             ),
@@ -746,6 +731,7 @@ class _EditorScreenState extends State<EditorScreen>
         photoShape: selected.photoShape,
         photoCrop: selected.photoCrop,
         textColor: selected.textColor,
+        textAlign: selected.textAlign,
         fontSize: selected.fontSize,
         extraData: selected.extraData,
         cardColor: selected.cardColor,
@@ -1045,8 +1031,8 @@ class _EditorScreenState extends State<EditorScreen>
                     onPhoto: _addPhotos,
                     onText: _addText,
                     onDraw: _addHandwriting,
-                    onCard: _addOccasionCard,
                     onSticker: _addSticker,
+                    onPersonalSticker: () => _addSticker(personal: true),
                     onShape: _addShape,
                     onBackground: _changeBackground,
                     onPage: _addPage,
@@ -1176,8 +1162,8 @@ class _MainToolbar extends StatelessWidget {
     required this.onPhoto,
     required this.onText,
     required this.onDraw,
-    required this.onCard,
     required this.onSticker,
+    required this.onPersonalSticker,
     required this.onShape,
     required this.onBackground,
     required this.onPage,
@@ -1186,8 +1172,8 @@ class _MainToolbar extends StatelessWidget {
   final VoidCallback onPhoto;
   final VoidCallback onText;
   final VoidCallback onDraw;
-  final VoidCallback onCard;
   final VoidCallback onSticker;
+  final VoidCallback onPersonalSticker;
   final VoidCallback onShape;
   final VoidCallback onBackground;
   final VoidCallback onPage;
@@ -1227,9 +1213,9 @@ class _MainToolbar extends StatelessWidget {
                     onTap: onDraw,
                   ),
                   _Tool(
-                    icon: Icons.card_membership_rounded,
-                    label: context.tr('Özel Kart'),
-                    onTap: onCard,
+                    icon: Icons.add_reaction_outlined,
+                    label: context.tr('Sticker'),
+                    onTap: onPersonalSticker,
                   ),
                   _Tool(
                     icon: Icons.auto_awesome_outlined,

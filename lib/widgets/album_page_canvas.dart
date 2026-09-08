@@ -498,6 +498,7 @@ class _AlbumElementViewState extends State<_AlbumElementView> {
           padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 3),
           child: _FittedAlbumText(
             text: element.content,
+            textAlign: element.textAlign,
             style: _getTextStyle(element),
           ),
         );
@@ -1589,7 +1590,12 @@ class _PhotoTape extends StatelessWidget {
 /// rectangle. This matters for off-screen MP4 capture where a late Google Font
 /// swap previously changed the line metrics and clipped the last line.
 class _FittedAlbumText extends StatelessWidget {
-  const _FittedAlbumText({required this.text, required this.style});
+  const _FittedAlbumText({
+    required this.text,
+    required this.style,
+    required this.textAlign,
+  });
+  final TextAlign textAlign;
 
   final String text;
   final TextStyle style;
@@ -1605,7 +1611,8 @@ class _FittedAlbumText extends StatelessWidget {
             width: constraints.maxWidth,
             child: Text(
               text,
-              textAlign: TextAlign.center,
+              key: ValueKey((text, style, textAlign)),
+              textAlign: textAlign,
               maxLines: 12,
               softWrap: true,
               overflow: TextOverflow.visible,

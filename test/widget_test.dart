@@ -16,7 +16,7 @@ void main() {
 
     expect(find.text('Anılarına hoş geldin'), findsOneWidget);
     expect(find.text('ALBUMIUM'), findsNothing);
-    expect(find.text('Tasarım oluştur'), findsOneWidget);
+    expect(find.text('Yeni tasarım'), findsWidgets);
     expect(
       find.image(const AssetImage('assets/branding/albumium_brand_mark.png')),
       findsOneWidget,
@@ -24,12 +24,10 @@ void main() {
 
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -180));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Tasarım oluştur'));
+    await tester.tap(find.text('Yeni tasarım').first);
     await tester.pumpAndSettle();
 
-    expect(find.text('Ne tasarlamak istersin?'), findsOneWidget);
-    await tester.tap(find.text('Fiziksel Albüm'));
-    await tester.pumpAndSettle();
+    expect(find.text('Ne tasarlamak istersin?'), findsNothing);
     expect(find.text('Hangi hikâyeyi anlatıyoruz?'), findsOneWidget);
     expect(find.byType(TextField), findsOneWidget);
   });
