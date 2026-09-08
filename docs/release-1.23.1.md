@@ -3,6 +3,7 @@
 - Replaces the three plain memory prompts with coordinated dark cards, rose accents and an Add action. Weekend memory frames, a monthly calendar and yearly milestones are drawn with native Flutter widgets and icons; no photographic background asset is included.
 - Displays all three cards on wider screens and a readable horizontal strip on phones. Card height accommodates larger text.
 - Moves personal sticker access out of Decorations to its own Sticker action immediately after handwriting in the album toolbar, with matching access in the card studio.
+- Places Friday and religious holiday cards last in the catalog; replaces the geometric ornament with a crescent moon.
 - Includes the previously prepared 1.23.0 memory, reminder, card and sticker features.
 
 Validation: responsive card selection and direct sticker navigation tests; full Flutter suite and static analysis. Signed release APK delivery path: `dist/Albumium-1.23.1.apk`.

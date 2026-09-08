@@ -52,7 +52,7 @@ void main() {
     expect(find.text('Add Occasion Card'), findsOneWidget);
     expect(find.text('Happy Birthday!'), findsOneWidget);
     expect(find.text('Birthday'), findsWidgets);
-    expect(find.text('Blessed Friday'), findsOneWidget);
+    expect(find.text('Your Day'), findsOneWidget);
     expect(find.text('İyi ki Doğdun!'), findsNothing);
     expect(tester.takeException(), isNull);
   });

@@ -61,13 +61,17 @@ class CardArtwork extends CustomPainter {
           );
         }
         for (final center in [const Offset(250, 110), const Offset(250, 598)]) {
-          for (var i = 0; i < 8; i++) {
-            canvas.save();
-            canvas.translate(center.dx, center.dy);
-            canvas.rotate(i * math.pi / 4);
-            canvas.drawRect(const Rect.fromLTWH(-25, -25, 50, 50), pen);
-            canvas.restore();
-          }
+          final moon = Path.combine(
+            PathOperation.difference,
+            Path()..addOval(Rect.fromCircle(center: center, radius: 27)),
+            Path()..addOval(
+              Rect.fromCircle(
+                center: center + const Offset(13, -7),
+                radius: 24,
+              ),
+            ),
+          );
+          canvas.drawPath(moon, Paint()..color = accent.withValues(alpha: .8));
         }
       case 'arch':
         final arch = Path()

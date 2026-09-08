@@ -144,6 +144,13 @@ void main() {
     expect(card.memoryPeriod, isNull);
     expect(occasionTemplateById('birthday').id, 'birthday');
     expect(occasionCardTemplates, hasLength(18));
+    expect(occasionCardTemplates.first.category, 'Doğum günü');
+    expect(
+      occasionCardTemplates
+          .skip(15)
+          .every((t) => t.category == 'Cuma ve bayram'),
+      isTrue,
+    );
     expect(occasionCardTemplates.map((t) => t.category).toSet(), hasLength(6));
     expect(
       createSpecialCardProject(
@@ -268,9 +275,9 @@ void main() {
       MaterialApp(home: SpecialCardStudioScreen(project: project)),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('İyi Bayramlar').last);
+    await tester.tap(find.text('Senin Günün').last);
     await tester.pumpAndSettle();
-    expect(project.cardThemeId, 'eid_garden');
+    expect(project.cardThemeId, 'birthday_flower');
     expect(project.pages.first.elements.first.y, .15);
     expect(project.pages.first.elements[1].content, 'Hayırlı Cumalar, ailem!');
     await tester.pumpWidget(const SizedBox());
