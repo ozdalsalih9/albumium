@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../models/album_models.dart';
+import 'occasion_cards.dart';
+import 'card_artwork.dart';
 
 /// Theme-specific, asset-free page ornamentation shared by the editor,
 /// physical preview and exported video frames.
@@ -18,6 +20,14 @@ class ThemePageDecoration extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (theme.id.startsWith('special_card_')) {
+      final template = occasionTemplateById(theme.id.substring(13));
+      if (template.layout != 'classic') {
+        return IgnorePointer(
+          child: CustomPaint(painter: CardArtwork(template)),
+        );
+      }
+    }
     return IgnorePointer(
       child: CustomPaint(
         key: ValueKey('page-style-${theme.id}'),

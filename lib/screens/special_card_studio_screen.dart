@@ -1,3 +1,4 @@
+import 'personal_stickers_screen.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -6,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/photo_selection_service.dart';
+import '../services/card_template_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -57,44 +59,60 @@ AlbumModel createSpecialCardProject({
 List<AlbumElementModel> _defaultCardElements(
   OccasionCardTemplate template,
   String Function(String text) localize,
-) => [
-  AlbumElementModel(
-    id: '$_cardRoleBadge${newId()}',
-    type: AlbumElementType.text,
-    content: '${template.emoji}  ${localize(template.badge)}',
-    extraData: 'Inter',
-    x: .16,
-    y: .15,
-    width: .68,
-    height: .08,
-    fontSize: 12,
-    textColor: template.accentColor.toARGB32(),
-  ),
-  AlbumElementModel(
-    id: '$_cardRoleTitle${newId()}',
-    type: AlbumElementType.text,
-    content: localize(template.title),
-    extraData: 'Cormorant Garamond',
-    x: .10,
-    y: .31,
-    width: .80,
-    height: .18,
-    fontSize: 31,
-    textColor: const Color(0xFF2C2520).toARGB32(),
-  ),
-  AlbumElementModel(
-    id: '$_cardRoleMessage${newId()}',
-    type: AlbumElementType.text,
-    content: localize(template.subtitle),
-    extraData: 'Inter',
-    x: .13,
-    y: .57,
-    width: .74,
-    height: .16,
-    fontSize: 17,
-    textColor: const Color(0xFF645850).toARGB32(),
-  ),
-];
+) => template.layout == 'blank'
+    ? []
+    : [
+        AlbumElementModel(
+          id: '$_cardRoleBadge${newId()}',
+          type: AlbumElementType.text,
+          content: template.layout == 'classic'
+              ? '${template.emoji}  ${localize(template.badge)}'
+              : localize(template.badge),
+          extraData: 'Inter',
+          x: .16,
+          y: template.layout == 'photo'
+              ? .055
+              : ['geometric', 'arch'].contains(template.layout)
+              ? .22
+              : .15,
+          width: .68,
+          height: .08,
+          fontSize: 12,
+          textColor: template.accentColor.toARGB32(),
+        ),
+        AlbumElementModel(
+          id: '$_cardRoleTitle${newId()}',
+          type: AlbumElementType.text,
+          content: localize(template.title),
+          extraData: 'Cormorant Garamond',
+          x: .10,
+          y: template.layout == 'photo'
+              ? .63
+              : template.layout == 'editorial'
+              ? .22
+              : .31,
+          width: .80,
+          height: .18,
+          fontSize: template.layout == 'editorial' ? 37 : 31,
+          textColor: const Color(0xFF2C2520).toARGB32(),
+        ),
+        AlbumElementModel(
+          id: '$_cardRoleMessage${newId()}',
+          type: AlbumElementType.text,
+          content: localize(template.subtitle),
+          extraData: 'Inter',
+          x: .13,
+          y: template.layout == 'photo'
+              ? .81
+              : template.layout == 'editorial'
+              ? .50
+              : .57,
+          width: .74,
+          height: template.layout == 'photo' ? .11 : .16,
+          fontSize: 17,
+          textColor: const Color(0xFF645850).toARGB32(),
+        ),
+      ];
 
 AlbumThemePreset specialCardThemeFor(OccasionCardTemplate template) =>
     AlbumThemePreset(
@@ -173,18 +191,33 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
     setState(() {
       project.cardThemeId = next.id;
       page.backgroundColor = next.primaryColor.toARGB32();
-      final badge = page.elements.where((e) => e.id.startsWith(_cardRoleBadge));
-      final title = page.elements.where((e) => e.id.startsWith(_cardRoleTitle));
-      final message = page.elements.where(
-        (e) => e.id.startsWith(_cardRoleMessage),
-      );
-      if (badge.isNotEmpty) {
-        badge.first
-          ..content = '${next.emoji}  ${context.tr(next.badge)}'
-          ..textColor = next.accentColor.toARGB32();
+      // A theme changes visual styling, never the user's wording.
+      for (final element in page.elements.where(
+        (e) => e.type == AlbumElementType.text,
+      )) {
+        element.textColor = next.accentColor.toARGB32();
       }
-      if (title.isNotEmpty) title.first.content = context.tr(next.title);
-      if (message.isNotEmpty) message.first.content = context.tr(next.subtitle);
+      final defaults = _defaultCardElements(next, context.tr);
+      for (final role in [_cardRoleBadge, _cardRoleTitle, _cardRoleMessage]) {
+        final desired = defaults.where(
+          (element) => element.id.startsWith(role),
+        );
+        if (desired.isEmpty) continue;
+        final existing = page.elements.where(
+          (element) => element.id.startsWith(role),
+        );
+        if (existing.isEmpty) {
+          page.elements.add(desired.first);
+        } else {
+          final layout = desired.first;
+          existing.first
+            ..x = layout.x
+            ..y = layout.y
+            ..width = layout.width
+            ..height = layout.height
+            ..fontSize = layout.fontSize;
+        }
+      }
       _selectedId = null;
     });
     _changed();
@@ -254,10 +287,10 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
           id: newId(),
           type: AlbumElementType.photo,
           content: path,
-          x: (1 - size.width) / 2,
-          y: (1 - size.height) / 2,
-          width: size.width,
-          height: size.height,
+          x: template.layout == 'photo' ? .172 : (1 - size.width) / 2,
+          y: template.layout == 'photo' ? .216 : (1 - size.height) / 2,
+          width: template.layout == 'photo' ? .656 : size.width,
+          height: template.layout == 'photo' ? .323 : size.height,
           photoCrop: fullPhotoCrop,
           rotation: -.025,
           frameStyle: 1,
@@ -441,13 +474,21 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
     _changed();
   }
 
-  Future<void> _addSticker() async {
-    final sticker = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => const StickerPackPickerSheet(),
-    );
+  Future<void> _addSticker({bool personal = false}) async {
+    final String? sticker;
+    if (personal) {
+      sticker = await Navigator.push<String>(
+        context,
+        MaterialPageRoute(builder: (_) => const PersonalStickersScreen()),
+      );
+    } else {
+      sticker = await showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (_) => const StickerPackPickerSheet(),
+      );
+    }
     if (sticker != null && mounted) _insertDecoration(sticker);
   }
 
@@ -497,6 +538,7 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
         photoShape: source.photoShape,
         photoCrop: source.photoCrop,
         textColor: source.textColor,
+        textAlign: source.textAlign,
         fontSize: source.fontSize,
         extraData: source.extraData,
         cardColor: source.cardColor,
@@ -627,6 +669,71 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
             ),
           ),
           actions: [
+            PopupMenuButton<String>(
+              onSelected: (value) async {
+                if (value == 'save') {
+                  try {
+                    await CardTemplateStorage.save(project);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(context.tr('Şablon kaydedildi')),
+                        ),
+                      );
+                    }
+                  } catch (_) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            context.tr('Kaydedilemedi. Tekrar dene.'),
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                } else if (value == 'reset') {
+                  final reset = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: Text(context.tr('Tasarımı sıfırla?')),
+                      content: Text(
+                        context.tr('Bu karttaki düzenlemeler silinecek.'),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text(context.tr('Vazgeç')),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: Text(context.tr('Sıfırla')),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (reset == true && mounted) {
+                    setState(() {
+                      page.elements
+                        ..clear()
+                        ..addAll(_defaultCardElements(template, context.tr));
+                      _selectedId = null;
+                    });
+                    _changed();
+                  }
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'save',
+                  child: Text(context.tr('Şablonum olarak kaydet')),
+                ),
+                PopupMenuItem(
+                  value: 'reset',
+                  child: Text(context.tr('Tasarımı sıfırla')),
+                ),
+              ],
+            ),
             IconButton.filledTonal(
               onPressed: _sharing ? null : _shareCard,
               tooltip: context.tr('PNG paylaş'),
@@ -696,6 +803,7 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
                         onPhoto: _addPhoto,
                         onText: _addText,
                         onSticker: _addSticker,
+                        onPersonalSticker: () => _addSticker(personal: true),
                         onShape: _addShape,
                         onColor: _changeCardColor,
                         onDraw: _addHandwriting,
@@ -819,6 +927,7 @@ class _CardControls extends StatelessWidget {
     required this.onPhoto,
     required this.onText,
     required this.onSticker,
+    required this.onPersonalSticker,
     required this.onShape,
     required this.onColor,
     required this.onDraw,
@@ -832,6 +941,7 @@ class _CardControls extends StatelessWidget {
   final VoidCallback onPhoto;
   final VoidCallback onText;
   final VoidCallback onSticker;
+  final VoidCallback onPersonalSticker;
   final VoidCallback onShape;
   final VoidCallback onColor;
   final VoidCallback onDraw;
@@ -876,6 +986,11 @@ class _CardControls extends StatelessWidget {
         icon: Icons.draw_outlined,
         label: context.tr('Çizim'),
         onTap: onDraw,
+      ),
+      _CardTool(
+        icon: Icons.add_reaction_outlined,
+        label: context.tr('Sticker'),
+        onTap: onPersonalSticker,
       ),
       _CardTool(
         icon: Icons.celebration_outlined,
@@ -969,7 +1084,7 @@ class _CardControls extends StatelessWidget {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              context.tr(card.badge),
+                              context.tr(card.title),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(

@@ -217,6 +217,7 @@ class AlbumElementModel {
     this.photoShape = AlbumPhotoShape.free,
     this.photoCrop,
     this.textColor = 0xFF2B2521,
+    this.textAlign = TextAlign.center,
     this.fontSize = 24,
     this.extraData = '',
     this.locked = false,
@@ -244,6 +245,7 @@ class AlbumElementModel {
   /// the full unit rectangle explicitly shows the entire original image.
   Rect? photoCrop;
   int textColor;
+  TextAlign textAlign;
   double fontSize;
   String
   extraData; // For card subtypes, drawing point strings, or milestone tags
@@ -263,6 +265,7 @@ class AlbumElementModel {
     if (photoCrop case final crop?)
       'photoCrop': [crop.left, crop.top, crop.right, crop.bottom],
     'textColor': textColor,
+    'textAlign': textAlign.name,
     'fontSize': fontSize,
     'extraData': extraData,
     'locked': locked,
@@ -287,6 +290,10 @@ class AlbumElementModel {
           orElse: () => AlbumPhotoShape.free,
         ),
         textColor: json['textColor'] as int? ?? 0xFF2B2521,
+        textAlign: TextAlign.values.firstWhere(
+          (a) => a.name == json['textAlign'],
+          orElse: () => TextAlign.center,
+        ),
         fontSize: (json['fontSize'] as num?)?.toDouble() ?? 24,
         extraData: json['extraData'] as String? ?? '',
         locked: json['locked'] as bool? ?? false,
@@ -401,6 +408,8 @@ class AlbumModel {
     this.projectType = AlbumProjectType.album,
     this.cardThemeId = 'birthday',
     this.importFingerprint,
+    this.memoryPeriod,
+    this.coverPhotoPath,
   });
 
   final String id;
@@ -413,6 +422,8 @@ class AlbumModel {
   AlbumProjectType projectType;
   String cardThemeId;
   String? importFingerprint;
+  String? memoryPeriod;
+  String? coverPhotoPath;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -425,6 +436,8 @@ class AlbumModel {
     'projectType': projectType.name,
     'cardThemeId': cardThemeId,
     if (importFingerprint != null) 'importFingerprint': importFingerprint,
+    if (memoryPeriod != null) 'memoryPeriod': memoryPeriod,
+    if (coverPhotoPath != null) 'coverPhotoPath': coverPhotoPath,
   };
 
   factory AlbumModel.fromJson(Map<String, dynamic> json) => AlbumModel(
@@ -446,6 +459,8 @@ class AlbumModel {
     ),
     cardThemeId: json['cardThemeId'] as String? ?? 'birthday',
     importFingerprint: json['importFingerprint'] as String?,
+    memoryPeriod: json['memoryPeriod'] as String?,
+    coverPhotoPath: json['coverPhotoPath'] as String?,
   );
 }
 

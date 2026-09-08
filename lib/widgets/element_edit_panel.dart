@@ -238,6 +238,27 @@ class _ElementEditPanelState extends State<ElementEditPanel> {
       Icons.rotate_right_rounded,
       () => _change(() => e.rotation += math.pi / 2),
     ),
+    if (e.type == AlbumElementType.text)
+      PopupMenuButton<TextAlign>(
+        tooltip: context.tr('Yazı hizalama'),
+        icon: const Icon(Icons.format_align_center),
+        enabled: !e.locked,
+        onSelected: (value) => _change(() => e.textAlign = value),
+        itemBuilder: (context) => [
+          PopupMenuItem(
+            value: TextAlign.left,
+            child: Text(context.tr('Sola hizala')),
+          ),
+          PopupMenuItem(
+            value: TextAlign.center,
+            child: Text(context.tr('Ortala')),
+          ),
+          PopupMenuItem(
+            value: TextAlign.right,
+            child: Text(context.tr('Sağa hizala')),
+          ),
+        ],
+      ),
     _layerButton(),
     _tool('Kopyala', Icons.content_copy_rounded, widget.onDuplicate),
     _tool(

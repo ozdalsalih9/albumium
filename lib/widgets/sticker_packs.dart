@@ -1,3 +1,5 @@
+import 'dart:io';
+import '../services/personal_sticker_storage.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -9,6 +11,7 @@ const _assetPrefix = 'albumium_asset:';
 const _shapePrefix = 'albumium_shape:';
 
 bool isIllustratedSticker(String value) =>
+    isPersonalSticker(value) ||
     value.startsWith(_illustratedPrefix) ||
     value.startsWith(_assetPrefix) ||
     value.startsWith(_shapePrefix);
@@ -30,6 +33,7 @@ String albumStickerAssetPath(String value) {
 /// bounds are stored as page-relative fractions, so their raw width/height
 /// cannot be used as a visual aspect ratio on a 9:14 page.
 double albumStickerAspectRatio(String value) {
+  if (isPersonalSticker(value)) return personalStickerAspect(value);
   if (isAlbumStickerAsset(value)) {
     return switch (albumStickerAssetPath(value)) {
       'assets/stickers/botanical_keepsake.webp' => .67,
@@ -802,6 +806,14 @@ class AlbumStickerView extends StatelessWidget {
   Widget build(BuildContext context) {
     final english =
         AlbumiumLocalizations.maybeOf(context)?.locale.languageCode == 'en';
+    if (isPersonalSticker(content)) {
+      return Image.file(
+        File(personalStickerPath(content)),
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.high,
+        errorBuilder: (_, _, _) => const Icon(Icons.broken_image_outlined),
+      );
+    }
     if (isAlbumStickerAsset(content)) {
       return Semantics(
         image: true,

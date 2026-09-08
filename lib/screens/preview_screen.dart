@@ -1,3 +1,4 @@
+import '../services/personal_sticker_storage.dart';
 import 'dart:async';
 import '../widgets/reader_zoom_view.dart';
 import 'dart:io';
@@ -331,7 +332,9 @@ class _PreviewScreenState extends State<PreviewScreen>
         AlbumiumLocalizations.maybeOf(context) ??
         const AlbumiumLocalizations(Locale('tr'));
     if (!_preloadedExportPositions.add(previewIndex)) return;
-    final sources = <String>[];
+    final sources = <String>[
+      if (widget.album.coverPhotoPath != null) widget.album.coverPhotoPath!,
+    ];
     final position = _positionFor(previewIndex);
     if (position.closed) {
       final coverAsset = themeById(widget.album.themeId).coverAsset;
@@ -344,6 +347,9 @@ class _PreviewScreenState extends State<PreviewScreen>
         if (element.type == AlbumElementType.photo &&
             element.content.trim().isNotEmpty) {
           sources.add(element.content);
+        } else if (element.type == AlbumElementType.sticker &&
+            isPersonalSticker(element.content)) {
+          sources.add(personalStickerPath(element.content));
         } else if (element.type == AlbumElementType.sticker &&
             isAlbumStickerAsset(element.content)) {
           sources.add(albumStickerAssetPath(element.content));
@@ -378,13 +384,18 @@ class _PreviewScreenState extends State<PreviewScreen>
     final spreadLeft = pageIndex.isEven ? pageIndex : pageIndex - 1;
     if (!_preloadedExportPageSpreads.add(spreadLeft)) return;
 
-    final sources = <String>[];
+    final sources = <String>[
+      if (widget.album.coverPhotoPath != null) widget.album.coverPhotoPath!,
+    ];
     for (final index in {spreadLeft, spreadLeft + 1}) {
       if (index < 0 || index >= widget.album.pages.length) continue;
       for (final element in widget.album.pages[index].elements) {
         if (element.type == AlbumElementType.photo &&
             element.content.trim().isNotEmpty) {
           sources.add(element.content);
+        } else if (element.type == AlbumElementType.sticker &&
+            isPersonalSticker(element.content)) {
+          sources.add(personalStickerPath(element.content));
         } else if (element.type == AlbumElementType.sticker &&
             isAlbumStickerAsset(element.content)) {
           sources.add(albumStickerAssetPath(element.content));

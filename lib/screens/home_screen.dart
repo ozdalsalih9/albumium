@@ -1,3 +1,4 @@
+import '../widgets/memory_prompt_cards.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -15,10 +16,12 @@ import '../widgets/handmade_craft.dart';
 import '../widgets/occasion_cards.dart';
 import '../widgets/privacy_policy_button.dart';
 import 'editor_screen.dart';
+import 'cards_hub.dart';
+import 'memory_album_screen.dart';
+import '../models/memory_period.dart';
+import '../services/reminder_service.dart';
 import 'special_card_studio_screen.dart';
 import 'theme_screen.dart';
-
-enum _CreationKind { album, occasionCard }
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -46,15 +49,22 @@ class _HomeScreenState extends State<HomeScreen> {
   AlbumLibrarySort _librarySort = AlbumLibrarySort.updatedNewest;
   int _visibleAlbumCount = _libraryPageSize;
   bool _loading = true;
+  int _section = 0;
+  bool _openingMemory = false;
 
   @override
   void initState() {
     super.initState();
     _reload();
+    ReminderService.pending.addListener(_onMemoryNotification);
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _onMemoryNotification(),
+    );
   }
 
   @override
   void dispose() {
+    ReminderService.pending.removeListener(_onMemoryNotification);
     _searchController.dispose();
     super.dispose();
   }
@@ -82,7 +92,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _reload() async {
-    final albums = await AlbumStorage.instance.loadAlbums();
+    final albums = (await AlbumStorage.instance.loadAlbums())
+        .where((a) => a.projectType == AlbumProjectType.album)
+        .toList();
     if (!mounted) return;
     setState(() {
       _albums = albums;
@@ -100,26 +112,96 @@ class _HomeScreenState extends State<HomeScreen> {
     await _openAlbum(album);
   }
 
-  Future<void> _createProject() async {
-    HapticFeedback.selectionClick();
-    final kind = await showModalBottomSheet<_CreationKind>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => const _CreationPickerSheet(),
-    );
-    if (kind == null || !mounted) return;
-    if (kind == _CreationKind.album) {
-      await _createAlbum();
-      return;
+  Future<void> _createProject() => _createAlbum();
+
+  Future<void> _onMemoryNotification() async {
+    final data = ReminderService.pending.value;
+    if (data == null || !mounted || _openingMemory) return;
+    ReminderService.pending.value = null;
+    _openingMemory = true;
+    try {
+      final kinds = (data['kinds'] as String)
+          .split(',')
+          .where((k) => MemoryKind.values.any((v) => v.name == k))
+          .map((k) => MemoryKind.values.byName(k))
+          .toList();
+      if (kinds.isEmpty) return;
+      setState(() => _section = 0);
+      final date = DateTime(
+        data['year'] as int,
+        data['month'] as int,
+        data['day'] as int,
+      );
+      final kind = kinds.length == 1
+          ? kinds.first
+          : await showModalBottomSheet<MemoryKind>(
+              context: context,
+              showDragHandle: true,
+              builder: (context) => SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final k in kinds)
+                      ListTile(
+                        title: Text(context.tr(MemoryPeriod(k, date).prompt)),
+                        trailing: const Icon(Icons.arrow_forward),
+                        onTap: () => Navigator.pop(context, k),
+                      ),
+                  ],
+                ),
+              ),
+            );
+      if (kind != null && mounted) {
+        await _startMemory(MemoryPeriod.current(kind, date));
+      }
+    } finally {
+      _openingMemory = false;
+      if (mounted && ReminderService.pending.value != null) {
+        _onMemoryNotification();
+      }
     }
-    final project = createSpecialCardProject(
-      translate: (text) => context.tr(text),
-    );
-    await AlbumStorage.instance.saveAlbum(project);
+  }
+
+  Future<void> _startMemory(MemoryPeriod period) async {
+    final albums = await AlbumStorage.instance.loadAlbums();
     if (!mounted) return;
-    await _openAlbum(project);
+    final matches = albums.where((a) => a.memoryPeriod == period.key).toList();
+    if (matches.isNotEmpty) {
+      final createNew = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(context.tr('Bu döneme ait albümün var')),
+          content: Text(matches.first.title),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(context.tr('Devam et')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(context.tr('Yeni albüm')),
+            ),
+          ],
+        ),
+      );
+      if (createNew == null || !mounted) return;
+      if (!createNew) {
+        await _openAlbum(matches.first);
+        return;
+      }
+    }
+    if (!mounted) return;
+    final album = await Navigator.push<AlbumModel>(
+      context,
+      MaterialPageRoute(builder: (_) => MemoryAlbumScreen(period: period)),
+    );
+    if (album != null && mounted) {
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute(builder: (_) => EditorScreen(album: album)),
+      );
+      await _reload();
+    }
   }
 
   Future<void> _openAlbum(AlbumModel album) async {
@@ -207,218 +289,275 @@ class _HomeScreenState extends State<HomeScreen> {
     final remainingAlbumCount = matchingAlbums.length - visibleAlbums.length;
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: CraftBackdrop(
-        key: const ValueKey('home-velvet-backdrop'),
-        variant: CraftBackdropVariant.velvet,
-        baseColor: colors.background,
-        textureColor: Color.lerp(colors.text, colors.primary, .32),
-        textureIntensity: .48,
-        child: SafeArea(
-          child: CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    horizontalInset,
-                    12,
-                    horizontalInset,
-                    8,
-                  ),
-                  child: Row(
-                    children: [
-                      const Expanded(child: _AlbumiumSignature()),
-                      _LanguageButton(controller: widget.languageController),
-                      const SizedBox(width: 4),
-                      _PaletteButton(
-                        controller: widget.themeController,
-                        onTap: () => showAlbumiumThemePicker(
-                          context,
-                          widget.themeController,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    horizontalInset,
-                    13,
-                    horizontalInset,
-                    27,
-                  ),
-                  child: SizedBox(
-                    key: const ValueKey('home-hero-content'),
-                    width: double.infinity,
-                    child: _HeroPanel(
-                      onCreate: _createProject,
-                      motionEnabled: widget.heroMotionEnabled,
-                    ),
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: horizontalInset),
-                  child: Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          context.tr('Koleksiyonum'),
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(color: colors.text, fontSize: 25),
-                        ),
-                      ),
-                      if (_albums.isNotEmpty) ...[
-                        const SizedBox(width: 12),
-                        Text(
-                          matchingAlbums.length == _albums.length
-                              ? '${_albums.length}'
-                              : '${matchingAlbums.length} / ${_albums.length}',
-                          style: TextStyle(
-                            color: colors.mutedText,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                      if (_albums.isNotEmpty && viewportWidth >= 680) ...[
-                        const Spacer(),
-                        Text(
-                          context.tr('Silmek için basılı tut'),
-                          style: TextStyle(
-                            color: colors.mutedText,
-                            fontSize: 10.5,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-              if (!_loading && _albums.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      horizontalInset,
-                      14,
-                      horizontalInset,
-                      2,
-                    ),
-                    child: _LibraryToolbar(
-                      controller: _searchController,
-                      filter: _libraryFilter,
-                      sort: _librarySort,
-                      onSearchChanged: (_) {
-                        setState(_resetLibraryPage);
-                      },
-                      onClearSearch: () {
-                        setState(() {
-                          _searchController.clear();
-                          _resetLibraryPage();
-                        });
-                      },
-                      onFilterChanged: (filter) {
-                        setState(() {
-                          _libraryFilter = filter;
-                          _resetLibraryPage();
-                        });
-                      },
-                      onSortChanged: (sort) {
-                        setState(() {
-                          _librarySort = sort;
-                          _resetLibraryPage();
-                        });
-                      },
-                    ),
-                  ),
-                ),
-              const SliverToBoxAdapter(
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 22),
-                    child: PrivacyPolicyButton(),
-                  ),
-                ),
-              ),
-              if (_loading)
-                const SliverFillRemaining(
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (_albums.isEmpty)
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: _EmptyState(onCreate: _createProject),
-                )
-              else if (matchingAlbums.isEmpty)
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: _NoLibraryResults(onClear: _clearLibraryQuery),
-                )
-              else
-                SliverPadding(
-                  padding: EdgeInsets.fromLTRB(
-                    horizontalInset,
-                    19,
-                    horizontalInset,
-                    remainingAlbumCount > 0 ? 20 : 112,
-                  ),
-                  sliver: SliverGrid.builder(
-                    gridDelegate:
-                        const SliverGridDelegateWithMaxCrossAxisExtent(
-                          maxCrossAxisExtent: 220,
-                          childAspectRatio: 0.60,
-                          crossAxisSpacing: 17,
-                          mainAxisSpacing: 23,
-                        ),
-                    itemCount: visibleAlbums.length,
-                    itemBuilder: (context, index) {
-                      final album = visibleAlbums[index];
-                      return _AlbumGridItem(
-                        key: ValueKey('library-item-${album.id}'),
-                        album: album,
-                        onTap: () => _openAlbum(album),
-                        onLongPress: () => _delete(album),
-                      );
-                    },
-                  ),
-                ),
-              if (!_loading && remainingAlbumCount > 0)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      horizontalInset,
-                      2,
-                      horizontalInset,
-                      112,
-                    ),
-                    child: Center(
-                      child: OutlinedButton.icon(
-                        key: const ValueKey('library-load-more'),
-                        onPressed: () {
-                          HapticFeedback.selectionClick();
-                          setState(() {
-                            _visibleAlbumCount += _libraryPageSize;
-                          });
-                        },
-                        icon: const Icon(Icons.expand_more_rounded),
-                        label: Text(
-                          context.tr(
-                            'Daha fazla göster ({count})',
-                            values: {'count': remainingAlbumCount},
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _section,
+        onDestinationSelected: (value) {
+          setState(() => _section = value);
+          if (value == 0) _reload();
+        },
+        destinations: [
+          NavigationDestination(
+            icon: const Icon(Icons.auto_stories_outlined),
+            label: context.tr('Albümler'),
           ),
-        ),
+          NavigationDestination(
+            icon: const Icon(Icons.style_outlined),
+            label: context.tr('Kartlar'),
+          ),
+        ],
       ),
-      floatingActionButton: _albums.isEmpty
+      body: _section == 1
+          ? const CardsHub()
+          : CraftBackdrop(
+              key: const ValueKey('home-velvet-backdrop'),
+              variant: CraftBackdropVariant.velvet,
+              baseColor: colors.background,
+              textureColor: Color.lerp(colors.text, colors.primary, .32),
+              textureIntensity: .48,
+              child: SafeArea(
+                child: CustomScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          horizontalInset,
+                          12,
+                          horizontalInset,
+                          8,
+                        ),
+                        child: Row(
+                          children: [
+                            const Expanded(child: _AlbumiumSignature()),
+                            _LanguageButton(
+                              controller: widget.languageController,
+                            ),
+                            const SizedBox(width: 4),
+                            _PaletteButton(
+                              controller: widget.themeController,
+                              onTap: () => showAlbumiumThemePicker(
+                                context,
+                                widget.themeController,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          horizontalInset,
+                          13,
+                          horizontalInset,
+                          27,
+                        ),
+                        child: SizedBox(
+                          key: const ValueKey('home-hero-content'),
+                          width: double.infinity,
+                          child: _HeroPanel(
+                            onCreate: _createProject,
+                            motionEnabled: widget.heroMotionEnabled,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: horizontalInset,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    context.tr('Anılarını biriktir'),
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleLarge,
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: () =>
+                                      showReminderSettings(context),
+                                  tooltip: context.tr('Anı hatırlatmaları'),
+                                  icon: const Icon(
+                                    Icons.notifications_outlined,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            MemoryPromptCards(
+                              onSelect: (kind) => _startMemory(
+                                MemoryPeriod.current(kind, DateTime.now()),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: horizontalInset,
+                        ),
+                        child: Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                context.tr('Koleksiyonum'),
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(
+                                      color: colors.text,
+                                      fontSize: 25,
+                                    ),
+                              ),
+                            ),
+                            if (_albums.isNotEmpty) ...[
+                              const SizedBox(width: 12),
+                              Text(
+                                matchingAlbums.length == _albums.length
+                                    ? '${_albums.length}'
+                                    : '${matchingAlbums.length} / ${_albums.length}',
+                                style: TextStyle(
+                                  color: colors.mutedText,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                            if (_albums.isNotEmpty && viewportWidth >= 680) ...[
+                              const Spacer(),
+                              Text(
+                                context.tr('Silmek için basılı tut'),
+                                style: TextStyle(
+                                  color: colors.mutedText,
+                                  fontSize: 10.5,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (!_loading && _albums.isNotEmpty)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            horizontalInset,
+                            14,
+                            horizontalInset,
+                            2,
+                          ),
+                          child: _LibraryToolbar(
+                            controller: _searchController,
+                            sort: _librarySort,
+                            onSearchChanged: (_) {
+                              setState(_resetLibraryPage);
+                            },
+                            onClearSearch: () {
+                              setState(() {
+                                _searchController.clear();
+                                _resetLibraryPage();
+                              });
+                            },
+                            onSortChanged: (sort) {
+                              setState(() {
+                                _librarySort = sort;
+                                _resetLibraryPage();
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                    const SliverToBoxAdapter(
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 22),
+                          child: PrivacyPolicyButton(),
+                        ),
+                      ),
+                    ),
+                    if (_loading)
+                      const SliverFillRemaining(
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (_albums.isEmpty)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: _EmptyState(onCreate: _createProject),
+                      )
+                    else if (matchingAlbums.isEmpty)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: _NoLibraryResults(onClear: _clearLibraryQuery),
+                      )
+                    else
+                      SliverPadding(
+                        padding: EdgeInsets.fromLTRB(
+                          horizontalInset,
+                          19,
+                          horizontalInset,
+                          remainingAlbumCount > 0 ? 20 : 112,
+                        ),
+                        sliver: SliverGrid.builder(
+                          gridDelegate:
+                              const SliverGridDelegateWithMaxCrossAxisExtent(
+                                maxCrossAxisExtent: 220,
+                                childAspectRatio: 0.60,
+                                crossAxisSpacing: 17,
+                                mainAxisSpacing: 23,
+                              ),
+                          itemCount: visibleAlbums.length,
+                          itemBuilder: (context, index) {
+                            final album = visibleAlbums[index];
+                            return _AlbumGridItem(
+                              key: ValueKey('library-item-${album.id}'),
+                              album: album,
+                              onTap: () => _openAlbum(album),
+                              onLongPress: () => _delete(album),
+                            );
+                          },
+                        ),
+                      ),
+                    if (!_loading && remainingAlbumCount > 0)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            horizontalInset,
+                            2,
+                            horizontalInset,
+                            112,
+                          ),
+                          child: Center(
+                            child: OutlinedButton.icon(
+                              key: const ValueKey('library-load-more'),
+                              onPressed: () {
+                                HapticFeedback.selectionClick();
+                                setState(() {
+                                  _visibleAlbumCount += _libraryPageSize;
+                                });
+                              },
+                              icon: const Icon(Icons.expand_more_rounded),
+                              label: Text(
+                                context.tr(
+                                  'Daha fazla göster ({count})',
+                                  values: {'count': remainingAlbumCount},
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+      floatingActionButton: _section == 1 || _albums.isEmpty
           ? null
           : FloatingActionButton(
               shape: const CircleBorder(),
@@ -434,19 +573,15 @@ class _HomeScreenState extends State<HomeScreen> {
 class _LibraryToolbar extends StatelessWidget {
   const _LibraryToolbar({
     required this.controller,
-    required this.filter,
     required this.sort,
     required this.onSearchChanged,
     required this.onClearSearch,
-    required this.onFilterChanged,
     required this.onSortChanged,
   });
   final TextEditingController controller;
-  final AlbumLibraryFilter filter;
   final AlbumLibrarySort sort;
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onClearSearch;
-  final ValueChanged<AlbumLibraryFilter> onFilterChanged;
   final ValueChanged<AlbumLibrarySort> onSortChanged;
 
   @override
@@ -462,7 +597,7 @@ class _LibraryToolbar extends StatelessWidget {
           textInputAction: TextInputAction.search,
           style: TextStyle(color: colors.text, fontSize: 14),
           decoration: InputDecoration(
-            hintText: context.tr('Albüm veya kart ara'),
+            hintText: context.tr('Albüm ara'),
             prefixIcon: const Icon(Icons.search_rounded, size: 21),
             prefixIconConstraints: const BoxConstraints(
               minWidth: 36,
@@ -491,32 +626,7 @@ class _LibraryToolbar extends StatelessWidget {
         const SizedBox(height: 10),
         Row(
           children: [
-            Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    for (final (value, label) in [
-                      (AlbumLibraryFilter.all, 'Tümü'),
-                      (AlbumLibraryFilter.albums, 'Albümler'),
-                      (AlbumLibraryFilter.cards, 'Kartlar'),
-                    ])
-                      _LibraryFilterTab(
-                        key: ValueKey(
-                          'library-filter-${value == AlbumLibraryFilter.all
-                              ? 'all'
-                              : value == AlbumLibraryFilter.albums
-                              ? 'albums'
-                              : 'cards'}',
-                        ),
-                        label: context.tr(label),
-                        selected: filter == value,
-                        onSelected: () => onFilterChanged(value),
-                      ),
-                  ],
-                ),
-              ),
-            ),
+            const Spacer(),
             PopupMenuButton<AlbumLibrarySort>(
               key: const ValueKey('library-sort'),
               initialValue: sort,
@@ -536,51 +646,6 @@ class _LibraryToolbar extends StatelessWidget {
           ],
         ),
       ],
-    );
-  }
-}
-
-class _LibraryFilterTab extends StatelessWidget {
-  const _LibraryFilterTab({
-    super.key,
-    required this.label,
-    required this.selected,
-    required this.onSelected,
-  });
-  final String label;
-  final bool selected;
-  final VoidCallback onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AlbumiumAppTheme.colorsOf(context);
-    return Semantics(
-      selected: selected,
-      button: true,
-      child: InkWell(
-        onTap: onSelected,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 48),
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 13),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: selected ? colors.primary : Colors.transparent,
-                width: 2,
-              ),
-            ),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: selected ? colors.text : colors.mutedText,
-              fontSize: 13,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -807,7 +872,7 @@ class _HeroPanelState extends State<_HeroPanel>
           ),
           const SizedBox(height: 12),
           Text(
-            context.tr('Albüm ve kartlarını kaldığın yerden düzenle.'),
+            context.tr('Albümlerini kaldığın yerden düzenle.'),
             style: TextStyle(
               color: colors.mutedText,
               fontSize: 14,
@@ -1186,185 +1251,12 @@ class _EmptyState extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 context.tr(
-                  'Gerçek bir albüm oluştur veya temalı bir özel gün kartı tasarla.',
+                  'Fotoğraflarını seç, anılarını bir albümde biriktir.',
                 ),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: colors.mutedText, height: 1.35),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CreationPickerSheet extends StatelessWidget {
-  const _CreationPickerSheet();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AlbumiumAppTheme.colorsOf(context);
-    final tablet = MediaQuery.sizeOf(context).shortestSide >= 600;
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                context.tr('Ne tasarlamak istersin?'),
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: colors.text,
-                  fontSize: 28,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                context.tr(
-                  'Her iki tasarım da kaydedilir; fotoğraf, yazı, süs ve şekillerle kişiselleştirilebilir.',
-                ),
-                style: TextStyle(color: colors.mutedText, height: 1.35),
-              ),
-              const SizedBox(height: 17),
-              if (tablet)
-                Row(
-                  children: [
-                    Expanded(
-                      child: _CreationChoice(
-                        icon: Icons.auto_stories_rounded,
-                        title: context.tr('Fiziksel Albüm'),
-                        subtitle: context.tr(
-                          'Kapak, cilt ve gerçekçi çevrilen sayfalar',
-                        ),
-                        colors: [colors.primary, colors.secondary],
-                        onTap: () =>
-                            Navigator.pop(context, _CreationKind.album),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _CreationChoice(
-                        icon: Icons.mark_email_read_rounded,
-                        title: context.tr('Özel Gün Kartı'),
-                        subtitle: context.tr(
-                          'Tema seç, özgürce tasarla ve PNG paylaş',
-                        ),
-                        colors: [colors.secondary, colors.primary],
-                        onTap: () =>
-                            Navigator.pop(context, _CreationKind.occasionCard),
-                      ),
-                    ),
-                  ],
-                )
-              else
-                Column(
-                  children: [
-                    _CreationChoice(
-                      icon: Icons.auto_stories_rounded,
-                      title: context.tr('Fiziksel Albüm'),
-                      subtitle: context.tr(
-                        'Kapak, cilt ve gerçekçi çevrilen sayfalar',
-                      ),
-                      colors: [colors.primary, colors.secondary],
-                      onTap: () => Navigator.pop(context, _CreationKind.album),
-                    ),
-                    const SizedBox(height: 11),
-                    _CreationChoice(
-                      icon: Icons.mark_email_read_rounded,
-                      title: context.tr('Özel Gün Kartı'),
-                      subtitle: context.tr(
-                        'Tema seç, özgürce tasarla ve PNG paylaş',
-                      ),
-                      colors: [colors.secondary, colors.primary],
-                      onTap: () =>
-                          Navigator.pop(context, _CreationKind.occasionCard),
-                    ),
-                  ],
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CreationChoice extends StatelessWidget {
-  const _CreationChoice({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.colors,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final List<Color> colors;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AlbumiumAppTheme.colorsOf(context);
-    return Material(
-      color: palette.surface,
-      borderRadius: BorderRadius.circular(18),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 112),
-          child: Padding(
-            padding: const EdgeInsets.all(17),
-            child: Row(
-              children: [
-                Container(
-                  width: 54,
-                  height: 54,
-                  decoration: BoxDecoration(
-                    color: colors.first.withValues(alpha: .09),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(icon, color: colors.first, size: 28),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface,
-                          fontSize: 21,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          color: palette.mutedText,
-                          fontSize: 13,
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.arrow_forward_rounded,
-                  color: colors.first,
-                  size: 20,
-                ),
-              ],
-            ),
           ),
         ),
       ),

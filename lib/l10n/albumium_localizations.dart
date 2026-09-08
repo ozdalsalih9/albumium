@@ -25,6 +25,134 @@ class AlbumiumLocalizations {
   }
 
   static const _english = <String, String>{
+    'Sticker': 'Sticker',
+    'Birlikte büyüdük': 'Growing together',
+    'Gurur duyduğun anlar': 'Proud moments',
+    'Yeni başlangıçlar': 'New beginnings',
+    'Yeni başlangıçlar, başarılar ve unutulmaz anlar. Bu yıl senin hikâyen.':
+        'New beginnings, achievements and unforgettable moments. Your year, your story.',
+    'Bir ay, bir sürü anı. En güzel karelerini kendi hikâyene dönüştür.':
+        'One month, so many memories. Turn your favorite moments into your story.',
+    'Küçük kaçamaklar, güzel sofralar… Hafta sonundan sana kalanları biriktir.':
+        'Little escapes, lovely meals… Keep the moments from your weekend.',
+    'YILLIK KİLOMETRE TAŞLARI': 'YEARLY MILESTONES',
+    'BU AYIN HİKÂYESİ': 'THIS MONTH’S STORY',
+    'HAFTA SONUNU HATIRLA': 'REMEMBER YOUR WEEKEND',
+    'Yazı hizalama': 'Text alignment',
+    'Albüm ara': 'Search albums',
+    'Albümlerini kaldığın yerden düzenle.': 'Continue editing your albums.',
+    'Fotoğraflarını seç, anılarını bir albümde biriktir.':
+        'Choose your photos and collect your memories in an album.',
+    'Anılarını biriktir': 'Collect your memories',
+    'Hafta sonun nasıl geçti?': 'How was your weekend?',
+    'Bu ay neler yaptın?': 'What did you do this month?',
+    'Bu yıldan neler hatırlamak istersin?':
+        'What would you like to remember from this year?',
+    'İlk fotoğraf kapağın olacak. Sürükleyerek sırala.':
+        'Your first photo will be the cover. Drag to reorder.',
+    'Bir cümleyle hatırla (isteğe bağlı)':
+        'Remember it in a sentence (optional)',
+    'Albüm taslağını oluştur': 'Create album draft',
+    'Kaydedilemedi. Tekrar dene.': 'Could not save. Try again.',
+    'Anı hatırlatmaları': 'Memory reminders',
+    'Hatırlatmaları aç': 'Enable reminders',
+    'Hafta sonu': 'Weekend',
+    'Ay sonu': 'Month end',
+    'Yıl sonu': 'Year end',
+    'Hatırlatma saati': 'Reminder time',
+    'Bildirim izni kapalı. Anılarını uygulamadan oluşturabilirsin.':
+        'Notifications are disabled. You can still create memories in the app.',
+    'Bu döneme ait albümün var': 'You have an album for this period',
+    'Temalar': 'Themes',
+    'Kartlarım': 'My cards',
+    'Şablonlarım': 'My templates',
+    'Boş tuval': 'Blank canvas',
+    'İlk tasarımını oluştur': 'Create your first design',
+    'Yüklenemedi. Tekrar dene.': 'Could not load. Try again.',
+    'Sil?': 'Delete?',
+    'Şablon kaydedildi': 'Template saved',
+    'Şablonum olarak kaydet': 'Save as my template',
+    'Tasarımı sıfırla': 'Reset design',
+    'Tasarımı sıfırla?': 'Reset design?',
+    'Bu karttaki düzenlemeler silinecek.':
+        'Edits to this card will be removed.',
+    'Cuma ve bayram': 'Friday and holidays',
+    'Doğum günü': 'Birthday',
+    'Sevgi': 'Love',
+    'Teşekkür': 'Thanks',
+    'Günlük selamlar': 'Daily greetings',
+    'Kutlamalar': 'Celebrations',
+    'Hayırlı Cumalar': 'Blessed Friday',
+    'Kalbine huzur, evine bereket dolsun.':
+        'May peace fill your heart and blessings fill your home.',
+    'İyi Bayramlar': 'Happy Eid',
+    'Sevdiklerinle nice güzel bayramlara.':
+        'Wishing you joyful holidays with your loved ones.',
+    'Hayırlı Kandiller': 'Blessed holy night',
+    'Gönlün sevgi ve umutla aydınlansın.':
+        'May love and hope light up your heart.',
+    'Yeni yaşın sana güzellikler getirsin.':
+        'May your new year of life bring you joy.',
+    'Senin Günün': 'Your Day',
+    'İyi ki varsın, iyi ki hayatımdasın.':
+        'So glad you are here, and in my life.',
+    'Bir Yaş Daha Güzel': 'Another Beautiful Year',
+    'Birlikte nice güzel anılara.': 'Here is to many more memories together.',
+    'Sana Bir Not': 'A Note for You',
+    'Seninle her gün biraz daha güzel.':
+        'Every day is a little brighter with you.',
+    'Kalbimden Sana': 'From My Heart',
+    'En güzel hikâyemiz birlikte başlıyor.':
+        'Our most beautiful story begins together.',
+    'Bizim Anımız': 'Our Memory',
+    'Bu güzel an hep bizimle kalsın.':
+        'May this beautiful moment stay with us.',
+    'Teşekkür Ederim': 'Thank You',
+    'Küçük bir iyiliğin büyük bir iz bıraktı.':
+        'Your little kindness made a big difference.',
+    'İyi ki Varsın': 'So Glad You Are Here',
+    'Desteğin benim için çok değerli.': 'Your support means so much to me.',
+    'İçten Bir Teşekkür': 'Heartfelt Thanks',
+    'Günüme kattığın güzellik için.': 'For the joy you brought to my day.',
+    'Günaydın': 'Good Morning',
+    'Bugün sana güzel şeyler getirsin.':
+        'May today bring you beautiful things.',
+    'Merhaba': 'Hello',
+    'Sadece seni düşündüğümü söylemek istedim.':
+        'Just wanted to let you know I am thinking of you.',
+    'İyi Geceler': 'Good Night',
+    'Yarın yeni bir umutla görüşmek üzere.':
+        'See you tomorrow with renewed hope.',
+    'Tebrikler!': 'Congratulations!',
+    'Emeklerin harika bir başlangıca dönüştü.':
+        'Your hard work became a wonderful new beginning.',
+    'Mutluluklar': 'Best Wishes',
+    'Sevgiyle büyüyen bir ömür dilerim.':
+        'Wishing you a lifetime of growing love.',
+    'Mutlu Yıllar': 'Happy New Year',
+    'Yeni başlangıçlar, güzel anılar.': 'New beginnings, beautiful memories.',
+    'Stickerlarım': 'My stickers',
+    'Fotoğraftan oluştur': 'Create from photo',
+    'Şeffaf PNG yükle veya fotoğrafından kendi stickerını kes.':
+        'Upload a transparent PNG or cut your own sticker from a photo.',
+    'İşlem tamamlanamadı. Tekrar dene.':
+        'Could not complete the action. Try again.',
+    'Stickerı kütüphaneden kaldır?': 'Remove sticker from your library?',
+    'Mevcut tasarımların korunur.': 'Your existing designs will be preserved.',
+    'Sticker adı': 'Sticker name',
+    'Sticker oluştur': 'Create sticker',
+    'Stickerım': 'My sticker',
+    'Otomatik kes': 'Auto cutout',
+    'Geri kazandır': 'Restore',
+    'Geri al': 'Undo',
+    'Beyaz kenarlık': 'White outline',
+    'Fırça boyutu': 'Brush size',
+    'Otomatik kesme hazır değil. Model için internet bağlantını kontrol edip tekrar dene veya elle kes.':
+        'Auto cutout is not ready. Check your internet connection for the model and retry, or cut manually.',
+    'Sola hizala': 'Align left',
+    'Ortala': 'Center',
+    'Sağa hizala': 'Align right',
+
     'Şekil veya renk ara': 'Search shapes or colors',
     'Pudra Dikdörtgen': 'Blush Rectangle',
     'Lacivert Dikdörtgen': 'Navy Rectangle',

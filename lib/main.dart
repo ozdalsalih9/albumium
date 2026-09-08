@@ -14,6 +14,7 @@ import 'services/album_incoming_intent_service.dart';
 import 'services/error_reporter.dart';
 import 'services/language_controller.dart';
 import 'services/photo_selection_service.dart';
+import 'services/reminder_service.dart';
 import 'services/theme_controller.dart';
 import 'theme/albumium_app_theme.dart';
 import 'widgets/albumium_launch_screen.dart';
@@ -42,6 +43,19 @@ Future<void> main() async {
     themeController.initialize(),
     languageController.initialize(),
   ]);
+  await ReminderService.initialize();
+  await ReminderService.save(
+    await ReminderService.settings(),
+    languageController.language.code,
+  );
+  languageController.addListener(() {
+    unawaited(
+      ReminderService.settings().then(
+        (settings) =>
+            ReminderService.save(settings, languageController.language.code),
+      ),
+    );
+  });
   runApp(
     AlbumiumApp(
       themeController: themeController,
