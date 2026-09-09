@@ -25,6 +25,7 @@ class AlbumiumLocalizations {
   }
 
   static const _english = <String, String>{
+    'Albüm kaydedildi.': 'Album saved.',
     'Sticker': 'Sticker',
     'Birlikte büyüdük': 'Growing together',
     'Gurur duyduğun anlar': 'Proud moments',

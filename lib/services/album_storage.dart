@@ -133,20 +133,23 @@ class AlbumStorage {
   Future<void> _quarantine(SharedPreferences preferences, String? raw) async {
     if (raw == null || raw.isEmpty) return;
     if (preferences.getString(quarantineKey) != null) return;
-    await preferences.setString(quarantineKey, raw);
+    if (!await preferences.setString(quarantineKey, raw)) {
+      throw StateError('Bozuk albüm verisi yedeklenemedi');
+    }
   }
 
   Future<void> _persist(
     SharedPreferences preferences,
     List<AlbumModel> albums,
   ) async {
-    await preferences.setString(
+    final saved = await preferences.setString(
       _albumsKey,
       jsonEncode({
         'schemaVersion': _schemaVersion,
         'albums': albums.map((album) => album.toJson()).toList(),
       }),
     );
+    if (!saved) throw StateError('Albüm diske kaydedilemedi');
   }
 
   Future<({AlbumModel album, bool reused})> importAlbumOnce(

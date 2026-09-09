@@ -7,6 +7,7 @@ import '../services/photo_selection_service.dart';
 import '../l10n/albumium_localizations.dart';
 import '../models/album_models.dart';
 import '../services/album_storage.dart';
+import '../services/error_reporter.dart';
 import '../theme/albumium_app_theme.dart';
 import '../widgets/element_edit_panel.dart';
 import '../widgets/font_selector_dialog.dart';
@@ -44,12 +45,17 @@ class EditorScreen extends StatefulWidget {
 }
 
 class _EditorScreenState extends State<EditorScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final AnimationController _pageTurnController;
   int _pageIndex = 0;
   String? _selectedId;
   bool _importing = false;
   Timer? _saveDebounce;
+  Future<bool>? _saving;
+  int _revision = 0;
+  int _savedRevision = -1;
+  bool _allowPop = false;
+  bool _leaving = false;
   int? _nextSpreadLeftPageIndex;
   int? _nextSpreadRightPageIndex;
   bool _turningForward = true;
@@ -179,6 +185,7 @@ class _EditorScreenState extends State<EditorScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _pageTurnController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 780),
@@ -187,16 +194,77 @@ class _EditorScreenState extends State<EditorScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _saveDebounce?.cancel();
     _pageTurnController.dispose();
-    unawaited(AlbumStorage.instance.saveAlbum(album));
+    if (_savedRevision != _revision && _saving == null) {
+      unawaited(_persistChanges());
+    }
     super.dispose();
   }
 
   void _changed() {
+    _revision++;
     _saveDebounce?.cancel();
     _saveDebounce = Timer(const Duration(milliseconds: 450), () {
-      unawaited(AlbumStorage.instance.saveAlbum(album));
+      unawaited(_save());
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) unawaited(_save());
+  }
+
+  Future<bool> _save({bool notify = false}) async {
+    _saveDebounce?.cancel();
+    final pending = _saving ??= _persistChanges();
+    if (mounted) setState(() {});
+    final success = await pending;
+    if (identical(_saving, pending)) _saving = null;
+    if (!mounted) return success;
+    setState(() {});
+    if (!success || notify) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.tr(
+              success ? 'Albüm kaydedildi.' : 'Kaydedilemedi. Tekrar dene.',
+            ),
+          ),
+        ),
+      );
+    }
+    return success;
+  }
+
+  Future<bool> _persistChanges() async {
+    try {
+      do {
+        final revision = _revision;
+        await AlbumStorage.instance.saveAlbum(album);
+        _savedRevision = revision;
+      } while (_savedRevision != _revision);
+      return true;
+    } catch (error, stack) {
+      ErrorReporter.report(
+        error,
+        stack,
+        context: 'editör albümü kaydedilemedi',
+      );
+      return false;
+    }
+  }
+
+  Future<void> _leave() async {
+    if (_leaving) return;
+    _leaving = true;
+    final saved = await _save();
+    _leaving = false;
+    if (!saved || !mounted) return;
+    setState(() => _allowPop = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.of(context).pop();
     });
   }
 
@@ -836,8 +904,7 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   Future<void> _preview({bool openShareOptions = false}) async {
-    _saveDebounce?.cancel();
-    await AlbumStorage.instance.saveAlbum(album);
+    if (!await _save()) return;
     if (!mounted) return;
     await Navigator.push(
       context,
@@ -853,8 +920,10 @@ class _EditorScreenState extends State<EditorScreen>
     final colors = AlbumiumAppTheme.colorsOf(context);
     final wideHeader = MediaQuery.sizeOf(context).width >= 600;
     return PopScope(
-      onPopInvokedWithResult: (_, _) =>
-          unawaited(AlbumStorage.instance.saveAlbum(album)),
+      canPop: _allowPop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_leave());
+      },
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
@@ -895,6 +964,16 @@ class _EditorScreenState extends State<EditorScreen>
             ),
           ),
           actions: [
+            TextButton.icon(
+              key: const ValueKey('editor-save'),
+              onPressed: _saving != null || _importing
+                  ? null
+                  : () => _save(notify: true),
+              icon: _saving != null
+                  ? const Icon(Icons.hourglass_top_rounded, size: 20)
+                  : const Icon(Icons.save_outlined, size: 20),
+              label: Text(context.tr('Kaydet')),
+            ),
             if (wideHeader)
               IconButton(
                 onPressed: _changeBinding,

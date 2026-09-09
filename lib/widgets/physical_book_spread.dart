@@ -311,9 +311,14 @@ class PhysicalBookSpread extends StatelessWidget {
     // directly dragged cover follow the user's finger.
     final eased = openingProgress.clamp(0.0, 1.0);
     final pageWidth = (width - 32) / 2;
-    final coverLeft = _lerp(width * 0.5 - pageWidth / 2, width / 2 + 2, eased);
-    final coverTop = _lerp(5, 12, eased);
-    final coverHeight = _lerp(height - 10, height - 24, eased);
+    // Recenter in proportion to the leaf's projected width. A linear hinge
+    // translation moves the cover right before rotation can move its edge
+    // left, which looks like the book is resisting the finger.
+    final reframe = (1 - math.cos(math.pi * eased)) / 2;
+    final coverWidth = _lerp(width * 0.49, pageWidth, reframe);
+    final coverLeft = _lerp(width * 0.255, width / 2 - 2, reframe);
+    final coverTop = _lerp(0, 12, reframe);
+    final coverHeight = _lerp(height, height - 24, reframe);
     final showFront = eased < 0.5;
 
     return Stack(
@@ -333,7 +338,7 @@ class PhysicalBookSpread extends StatelessWidget {
           Positioned(
             left: coverLeft + 3,
             top: coverTop + 4,
-            width: pageWidth,
+            width: coverWidth,
             height: coverHeight,
             child: Opacity(
               opacity: (1 - eased / 0.55).clamp(0.0, 1.0),
@@ -355,26 +360,24 @@ class PhysicalBookSpread extends StatelessWidget {
         Positioned(
           left: coverLeft,
           top: coverTop,
-          width: pageWidth,
+          width: coverWidth,
           height: coverHeight,
           child: Transform(
+            key: const ValueKey('book-cover-hinge'),
             alignment: Alignment.centerLeft,
-            transform: Matrix4.identity()
-              ..setEntry(3, 2, 0.0018)
-              ..rotateY(math.pi * eased),
+            // The scene already supplies perspective. Local perspective
+            // magnified the near edge and made slow drags bulge sideways.
+            transform: Matrix4.rotationY(math.pi * eased),
             filterQuality: FilterQuality.high,
             child: showFront
                 ? _CoverLeaf(album: album)
                 : Transform(
                     alignment: Alignment.center,
                     transform: Matrix4.rotationY(math.pi),
-                    child: _InsideCover(
+                    child: _buildPageSide(
+                      index: openLeftIndex,
+                      isLeft: true,
                       theme: theme,
-                      page: _buildPageSide(
-                        index: openLeftIndex,
-                        isLeft: true,
-                        theme: theme,
-                      ),
                     ),
                   ),
           ),
@@ -809,25 +812,6 @@ class _CoverLeaf extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         child: AlbumCover(album: album),
       ),
-    );
-  }
-}
-
-class _InsideCover extends StatelessWidget {
-  const _InsideCover({required this.theme, required this.page});
-
-  final AlbumThemePreset theme;
-  final Widget page;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [theme.coverEnd, theme.coverStart]),
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: theme.accent.withValues(alpha: 0.3)),
-      ),
-      child: Padding(padding: const EdgeInsets.all(7), child: page),
     );
   }
 }

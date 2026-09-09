@@ -7,6 +7,46 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('cover edge moves left continuously during a slow opening', (
+    tester,
+  ) async {
+    double? previousEdge;
+    for (final progress in [0.0, .01, .05, .1, .25, .49, .51, .75, 1.0]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Center(
+            child: SizedBox(
+              width: 390,
+              height: 280,
+              child: PhysicalBookSpread(
+                album: _album(),
+                leftPageIndex: PhysicalBookSpread.titlePageIndex,
+                rightPageIndex: PhysicalBookSpread.blankPageIndex,
+                closed: true,
+                nextLeftPageIndex: PhysicalBookSpread.titlePageIndex,
+                nextRightPageIndex: 0,
+                turnProgress: progress,
+              ),
+            ),
+          ),
+        ),
+      );
+      final hinge = find.byKey(const ValueKey('book-cover-hinge'));
+      final box = tester.renderObject<RenderBox>(hinge);
+      final transform = tester.widget<Transform>(hinge).transform;
+      final edge = box
+          .localToGlobal(
+            MatrixUtils.transformPoint(
+              transform,
+              Offset(box.size.width, box.size.height / 2),
+            ),
+          )
+          .dx;
+      if (previousEdge != null) expect(edge, lessThan(previousEdge));
+      previousEdge = edge;
+      expect(tester.takeException(), isNull);
+    }
+  });
   testWidgets(
     'cover opening consumes progress without applying a second ease',
     (tester) async {

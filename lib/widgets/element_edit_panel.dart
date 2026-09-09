@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/album_models.dart';
@@ -351,33 +352,37 @@ class _ElementEditPanelState extends State<ElementEditPanel> {
     final precision = Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        IconButton.filledTonal(
+        _PrecisionMoveButton(
+          key: ValueKey('${e.id}-Sola'),
           tooltip: context.tr('Sola'),
-          onPressed: e.locked ? null : () => _change(() => e.x -= 1 / 500),
+          onStep: e.locked ? null : () => _change(() => e.x -= 1 / 500),
           icon: const Icon(Icons.arrow_back),
         ),
         Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton.filledTonal(
+            _PrecisionMoveButton(
+              key: ValueKey('${e.id}-Yukarı'),
               tooltip: context.tr('Yukarı'),
-              onPressed: e.locked ? null : () => _change(() => e.y -= 1 / 700),
+              onStep: e.locked ? null : () => _change(() => e.y -= 1 / 700),
               icon: const Icon(Icons.arrow_upward),
             ),
             Padding(
               padding: const EdgeInsets.all(3),
               child: Text(context.tr('Tek adım')),
             ),
-            IconButton.filledTonal(
+            _PrecisionMoveButton(
+              key: ValueKey('${e.id}-Aşağı'),
               tooltip: context.tr('Aşağı'),
-              onPressed: e.locked ? null : () => _change(() => e.y += 1 / 700),
+              onStep: e.locked ? null : () => _change(() => e.y += 1 / 700),
               icon: const Icon(Icons.arrow_downward),
             ),
           ],
         ),
-        IconButton.filledTonal(
+        _PrecisionMoveButton(
+          key: ValueKey('${e.id}-Sağa'),
           tooltip: context.tr('Sağa'),
-          onPressed: e.locked ? null : () => _change(() => e.x += 1 / 500),
+          onStep: e.locked ? null : () => _change(() => e.x += 1 / 500),
           icon: const Icon(Icons.arrow_forward),
         ),
       ],
@@ -515,4 +520,85 @@ class _ElementEditPanelState extends State<ElementEditPanel> {
       ),
     );
   }
+}
+
+/// A tap nudges once; a held press repeats the same small step.
+class _PrecisionMoveButton extends StatefulWidget {
+  const _PrecisionMoveButton({
+    super.key,
+    required this.tooltip,
+    required this.onStep,
+    required this.icon,
+  });
+  final String tooltip;
+  final VoidCallback? onStep;
+  final Widget icon;
+
+  @override
+  State<_PrecisionMoveButton> createState() => _PrecisionMoveButtonState();
+}
+
+class _PrecisionMoveButtonState extends State<_PrecisionMoveButton>
+    with WidgetsBindingObserver {
+  Timer? _repeat;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  void _stop() {
+    _repeat?.cancel();
+    _repeat = null;
+  }
+
+  void _start(LongPressStartDetails _) {
+    _stop();
+    widget.onStep?.call();
+    _repeat = Timer.periodic(const Duration(milliseconds: 40), (_) {
+      widget.onStep?.call();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _PrecisionMoveButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.onStep == null) _stop();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) _stop();
+  }
+
+  @override
+  void dispose() {
+    _stop();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: widget.tooltip,
+    // Holding this control moves the element; it must not open a tooltip.
+    triggerMode: TooltipTriggerMode.manual,
+    child: GestureDetector(
+      onLongPressStart: widget.onStep == null ? null : _start,
+      onLongPressEnd: (_) => _stop(),
+      onLongPressCancel: _stop,
+      onLongPressMoveUpdate: (details) {
+        final box = context.findRenderObject() as RenderBox?;
+        if (box == null ||
+            !(Offset.zero & box.size).contains(details.localPosition)) {
+          _stop();
+        }
+      },
+      child: IconButton.filledTonal(
+        onPressed: widget.onStep,
+        icon: widget.icon,
+      ),
+    ),
+  );
 }
