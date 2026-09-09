@@ -203,10 +203,46 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Sağa'));
     expect(e.x, closeTo(.202, .00001));
+    for (final direction in ['Sağa', 'Sola', 'Yukarı', 'Aşağı']) {
+      final before = Offset(e.x, e.y);
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byTooltip(direction)),
+      );
+      await tester.pump(const Duration(milliseconds: 550));
+      final started = Offset(e.x, e.y);
+      await tester.pump(const Duration(milliseconds: 200));
+      final held = Offset(e.x, e.y);
+      final step = switch (direction) {
+        'Sağa' => const Offset(1 / 500, 0),
+        'Sola' => const Offset(-1 / 500, 0),
+        'Yukarı' => const Offset(0, -1 / 700),
+        _ => const Offset(0, 1 / 700),
+      };
+      expect((started - before).distance, greaterThan(0));
+      expect(held.dx - started.dx, closeTo(step.dx * 5, .000001));
+      expect(held.dy - started.dy, closeTo(step.dy * 5, .000001));
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(Offset(e.x, e.y), held);
+    }
+    final cancelGesture = await tester.startGesture(
+      tester.getCenter(find.byTooltip('Sağa')),
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+    await cancelGesture.cancel();
+    final cancelledX = e.x;
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(e.x, cancelledX);
     await tester.tap(find.byTooltip('Sabitle'));
     await tester.pump();
     await tester.tap(find.byTooltip('Sağa'));
-    expect(e.x, closeTo(.202, .00001));
+    expect(e.x, cancelledX);
+    final lockedGesture = await tester.startGesture(
+      tester.getCenter(find.byTooltip('Sağa')),
+    );
+    await tester.pump(const Duration(milliseconds: 800));
+    await lockedGesture.up();
+    expect(e.x, cancelledX);
     expect(tester.takeException(), isNull);
   });
 }
