@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import '../services/platform_album_services.dart';
 
 import '../l10n/albumium_localizations.dart';
 
@@ -15,9 +15,7 @@ class PrivacyPolicyButton extends StatelessWidget {
     label: Text(context.tr('Gizlilik politikası')),
     onPressed: () async {
       try {
-        await const MethodChannel(
-          'com.albumium.albumium/app_support',
-        ).invokeMethod<void>('openPrivacyPolicy');
+        await AlbumAppSupportService.openPrivacyPolicy();
       } catch (_) {
         if (!context.mounted) return;
         await showDialog<void>(

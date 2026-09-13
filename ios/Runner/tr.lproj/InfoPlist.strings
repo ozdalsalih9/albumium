@@ -1,0 +1,3 @@
+"CFBundleDisplayName" = "Albumium";
+"NSPhotoLibraryUsageDescription" = "Fotoğraflarını albümlere ve kartlara eklemek için fotoğraf erişimi kullanılır.";
+"NSPhotoLibraryAddUsageDescription" = "Hazırladığın albüm ve kart görsellerini fotoğraf arşivine kaydetmek için izin gerekir.";

@@ -1,3 +1,4 @@
+import '../services/platform_album_services.dart';
 import '../services/personal_sticker_storage.dart';
 import 'dart:async';
 import '../widgets/reader_zoom_view.dart';
@@ -15,6 +16,9 @@ import 'package:share_plus/share_plus.dart';
 
 import '../l10n/albumium_localizations.dart';
 import '../models/album_models.dart';
+import '../models/social_video_draft.dart';
+import '../services/album_storage.dart';
+import 'social_video_screen.dart';
 import '../models/cinematic_storyboard.dart';
 import '../models/single_page_export_storyboard.dart';
 import '../services/album_package_service.dart';
@@ -31,7 +35,7 @@ const _exportLogicalHeight = 640.0;
 const _exportPngWidth = 1080;
 const _exportPngPixelRatio = _exportPngWidth / _exportLogicalWidth;
 
-enum _ShareExportChoice { interactiveAlbum, currentPng, allPng, mp4 }
+enum _ShareExportChoice { interactiveAlbum, currentPng, allPng, mp4, socialVideo, gift }
 
 class PreviewScreen extends StatefulWidget {
   const PreviewScreen({
@@ -584,7 +588,7 @@ class _PreviewScreenState extends State<PreviewScreen>
               icon: Icons.auto_stories_outlined,
               title: sheetContext.tr('Etkileşimli albüm paylaş'),
               subtitle: sheetContext.tr(
-                'Albumium’da sayfaları çevirerek görüntüle',
+                'Sayfaları çevirerek görüntülemek için alıcıda Albumium olmalı. Android ve iPhone arasında paylaşılabilir.',
               ),
               onTap: () => Navigator.pop(
                 sheetContext,
@@ -592,6 +596,13 @@ class _PreviewScreenState extends State<PreviewScreen>
               ),
             ),
             const SizedBox(height: 8),
+            _ShareOptionTile(
+              key: const ValueKey('share_social_video'),
+              icon: Icons.video_collection_outlined,
+              title: sheetContext.tr('Video şablonları'),
+              subtitle: sheetContext.tr('15 veya 30 saniyelik müzikli video. TikTok ve Reels için hazırla.'),
+              onTap: () => Navigator.pop(sheetContext, _ShareExportChoice.socialVideo),
+            ),
             _ShareOptionTile(
               key: const ValueKey('share_mp4'),
               icon: Icons.movie_creation_outlined,
@@ -621,6 +632,13 @@ class _PreviewScreenState extends State<PreviewScreen>
               onTap: () =>
                   Navigator.pop(sheetContext, _ShareExportChoice.allPng),
             ),
+            _ShareOptionTile(
+              key: const ValueKey('share_gift'),
+              icon: Icons.card_giftcard,
+              title: sheetContext.tr('Hediye albümü oluştur'),
+              subtitle: sheetContext.tr('Alıcı adı ve mesajınla ayrı bir albüm kopyası hazırla.'),
+              onTap: () => Navigator.pop(sheetContext, _ShareExportChoice.gift),
+            ),
           ],
         ),
       ),
@@ -628,6 +646,10 @@ class _PreviewScreenState extends State<PreviewScreen>
     if (!mounted || choice == null) return;
 
     switch (choice) {
+      case _ShareExportChoice.socialVideo:
+        await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SocialVideoScreen(album: widget.album)));
+      case _ShareExportChoice.gift:
+        await _createGift();
       case _ShareExportChoice.interactiveAlbum:
         await _exportInteractiveAlbum();
       case _ShareExportChoice.currentPng:
@@ -639,6 +661,34 @@ class _PreviewScreenState extends State<PreviewScreen>
         if (settings != null && mounted) {
           await _exportMp4AndShare(settings: settings);
         }
+    }
+  }
+
+  Future<void> _createGift() async {
+    var recipient = '';
+    var message = '';
+    final formKey = GlobalKey<FormState>();
+    final accepted = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(
+      title: Text(dialogContext.tr('Hediye albümü oluştur')),
+      content: SingleChildScrollView(child: Form(key: formKey, child: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextFormField(maxLength: 60, decoration: InputDecoration(labelText: dialogContext.tr('Alıcı adı')),
+          onChanged: (value) => recipient = value,
+          validator: (value) => (value ?? '').trim().isEmpty ? dialogContext.tr('Alıcı adını yaz.') : null),
+        TextFormField(maxLength: 280, minLines: 2, maxLines: 5,
+          decoration: InputDecoration(labelText: dialogContext.tr('Kişisel mesaj')),
+          onChanged: (value) => message = value),
+      ]))),
+      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: Text(dialogContext.tr('Vazgeç'))),
+        FilledButton(onPressed: () { if (formKey.currentState!.validate()) Navigator.pop(dialogContext, true); }, child: Text(dialogContext.tr('Oluştur')))],
+    ));
+    if (accepted != true || !mounted) return;
+    try {
+      final gift = createGiftAlbum(widget.album, recipient, message);
+      await AlbumStorage.instance.saveAlbum(gift);
+      if (!mounted) return;
+      await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => PreviewScreen(album: gift, openShareOnReady: true)));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('Kaydedilemedi. Tekrar dene.'))));
     }
   }
 
@@ -699,6 +749,7 @@ class _PreviewScreenState extends State<PreviewScreen>
       final filename = result.file.uri.pathSegments.last;
       await SharePlus.instance.share(
         ShareParams(
+          sharePositionOrigin: albumShareOrigin(context),
           files: [XFile(result.file.path, mimeType: albumPackageMimeType)],
           fileNameOverrides: [filename],
           title: widget.album.title,
@@ -954,6 +1005,7 @@ class _PreviewScreenState extends State<PreviewScreen>
       setState(() => _exportStatus = context.tr('Paylaşım menüsü açılıyor…'));
       await SharePlus.instance.share(
         ShareParams(
+          sharePositionOrigin: albumShareOrigin(context),
           files: files,
           fileNameOverrides: names,
           title: widget.album.title,
@@ -1175,6 +1227,7 @@ class _PreviewScreenState extends State<PreviewScreen>
       _throwIfExportCancelled();
       final videoFile = await requireNonEmptyVideoExport(path);
       _throwIfExportCancelled();
+      if (!mounted) return;
       setState(() {
         _exportProgress = 1;
         _exportStatus = context.tr('Hazır! Paylaşım menüsü açılıyor…');
@@ -1189,6 +1242,7 @@ class _PreviewScreenState extends State<PreviewScreen>
       });
       await SharePlus.instance.share(
         ShareParams(
+          sharePositionOrigin: albumShareOrigin(context),
           files: [XFile(videoFile.path)],
           fileNameOverrides: [
             '${safeAlbumiumExportTitle(widget.album.title)}.mp4',

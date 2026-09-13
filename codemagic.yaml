@@ -1,0 +1,64 @@
+workflows:
+  ios-validation:
+    name: iOS 17 simulator validation
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: 3.41.7
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Resolve dependencies
+        script: flutter pub get
+      - name: Analyze and test Dart
+        script: |
+          set -e
+          flutter analyze
+          flutter test
+      - name: Compile iOS simulator
+        script: flutter build ios --simulator --debug --no-codesign
+      - name: Package simulator app
+        script: ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app build/ios/Albumium-simulator.zip
+      - name: Native tests
+        script: |
+          set -e
+          DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for r,ds in d["devices"].items() if "iOS" in r for x in ds if "iPhone" in x["name"]))')
+          xcodebuild test -workspace ios/Runner.xcworkspace -scheme Runner -destination "platform=iOS Simulator,id=$DEVICE_ID" -resultBundlePath build/ios/RunnerTests.xcresult CODE_SIGNING_ALLOWED=NO
+    artifacts:
+      - build/ios/Albumium-simulator.zip
+      - build/ios/RunnerTests.xcresult
+      - /tmp/xcodebuild_logs/*.log
+
+  ios-testflight:
+    name: Signed iOS TestFlight candidate
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: Albumium App Store Connect
+    environment:
+      flutter: 3.41.7
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.albumium.albumium
+    scripts:
+      - name: Resolve, analyze and test
+        script: |
+          set -e
+          flutter pub get
+          flutter analyze
+          flutter test
+      - name: Apply signing profiles
+        script: xcode-project use-profiles
+      - name: Build IPA
+        script: flutter build ipa --release --build-number=$PROJECT_BUILD_NUMBER --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/ios/archive/*.xcarchive
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false

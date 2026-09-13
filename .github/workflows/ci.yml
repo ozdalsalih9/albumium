@@ -21,7 +21,7 @@ jobs:
           # pubspec.lock Flutter >=3.38.4 istiyor. Sürüm sabitlenir ki CI ile
           # geliştirici makinesi aynı araç zincirini kullansın; yükseltme
           # bilinçli bir commit olsun.
-          flutter-version: '3.47.1'
+          flutter-version: '3.41.7'
           channel: stable
           cache: true
 

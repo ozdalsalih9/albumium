@@ -2,6 +2,7 @@ import 'personal_stickers_screen.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../widgets/responsive_controls.dart';
 import '../services/photo_selection_service.dart';
 
 import '../l10n/albumium_localizations.dart';
@@ -1106,7 +1107,7 @@ class _EditorScreenState extends State<EditorScreen>
                     onDelete: _removeSelected,
                   ),
                 if (selectedElement == null)
-                  _MainToolbar(
+                  BoundedControls(height: MediaQuery.sizeOf(context).height * .28, child: _MainToolbar(
                     onPhoto: _addPhotos,
                     onText: _addText,
                     onDraw: _addHandwriting,
@@ -1115,7 +1116,7 @@ class _EditorScreenState extends State<EditorScreen>
                     onShape: _addShape,
                     onBackground: _changeBackground,
                     onPage: _addPage,
-                  ),
+                  )),
               ],
             ),
           ),

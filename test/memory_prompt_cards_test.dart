@@ -59,6 +59,8 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('memory-card-year')));
       expect(selected, MemoryKind.year);
       if (width == 760) {
+        // Finish the button's pressed/ink paint before capturing its boundary.
+        await tester.pumpAndSettle();
         await tester.runAsync(() async {
           final image =
               await (key.currentContext!.findRenderObject()

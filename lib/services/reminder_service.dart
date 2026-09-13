@@ -1,13 +1,18 @@
-import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ReminderService {
+  static bool get _supported =>
+      !kIsWeb &&
+      [
+        TargetPlatform.android,
+        TargetPlatform.iOS,
+      ].contains(defaultTargetPlatform);
   static const channel = MethodChannel('com.albumium.albumium/memories');
   static final pending = ValueNotifier<Map<String, dynamic>?>(null);
   static Future<void> initialize() async {
-    if (!Platform.isAndroid) return;
+    if (!_supported) return;
     channel.setMethodCallHandler((call) async {
       if (call.method == 'openMemory') {
         pending.value = Map<String, dynamic>.from(call.arguments as Map);
@@ -37,18 +42,23 @@ class ReminderService {
     bool requestPermission = false,
   }) async {
     var allowed = true;
-    if (Platform.isAndroid) {
+    final effectiveValues = Map<String, dynamic>.from(values);
+    if (_supported) {
       if (requestPermission) {
         allowed =
             await channel.invokeMethod<bool>('requestPermission') ?? false;
+      } else if (defaultTargetPlatform == TargetPlatform.iOS &&
+          values['enabled'] == true) {
+        allowed = await channel.invokeMethod<bool>('permissionStatus') ?? false;
       }
+      if (!allowed) effectiveValues['enabled'] = false;
       await channel.invokeMethod('configure', {
-        ...values,
+        ...effectiveValues,
         'language': language,
       });
     }
     final p = await SharedPreferences.getInstance();
-    for (final entry in values.entries) {
+    for (final entry in effectiveValues.entries) {
       if (entry.value is bool) {
         await p.setBool('memories.${entry.key}', entry.value as bool);
       }

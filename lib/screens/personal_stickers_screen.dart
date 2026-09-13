@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../l10n/albumium_localizations.dart';
 import '../services/photo_selection_service.dart';
 import '../services/personal_sticker_storage.dart';
-import '../services/reminder_service.dart';
+import '../services/platform_album_services.dart';
 
 class PersonalStickersScreen extends StatefulWidget {
   const PersonalStickersScreen({super.key});
@@ -394,9 +394,7 @@ class _StickerCutoutScreenState extends State<StickerCutoutScreen> {
       );
       await source.writeAsBytes(data!.buffer.asUint8List());
       try {
-        output = await ReminderService.channel.invokeMethod<String>('segment', {
-          'path': source.path,
-        });
+        output = await StickerCutoutService.cutout(source.path);
       } finally {
         if (await source.exists()) await source.delete();
       }

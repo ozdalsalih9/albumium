@@ -36,7 +36,7 @@ class AlbumIncomingIntentService {
         await onPackage(initialPath);
       }
     } on MissingPluginException {
-      // Non-Android platforms and widget tests have no incoming intent bridge.
+      // Desktop platforms and widget tests have no native document bridge.
     }
   }
 
