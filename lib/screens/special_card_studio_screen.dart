@@ -1,9 +1,11 @@
+import '../services/platform_album_services.dart';
 import 'personal_stickers_screen.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import '../widgets/responsive_controls.dart';
 import 'package:flutter/rendering.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/photo_selection_service.dart';
@@ -590,8 +592,10 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
         '${directory.path}${Platform.pathSeparator}${safeName.isEmpty ? 'albumium_kart' : safeName}.png',
       );
       await file.writeAsBytes(data.buffer.asUint8List(), flush: true);
+      if (!mounted) return;
       await SharePlus.instance.share(
         ShareParams(
+          sharePositionOrigin: albumShareOrigin(context),
           files: [XFile(file.path)],
           title: project.title,
           subject: '${project.title} · Albumium',
@@ -826,7 +830,7 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
                 return Column(
                   children: [
                     Expanded(child: canvas),
-                    controls,
+                    BoundedControls(height: constraints.maxHeight * .48, child: controls),
                   ],
                 );
               },
@@ -981,6 +985,11 @@ class _CardControls extends StatelessWidget {
 
   Widget _buildContent(BuildContext context) {
     final colors = AlbumiumAppTheme.colorsOf(context);
+    const cardTextStyle = TextStyle(fontSize: 12, fontWeight: FontWeight.w600);
+    final labelSizes = [for (final card in occasionCardTemplates)
+      controlLabelSize(context, context.tr(card.title), cardTextStyle)];
+    final labelHeight = labelSizes.fold<double>(0, (h, s) => h > s.height ? h : s.height);
+    final tileHeight = (labelHeight + 18).clamp(62.0, double.infinity);
     final tools = [
       _CardTool(
         icon: Icons.draw_outlined,
@@ -1036,7 +1045,7 @@ class _CardControls extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         SizedBox(
-          height: sidePanel ? 248 : 62,
+          height: sidePanel ? tileHeight * 3 + 16 : tileHeight,
           child: ListView.separated(
             scrollDirection: sidePanel ? Axis.vertical : Axis.horizontal,
             itemCount: occasionCardTemplates.length,
@@ -1056,7 +1065,7 @@ class _CardControls extends StatelessWidget {
                     onTap: () => onTemplateSelected(card),
                     borderRadius: BorderRadius.circular(14),
                     child: Container(
-                      width: sidePanel ? double.infinity : 168,
+                      width: sidePanel ? double.infinity : (labelSizes[index].width + 91).clamp(168.0, double.infinity),
                       constraints: const BoxConstraints(minHeight: 62),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
@@ -1085,8 +1094,8 @@ class _CardControls extends StatelessWidget {
                           Expanded(
                             child: Text(
                               context.tr(card.title),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+                              maxLines: sidePanel ? null : 1,
+                              softWrap: sidePanel,
                               style: TextStyle(
                                 color: colors.text,
                                 fontSize: 12,
@@ -1096,14 +1105,12 @@ class _CardControls extends StatelessWidget {
                               ),
                             ),
                           ),
-                          if (selected) ...[
-                            const SizedBox(width: 5),
-                            Icon(
+                          const SizedBox(width: 5),
+                          Opacity(opacity: selected ? 1 : 0, child: Icon(
                               Icons.check_circle_rounded,
                               size: 16,
                               color: colors.primary,
-                            ),
-                          ],
+                            )),
                         ],
                       ),
                     ),
@@ -1121,7 +1128,7 @@ class _CardControls extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (final tool in tools) SizedBox(width: 72, child: tool),
+              for (final tool in tools) tool,
             ],
           ),
         ),
@@ -1156,13 +1163,15 @@ class _CardTool extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AlbumiumAppTheme.colorsOf(context);
+    final style = Theme.of(context).textTheme.labelMedium!.copyWith(fontWeight: FontWeight.w500);
+    final labelSize = controlLabelSize(context, label, style);
     return Tooltip(
       message: label,
       child: TextButton(
         onPressed: onTap,
         style: TextButton.styleFrom(
           foregroundColor: colors.text,
-          minimumSize: const Size(48, 64),
+          minimumSize: Size((labelSize.width + 24).clamp(72.0, double.infinity), 48 + labelSize.height),
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           textStyle: Theme.of(
             context,
@@ -1176,7 +1185,7 @@ class _CardTool extends StatelessWidget {
           children: [
             Icon(icon, size: 22, color: colors.primary),
             const SizedBox(height: 6),
-            Text(label, maxLines: 2, textAlign: TextAlign.center),
+            Text(label, maxLines: 1, softWrap: false, style: style, textAlign: TextAlign.center),
           ],
         ),
       ),

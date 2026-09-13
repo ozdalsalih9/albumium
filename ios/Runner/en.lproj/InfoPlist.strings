@@ -1,0 +1,3 @@
+"CFBundleDisplayName" = "Albumium";
+"NSPhotoLibraryUsageDescription" = "Photo access lets you add your pictures to albums and cards.";
+"NSPhotoLibraryAddUsageDescription" = "Allow Albumium to save your album and card images to your photo library.";
