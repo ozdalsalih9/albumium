@@ -233,7 +233,7 @@ final class AlbumiumPlatformBridge {
         let request = VNGenerateForegroundInstanceMaskRequest()
         try handler.perform([request])
         guard let observation = request.results?.first, !observation.allInstances.isEmpty else { throw CocoaError(.fileReadCorruptFile) }
-        let buffer = try observation.generateMaskedImage(ofInstances: observation.allInstances, from: handler, croppedToInstances: false)
+        let buffer = try observation.generateMaskedImage(ofInstances: observation.allInstances, from: handler, croppedToInstancesExtent: false)
         let image = CIImage(cvPixelBuffer: buffer)
         guard let cg = CIContext().createCGImage(image, from: image.extent), let png = UIImage(cgImage: cg).pngData() else { throw CocoaError(.fileWriteUnknown) }
         let output = FileManager.default.temporaryDirectory.appendingPathComponent("sticker_\(UUID().uuidString).png")
