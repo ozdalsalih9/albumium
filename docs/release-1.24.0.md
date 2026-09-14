@@ -30,7 +30,7 @@ Video zamanlama testleri 1/3/7/20 öğe ile tam 15/30 saniyeyi, müzik uzunluğu
 
 ## Yayın öncesinde kalanlar
 
-**Bu sürüm iOS'ta henüz derlenmedi ve App Store'a gönderilmedi.** Windows ortamında Xcode, iPhone/iPad veya A21s erişimi bulunmadığından fiziksel cihaz, yerel Vision ve donanımsal video/ses testleri yapılmadı. Codemagic/Apple imzalama bağlantıları henüz sağlanmadı.
+**iOS simülatör derlemesi ve 4 yerel XCTest, 14 Eylül 2026 Codemagic çalışmasında geçti; App Store'a gönderilmedi.** Windows ortamında Xcode, iPhone/iPad veya A21s erişimi bulunmadığından fiziksel cihaz, yerel Vision ve donanımsal video/ses testleri yapılmadı. Codemagic bağlantısı kuruldu; Apple imzalama erişimi henüz sağlanmadı. [Başarılı derleme](https://codemagic.io/app/6aa70313643642a209710ba7/build/6aa7c27ece14455b631ad9dd).
 
 `ios-release.md` içindeki cihaz ve gizlilik kontrol listesi ile `app-store-copy.md` metin taslakları yayın hazırlığı içindir. Destek URL'si, mağaza ekran görüntüleri, App Store gizlilik formu, SDK manifest doğrulaması ve TestFlight kabulü tamamlanmalı. App Store gönderimi ayrı adımdır.
 
