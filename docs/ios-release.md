@@ -1,6 +1,6 @@
 # Albumium iOS 17+ yayın hazırlığı
 
-Bu depo artık iPhone/iPad projesi ve yerel platform uygulamalarını içeriyor. **iOS derlemesi, imzalama ve gerçek cihaz doğrulaması henüz yapılmadı.** Windows üzerinde yapılan Dart testleri Xcode/cihaz testinin yerine geçmez.
+Bu depo artık iPhone/iPad projesi ve yerel platform uygulamalarını içeriyor. **iOS simülatör derlemesi ve 4 yerel XCTest, Codemagic macOS üzerinde geçti.** İmzalama ve gerçek cihaz doğrulaması henüz yapılmadı; simülatör sonucu fiziksel cihaz testinin yerine geçmez.
 
 ## Eklenenler
 
@@ -15,13 +15,13 @@ Bu depo artık iPhone/iPad projesi ve yerel platform uygulamalarını içeriyor.
 ## Codemagic
 
 1. Bu depoyu Codemagic'e bağla ve kökteki `codemagic.yaml` dosyasını kullan.
-2. Önce **ios-validation** çalıştır: Flutter 3.41.7, analiz, Flutter testleri, simülatör derlemesi ve `RunnerTests` takvim testleri. Çıktıyı ve Xcode hatalarını incele. Swift kodu burada ilk kez derlenecek.
+2. Önce **ios-validation** çalıştır: Flutter 3.41.7, analiz, Flutter testleri, simülatör derlemesi ve `RunnerTests` takvim testleri. Çıktıyı ve Xcode hatalarını incele. Swift kodunun ilk başarılı derlemesi aşağıda kayıtlıdır.
 3. Apple Developer üyeliğini ve App Store Connect'te `com.albumium.albumium` uygulama kaydını hazırla.
 4. Codemagic takım ayarlarına **Albumium App Store Connect** adlı API entegrasyonunu ve bu kimliğe ait App Store imzalama sertifikası/profilini ekle. API özel anahtarı, sertifika ve parolalar depoya yazılmaz.
 5. **ios-testflight** iş akışını çalıştır. Bu akış imzalı IPA oluşturur ve TestFlight'a gönderir; App Store incelemesine otomatik gönderim kapalıdır. Build numarası Codemagic proje sayacıdır; mevcut App Store kaydındaki numaralardan büyük olması sağlanmalıdır.
 6. TestFlight cihaz kontrolleri ve mağaza hazırlığı tamamlandıktan sonra App Store gönderimini ayrı yap.
 
-YAML hazırdır; Codemagic hesabına bağlantı kurulmadı ve bulut derlemesi başlatılmadı. Apple hesap/imzalama bilgileri bu çalışma alanında sağlanmış değil.
+14 Eylül 2026: `codex/ios-validation` dalı Codemagic'e bağlandı. `ae5ef5d` değişikliğiyle Vision parametre etiketi düzeltildi; analiz, Flutter testleri, iOS simülatör derlemesi, ZIP paketleme ve 4 yerel XCTest başarılı. Test hedefi iPhone 17 Pro simülatörüydü; bu sonuç iOS 17 işletim sisteminde ayrıca test yapıldığı anlamına gelmez. [Başarılı derleme ve çıktılar](https://codemagic.io/app/6aa70313643642a209710ba7/build/6aa7c27ece14455b631ad9dd). Apple hesap/imzalama bilgileri henüz sağlanmış değil.
 
 ## Gerçek cihaz kabul listesi — henüz bekliyor
 
