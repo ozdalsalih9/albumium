@@ -455,7 +455,7 @@ class _PreviewScreenState extends State<PreviewScreen>
     _throwIfExportCancelled();
     if (settleAssets) {
       await GoogleFonts.pendingFonts();
-      await Future<void>.delayed(const Duration(milliseconds: 18));
+      await Future<void>.delayed(const Duration(milliseconds: 60));
       await WidgetsBinding.instance.endOfFrame;
       _throwIfExportCancelled();
     }
@@ -1144,6 +1144,13 @@ class _PreviewScreenState extends State<PreviewScreen>
       var assetsSettled = false;
       var filmFrame = 0;
       var lastProgressUpdate = Duration.zero;
+
+      // Ensure all album page photos are precached in memory before rendering frames.
+      for (var pageIdx = 0; pageIdx < widget.album.pages.length; pageIdx++) {
+        _throwIfExportCancelled();
+        await _precacheSinglePageSpreadImages(pageIdx);
+      }
+
       for (final beat in storyboard.beats) {
         _throwIfExportCancelled();
         if (mounted) {
@@ -1179,7 +1186,7 @@ class _PreviewScreenState extends State<PreviewScreen>
             sampledFrame = await _captureSinglePageVideoFrame(
               beat: beat,
               progress: progress,
-              settleAssets: !assetsSettled,
+              settleAssets: localFrame == 0 || !assetsSettled,
               pixelRatio: settings.quality.width / _exportLogicalWidth,
             );
             assetsSettled = true;

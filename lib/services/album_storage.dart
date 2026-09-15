@@ -210,7 +210,12 @@ class AlbumStorage {
     final destination = File(
       '${directory.path}${Platform.pathSeparator}${newId()}$extension',
     );
-    await File(source.path).copy(destination.path);
+    try {
+      await File(source.path).copy(destination.path);
+    } catch (_) {
+      final bytes = await source.readAsBytes();
+      await destination.writeAsBytes(bytes);
+    }
     return destination.path;
   }
 }

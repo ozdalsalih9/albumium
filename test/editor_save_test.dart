@@ -73,6 +73,11 @@ void main() {
           await navigator.currentState!.maybePop();
           await tester.pump();
           expect(find.byType(EditorScreen), findsOneWidget);
+          final saveAndExit = find.text('Kaydet ve Çık');
+          if (saveAndExit.evaluate().isNotEmpty) {
+            await tester.tap(saveAndExit);
+            await tester.pump();
+          }
           store.gate!.complete();
         } else {
           await tester.tap(find.byKey(const ValueKey('editor-save')));

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/album_models.dart';
 import '../l10n/albumium_localizations.dart';
+import 'sticker_packs.dart';
 
 Rect albumElementBounds(AlbumElementModel e, Size page) {
   final w = e.width * page.width * e.scale;
@@ -99,9 +100,11 @@ class ElementEditPanel extends StatefulWidget {
     required this.onDelete,
     required this.onLayer,
     required this.canMoveLayer,
+    this.onFitPhoto,
   });
   final AlbumElementModel element;
   final VoidCallback onChanged, onClose, onStyle, onCrop, onDuplicate, onDelete;
+  final VoidCallback? onFitPhoto;
   final ValueChanged<AlbumElementLayerAction> onLayer;
   final bool Function(AlbumElementLayerAction) canMoveLayer;
   @override
@@ -152,6 +155,93 @@ class _ElementEditPanelState extends State<ElementEditPanel> {
     visualDensity: VisualDensity.compact,
   );
 
+  Widget _buildPrecision() {
+    final e = widget.element;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _PrecisionMoveButton(
+          key: ValueKey('${e.id}-Sola'),
+          tooltip: context.tr('Sola'),
+          onStep: e.locked ? null : () => _change(() => e.x -= 1 / 500),
+          icon: const Icon(Icons.arrow_back),
+        ),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _PrecisionMoveButton(
+              key: ValueKey('${e.id}-Yukarı'),
+              tooltip: context.tr('Yukarı'),
+              onStep: e.locked ? null : () => _change(() => e.y -= 1 / 700),
+              icon: const Icon(Icons.arrow_upward),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(3),
+              child: Text(context.tr('Tek adım')),
+            ),
+            _PrecisionMoveButton(
+              key: ValueKey('${e.id}-Aşağı'),
+              tooltip: context.tr('Aşağı'),
+              onStep: e.locked ? null : () => _change(() => e.y += 1 / 700),
+              icon: const Icon(Icons.arrow_downward),
+            ),
+          ],
+        ),
+        _PrecisionMoveButton(
+          key: ValueKey('${e.id}-Sağa'),
+          tooltip: context.tr('Sağa'),
+          onStep: e.locked ? null : () => _change(() => e.x += 1 / 500),
+          icon: const Icon(Icons.arrow_forward),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAlign() {
+    final e = widget.element;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var row = 0; row < 3; row++)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (var col = 0; col < 3; col++)
+                IconButton.filledTonal(
+                  tooltip: context.tr(
+                    [
+                      'Sol üst',
+                      'Üst orta',
+                      'Sağ üst',
+                      'Sol orta',
+                      'Tam orta',
+                      'Sağ orta',
+                      'Sol alt',
+                      'Alt orta',
+                      'Sağ alt',
+                    ][row * 3 + col],
+                  ),
+                  onPressed: e.locked ? null : () => _align(col, row),
+                  icon: Icon(
+                    [
+                      Icons.north_west,
+                      Icons.north,
+                      Icons.north_east,
+                      Icons.west,
+                      Icons.filter_center_focus,
+                      Icons.east,
+                      Icons.south_west,
+                      Icons.south,
+                      Icons.south_east,
+                    ][row * 3 + col],
+                  ),
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+
   static String _layerLabel(AlbumElementLayerAction action) => switch (action) {
     AlbumElementLayerAction.moveUp => 'Bir üste getir',
     AlbumElementLayerAction.moveDown => 'Bir alta gönder',
@@ -179,8 +269,10 @@ class _ElementEditPanelState extends State<ElementEditPanel> {
     tooltip: context.tr('Daha fazla'),
     icon: const Icon(Icons.more_horiz_rounded, size: 22),
     enabled: !widget.element.locked,
+
     onSelected: (value) =>
         setState(() => _section = _section == value ? null : value),
+
     itemBuilder: (context) => [
       for (final section in sections)
         PopupMenuItem<String>(
@@ -205,6 +297,14 @@ class _ElementEditPanelState extends State<ElementEditPanel> {
   List<Widget> _tools(AlbumElementModel e, List<String> sections) => [
     if (e.type == AlbumElementType.photo)
       _tool('Kırp', Icons.crop_rounded, widget.onCrop),
+    if (e.type == AlbumElementType.sticker &&
+        isAlbumShape(e.content) &&
+        widget.onFitPhoto != null)
+      _tool(
+        'Fotoğraf Ekle',
+        Icons.add_photo_alternate_outlined,
+        widget.onFitPhoto,
+      ),
     _tool(
       'Küçült',
       Icons.zoom_out_rounded,
@@ -332,92 +432,11 @@ class _ElementEditPanelState extends State<ElementEditPanel> {
                 ),
         );
 
-    final precision = Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _PrecisionMoveButton(
-          key: ValueKey('${e.id}-Sola'),
-          tooltip: context.tr('Sola'),
-          onStep: e.locked ? null : () => _change(() => e.x -= 1 / 500),
-          icon: const Icon(Icons.arrow_back),
-        ),
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _PrecisionMoveButton(
-              key: ValueKey('${e.id}-Yukarı'),
-              tooltip: context.tr('Yukarı'),
-              onStep: e.locked ? null : () => _change(() => e.y -= 1 / 700),
-              icon: const Icon(Icons.arrow_upward),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(3),
-              child: Text(context.tr('Tek adım')),
-            ),
-            _PrecisionMoveButton(
-              key: ValueKey('${e.id}-Aşağı'),
-              tooltip: context.tr('Aşağı'),
-              onStep: e.locked ? null : () => _change(() => e.y += 1 / 700),
-              icon: const Icon(Icons.arrow_downward),
-            ),
-          ],
-        ),
-        _PrecisionMoveButton(
-          key: ValueKey('${e.id}-Sağa'),
-          tooltip: context.tr('Sağa'),
-          onStep: e.locked ? null : () => _change(() => e.x += 1 / 500),
-          icon: const Icon(Icons.arrow_forward),
-        ),
-      ],
-    );
-
-    final align = Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var row = 0; row < 3; row++)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              for (var col = 0; col < 3; col++)
-                IconButton.filledTonal(
-                  tooltip: context.tr(
-                    [
-                      'Sol üst',
-                      'Üst orta',
-                      'Sağ üst',
-                      'Sol orta',
-                      'Tam orta',
-                      'Sağ orta',
-                      'Sol alt',
-                      'Alt orta',
-                      'Sağ alt',
-                    ][row * 3 + col],
-                  ),
-                  onPressed: e.locked ? null : () => _align(col, row),
-                  icon: Icon(
-                    [
-                      Icons.north_west,
-                      Icons.north,
-                      Icons.north_east,
-                      Icons.west,
-                      Icons.filter_center_focus,
-                      Icons.east,
-                      Icons.south_west,
-                      Icons.south,
-                      Icons.south_east,
-                    ][row * 3 + col],
-                  ),
-                ),
-            ],
-          ),
-      ],
-    );
-
     return Material(
       color: theme.colorScheme.surface,
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * .38,
+          maxHeight: MediaQuery.sizeOf(context).height * .34,
         ),
         child: SingleChildScrollView(
           child: Padding(
@@ -469,8 +488,8 @@ class _ElementEditPanelState extends State<ElementEditPanel> {
                           context.tr('Nesne sabit. Düzenlemek için kilidi aç.'),
                         ),
                       ),
-                    if (_section == 'Hassas ayar') precision,
-                    if (_section == 'Hizala') align,
+                    if (_section == 'Hassas ayar') _buildPrecision(),
+                    if (_section == 'Hizala') _buildAlign(),
                     if (_section == 'Renk')
                       Wrap(
                         spacing: 8,
