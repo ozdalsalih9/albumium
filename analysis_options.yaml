@@ -1,5 +1,3 @@
-include: package:flutter_lints/flutter.yaml
-
 # This file configures the analyzer, which statically analyzes Dart code to
 # check for errors, warnings, and lints.
 #
@@ -7,18 +5,9 @@ include: package:flutter_lints/flutter.yaml
 # IDEs (https://dart.dev/tools#ides-and-editors). The analyzer can also be
 # invoked from the command line by running `flutter analyze`.
 
-# Generated builds, archived marketing capture scripts, and platform-specific
-# generated files are not app sources.
-analyzer:
-  exclude:
-    - build/**
-    - dist/**
-    - android/**
-    - ios/**
-    - web/**
-    - windows/**
-    - macos/**
-    - linux/**
+# The following line activates a set of recommended lints for Flutter apps,
+# packages, and plugins designed to encourage good coding practices.
+include: package:flutter_lints/flutter.yaml
 
 # Generated builds and archived marketing capture scripts are not app sources.
 analyzer:
