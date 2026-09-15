@@ -7,6 +7,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quick_video_encoder/flutter_quick_video_encoder.dart';
@@ -53,6 +54,10 @@ class PreviewScreen extends StatefulWidget {
 
 class _PreviewScreenState extends State<PreviewScreen>
     with SingleTickerProviderStateMixin {
+  static const double _defaultGrabY = 0.62;
+  static final SpringDescription _pageSpring =
+      SpringDescription.withDampingRatio(mass: 1, stiffness: 190);
+
   final _exportBoundary = GlobalKey();
   late final AnimationController _turnController;
 
@@ -63,9 +68,8 @@ class _PreviewScreenState extends State<PreviewScreen>
   bool _exporting = false;
   bool _reduceMotion = false;
   bool _draggingPage = false;
-  double _dragDistance = 0;
-  double _dragExtent = 1;
-  double _turnGrabY = 0.64;
+  double _dragWidth = 1;
+  double _turnGrabY = _defaultGrabY;
   int _exportFrom = 0;
   int? _exportTo;
   double _exportTurnProgress = 0;
@@ -99,8 +103,8 @@ class _PreviewScreenState extends State<PreviewScreen>
     super.initState();
     _turnController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
+      duration: const Duration(milliseconds: 760),
+    )..addStatusListener(_handleTurnStatus);
     if (widget.openShareOnReady) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) unawaited(_showShareOptions());
@@ -168,39 +172,63 @@ class _PreviewScreenState extends State<PreviewScreen>
     );
   }
 
-  Future<void> _goTo(int target, {bool animate = true}) async {
+  void _handleTurnStatus(AnimationStatus status) {
+    // Sürükleme sırasında değer uç noktaya dayandığında sayfa ilerlemesin;
+    // ilerlemeye yalnızca parmak bırakıldıktan sonra karar verilir.
+    if (_draggingPage) return;
+    if (status != AnimationStatus.completed &&
+        status != AnimationStatus.dismissed) {
+      return;
+    }
+    // animateWith ile başlatılan bir yay benzetimi, hangi değerde durursa
+    // dursun "completed" durumuna geçer. Bu yüzden sayfanın ilerleyip
+    // ilerlemeyeceğine duruma değil, yaprağın gerçekten yerine oturup
+    // oturmadığına bakılarak karar verilir; aksi hâlde geri yaslanan yaprak da
+    // sayfayı çevirmiş sayılırdı.
+    if (_turnController.value < 0.85) {
+      if (_target != null) {
+        setState(() => _target = null);
+        _turnController.value = 0;
+      }
+      return;
+    }
+    final target = _target;
+    if (target != null) {
+      setState(() {
+        _current = target;
+        _target = null;
+      });
+      HapticFeedback.selectionClick();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _target == null) _turnController.value = 0;
+      });
+    }
+  }
+
+  void _goTo(int target, {bool animate = true, double? grabY}) {
     if (_target != null || target == _current) return;
     if (target < 0 || target >= previewCount) return;
 
     if (_reduceMotion || !animate) {
-      setState(() => _current = target);
+      _turnController.stop();
+      setState(() {
+        _current = target;
+        _target = null;
+      });
+      _turnController.value = 0;
       return;
     }
 
+    final forward = target > _current;
     setState(() {
       _target = target;
-      _turningForward = target > _current;
-      _turnGrabY = 0.64;
+      _turningForward = forward;
+      _turnGrabY = grabY?.clamp(0.08, 0.92) ?? _defaultGrabY;
     });
-    HapticFeedback.selectionClick();
 
-    try {
-      await _turnController
-          .animateTo(
-            1,
-            duration: _turnController.duration,
-            curve: Curves.easeInOutCubic,
-          )
-          .orCancel;
-    } on TickerCanceled {
-      return;
-    }
-    if (!mounted) return;
-    setState(() {
-      _current = target;
-      _target = null;
-    });
-    _turnController.value = 0;
+    _turnController.animateWith(
+      SpringSimulation(_pageSpring, 0, 1, 0),
+    );
   }
 
   void _toggleAutoPlay() {
@@ -219,115 +247,97 @@ class _PreviewScreenState extends State<PreviewScreen>
   }
 
   void _handleDragStart(DragStartDetails details, BoxConstraints constraints) {
-    if (_target != null) return;
+    // Uçmakta olan yaprağı yakala: animasyon sırasında parmağını koyan
+    // kullanıcı kaldığı yerden devam edebilmeli.
+    _turnController.stop();
     _draggingPage = true;
-    _dragDistance = 0;
-    _dragExtent = math.max(180, constraints.maxWidth) * 0.62;
-    _turnGrabY = constraints.maxHeight <= 0
-        ? 0.64
-        : (details.localPosition.dy / constraints.maxHeight).clamp(0.14, 0.86);
+    if (_target == null && _turnController.value != 0) {
+      _turnController.value = 0;
+    }
+    _dragWidth = math.max(160.0, constraints.maxWidth * 0.55);
+    final height = constraints.maxHeight <= 0 ? 1.0 : constraints.maxHeight;
+    _turnGrabY = (details.localPosition.dy / height).clamp(0.08, 0.92);
   }
 
   void _handleDragUpdate(DragUpdateDetails details) {
     if (!_draggingPage) return;
-    _dragDistance += details.delta.dx;
-    if (_reduceMotion) return;
+    final delta = details.primaryDelta ?? details.delta.dx;
 
     if (_target == null) {
-      if (_dragDistance.abs() < 3) return;
-      final forward = _dragDistance < 0;
-      final candidate = _current + (forward ? 1 : -1);
-      if (candidate < 0 || candidate >= previewCount) return;
-      setState(() {
-        _target = candidate;
-        _turningForward = forward;
-      });
-      HapticFeedback.selectionClick();
+      if (delta.abs() < 0.5) return;
+      if (delta < 0 && _current < previewCount - 1) {
+        setState(() {
+          _target = _current + 1;
+          _turningForward = true;
+        });
+      } else if (delta > 0 && _current > 0) {
+        setState(() {
+          _target = _current - 1;
+          _turningForward = false;
+        });
+      } else {
+        return;
+      }
     }
 
-    final directedDistance = _turningForward ? -_dragDistance : _dragDistance;
-    _turnController.value = (directedDistance / _dragExtent).clamp(0.0, 1.0);
+    final sign = _turningForward ? -1.0 : 1.0;
+    // Üst sınır tam 1.0 değil: değer uç noktaya dayanınca denetleyici
+    // tamamlandı durumuna geçer ve sayfa parmak hâlâ ekrandayken ilerlerdi.
+    _turnController.value =
+        (_turnController.value + sign * delta / _dragWidth).clamp(0.0, 0.995);
   }
 
   void _handleDragEnd(DragEndDetails details) {
     if (!_draggingPage) return;
     _draggingPage = false;
+    if (_target == null) return;
 
-    final velocity = details.primaryVelocity ?? 0;
+    final sign = _turningForward ? -1.0 : 1.0;
+    // Bırakma hızını sayfa genişliğine göre normalleştir: birim/saniye.
+    final velocity = (details.primaryVelocity ?? 0) * sign / _dragWidth;
+
     if (_reduceMotion) {
-      final wantsNext = _dragDistance < -34 || velocity < -360;
-      final wantsPrevious = _dragDistance > 34 || velocity > 360;
-      _dragDistance = 0;
-      if (wantsNext) {
-        _goTo(_current + 1);
-      } else if (wantsPrevious) {
-        _goTo(_current - 1);
-      }
+      final complete = velocity > 0.9 || _turnController.value > 0.35;
+      _turnController.stop();
+      setState(() {
+        if (complete) _current = _target!;
+        _target = null;
+      });
+      _turnController.value = 0;
       return;
     }
 
-    if (_target == null) {
-      _dragDistance = 0;
-      return;
-    }
+    // Hızlı savurma mesafeye bakmadan tamamlar; yavaş bırakmada kat edilen
+    // yol belirler. Geriye doğru güçlü savurma ise yaprağı geri yaslar.
+    final complete =
+        velocity > 0.9 || (_turnController.value > 0.35 && velocity > -0.9);
+    final target = complete ? 1.0 : 0.0;
 
-    final directedVelocity = _turningForward ? -velocity : velocity;
-    final complete = _turnController.value > 0.34 || directedVelocity > 360;
-    _dragDistance = 0;
-    unawaited(_settleDraggedPage(complete: complete));
+    _turnController.animateWith(
+      SpringSimulation(_pageSpring, _turnController.value, target, velocity),
+    );
   }
 
   void _handleDragCancel() {
     if (!_draggingPage) return;
     _draggingPage = false;
-    _dragDistance = 0;
-    if (_target != null) unawaited(_settleDraggedPage(complete: false));
-  }
-
-  Future<void> _settleDraggedPage({required bool complete}) async {
-    final target = _target;
-    if (target == null) return;
-    try {
-      if (complete) {
-        await _turnController
-            .animateTo(
-              1,
-              duration: Duration(
-                milliseconds: math.max(
-                  170,
-                  (520 * (1 - _turnController.value)).round(),
-                ),
-              ),
-              curve: Curves.easeOutCubic,
-            )
-            .orCancel;
-      } else {
-        await _turnController
-            .animateBack(
-              0,
-              duration: const Duration(milliseconds: 260),
-              curve: Curves.easeOutCubic,
-            )
-            .orCancel;
-      }
-    } on TickerCanceled {
-      return;
+    if (_target != null) {
+      _turnController.animateWith(
+        SpringSimulation(_pageSpring, _turnController.value, 0.0, 0.0),
+      );
     }
-    if (!mounted) return;
-    setState(() {
-      if (complete) _current = target;
-      _target = null;
-    });
-    _turnController.value = 0;
   }
 
   void _handleBookTap(TapUpDetails details, BoxConstraints constraints) {
     if (_target != null || constraints.maxWidth <= 0) return;
     final position = details.localPosition.dx / constraints.maxWidth;
-    if (position <= 0.28) {
-      _goTo(_current - 1);
-    } else if (position >= 0.72) {
-      _goTo(_current + 1);
+    final height = constraints.maxHeight <= 0 ? 1.0 : constraints.maxHeight;
+    final grabY = (details.localPosition.dy / height).clamp(0.08, 0.92);
+
+    if (position <= 0.28 && _current > 0) {
+      _goTo(_current - 1, grabY: grabY);
+    } else if (position >= 0.72 && _current < previewCount - 1) {
+      _goTo(_current + 1, grabY: grabY);
     }
   }
 

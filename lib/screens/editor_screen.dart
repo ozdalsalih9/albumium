@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../widgets/responsive_controls.dart';
@@ -758,12 +759,19 @@ class _EditorScreenState extends State<EditorScreen>
       _selectedId = null;
     });
 
-    await _pageTurnController.animateTo(
+    final sim = SpringSimulation(
+      SpringDescription.withDampingRatio(mass: 1, stiffness: 190),
+      0,
       1,
-      duration: _pageTurnController.duration,
-      curve: Curves.easeInOutCubic,
+      0,
     );
+    try {
+      await _pageTurnController.animateWith(sim).orCancel;
+    } on TickerCanceled {
+      return;
+    }
     if (!mounted) return;
+    HapticFeedback.selectionClick();
     setState(() {
       _pageIndex = targetPage;
       _nextSpreadLeftPageIndex = null;

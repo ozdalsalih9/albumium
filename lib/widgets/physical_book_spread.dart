@@ -34,7 +34,7 @@ class PhysicalBookSpread extends StatelessWidget {
     this.nextClosed = false,
     this.turnProgress = 0,
     this.turningForward = true,
-    this.turnGrabY = 0.64,
+    this.turnGrabY = 0.62,
     this.interactive = false,
     this.focusedPageIndex,
     this.targetFocusedPageIndex,
