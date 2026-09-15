@@ -60,6 +60,13 @@ class AlbumStorage {
   /// için iki yazma çakışıp birbirini eziyordu.
   Future<void> _writes = Future<void>.value();
 
+  /// Kuyrukta bekleyen tüm yazma işlemlerinin tamamlanmasını bekler.
+  ///
+  /// Editör kapandıktan hemen sonra ana ekran `loadAlbums()` çağırmadan önce
+  /// bu metodu await etmeli; aksi takdirde kısmen yazılmış veriyi okuma
+  /// riski doğar.
+  Future<void> flush() => _writes;
+
   Future<T> _serialized<T>(Future<T> Function() action) {
     final completer = Completer<T>();
     _writes = _writes.then((_) async {

@@ -326,7 +326,8 @@ class _EditorScreenState extends State<EditorScreen>
       if (choice == _LeaveChoice.save) {
         _leaving = true;
         final saved = await _save(notify: true);
-        _leaving = false;
+        // _leaving intentionally stays true so dispose() does not fire a
+        // second unsynchronized _persistChanges() after we've already saved.
         if (!saved || !mounted) return;
         setState(() => _allowPop = true);
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -338,7 +339,7 @@ class _EditorScreenState extends State<EditorScreen>
 
     _leaving = true;
     final saved = await _save();
-    _leaving = false;
+    // _leaving intentionally stays true — dispose() must not race with us.
     if (!saved || !mounted) return;
     setState(() => _allowPop = true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
