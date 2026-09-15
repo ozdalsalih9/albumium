@@ -269,9 +269,10 @@ class _ElementEditPanelState extends State<ElementEditPanel> {
     tooltip: context.tr('Daha fazla'),
     icon: const Icon(Icons.more_horiz_rounded, size: 22),
     enabled: !widget.element.locked,
-    onSelected: (value) {
-      setState(() => _section = _section == value ? null : value);
-    },
+
+    onSelected: (value) =>
+        setState(() => _section = _section == value ? null : value),
+
     itemBuilder: (context) => [
       for (final section in sections)
         PopupMenuItem<String>(
