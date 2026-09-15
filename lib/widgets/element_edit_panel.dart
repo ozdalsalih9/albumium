@@ -111,7 +111,6 @@ class ElementEditPanel extends StatefulWidget {
 class _ElementEditPanelState extends State<ElementEditPanel> {
   /// Above this width the summary and the tool strip share a single row.
   static const _wideBreakpoint = 600.0;
-  static const _styleAction = 'Düzenle';
 
   /// The extra panels stay collapsed so the strip alone carries the selection.
   String? _section;
@@ -180,26 +179,9 @@ class _ElementEditPanelState extends State<ElementEditPanel> {
     tooltip: context.tr('Daha fazla'),
     icon: const Icon(Icons.more_horiz_rounded, size: 22),
     enabled: !widget.element.locked,
-    onSelected: (value) {
-      if (value == _styleAction) {
-        widget.onStyle();
-        return;
-      }
-      setState(() => _section = _section == value ? null : value);
-    },
+    onSelected: (value) =>
+        setState(() => _section = _section == value ? null : value),
     itemBuilder: (context) => [
-      PopupMenuItem<String>(
-        key: const ValueKey('section-style'),
-        value: _styleAction,
-        child: Row(
-          children: [
-            const Icon(Icons.tune_rounded, size: 18),
-            const SizedBox(width: 10),
-            Text(context.tr('Düzenle')),
-          ],
-        ),
-      ),
-      const PopupMenuDivider(),
       for (final section in sections)
         PopupMenuItem<String>(
           key: ValueKey('section-$section'),
@@ -261,6 +243,7 @@ class _ElementEditPanelState extends State<ElementEditPanel> {
         ],
       ),
     _layerButton(),
+    _tool('Düzenle', Icons.tune_rounded, widget.onStyle),
     _tool('Kopyala', Icons.content_copy_rounded, widget.onDuplicate),
     _tool(
       'Sil',
