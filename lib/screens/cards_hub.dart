@@ -5,6 +5,7 @@ import '../services/album_storage.dart';
 import '../services/card_template_storage.dart';
 import '../widgets/occasion_cards.dart';
 import '../widgets/album_page_canvas.dart';
+import '../theme/albumium_app_theme.dart';
 import 'special_card_studio_screen.dart';
 
 class CardsHub extends StatefulWidget {
@@ -101,8 +102,18 @@ class _CardsHubState extends State<CardsHub> {
     bool template = false,
     bool catalog = false,
   }) {
+    final colors = AlbumiumAppTheme.colorsOf(context);
     if (cards.isEmpty) {
-      return Center(child: Text(context.tr('İlk tasarımını oluştur')));
+      return Center(
+        child: Text(
+          context.tr('İlk tasarımını oluştur'),
+          style: TextStyle(
+            color: colors.mutedText,
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      );
     }
     return GridView.builder(
       padding: const EdgeInsets.all(16),
@@ -116,6 +127,12 @@ class _CardsHubState extends State<CardsHub> {
       itemBuilder: (context, i) {
         final card = cards[i];
         return Card(
+          color: colors.surface,
+          elevation: 1,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: colors.border),
+          ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: () => _open(
@@ -153,13 +170,20 @@ class _CardsHubState extends State<CardsHub> {
                     card.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: colors.text,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   trailing: catalog
                       ? null
                       : IconButton(
                           tooltip: context.tr('Sil'),
                           onPressed: () => _delete(card, template),
-                          icon: const Icon(Icons.delete_outline),
+                          icon: Icon(
+                            Icons.delete_outline_rounded,
+                            color: colors.mutedText,
+                          ),
                         ),
                 ),
               ],
@@ -171,108 +195,135 @@ class _CardsHubState extends State<CardsHub> {
   }
 
   @override
-  Widget build(BuildContext context) => DefaultTabController(
-    length: 3,
-    child: SafeArea(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    context.tr('Kartlar'),
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: () => _open(
-                    createSpecialCardProject(
-                      template: blankCardTemplate,
-                      translate: context.tr,
+  Widget build(BuildContext context) {
+    final colors = AlbumiumAppTheme.colorsOf(context);
+    return DefaultTabController(
+      length: 3,
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      context.tr('Kartlar'),
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        color: colors.text,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    save: true,
                   ),
-                  icon: const Icon(Icons.add),
-                  label: Text(context.tr('Boş tuval')),
-                ),
+                  FilledButton.tonalIcon(
+                    onPressed: () => _open(
+                      createSpecialCardProject(
+                        template: blankCardTemplate,
+                        translate: context.tr,
+                      ),
+                      save: true,
+                    ),
+                    icon: const Icon(Icons.add_rounded, size: 20),
+                    label: Text(context.tr('Boş tuval')),
+                  ),
+                ],
+              ),
+            ),
+            TabBar(
+              labelColor: colors.primary,
+              unselectedLabelColor: colors.mutedText,
+              indicatorColor: colors.primary,
+              dividerColor: colors.border,
+              tabs: [
+                Tab(text: context.tr('Temalar')),
+                Tab(text: context.tr('Kartlarım')),
+                Tab(text: context.tr('Şablonlarım')),
               ],
             ),
-          ),
-          TabBar(
-            tabs: [
-              Tab(text: context.tr('Temalar')),
-              Tab(text: context.tr('Kartlarım')),
-              Tab(text: context.tr('Şablonlarım')),
-            ],
-          ),
-          if (_failed)
-            TextButton(
-              onPressed: _load,
-              child: Text(context.tr('Yüklenemedi. Tekrar dene.')),
-            ),
-          Expanded(
-            child: TabBarView(
-              children: [
-                Column(
-                  children: [
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: ChoiceChip(
-                              label: Text(context.tr('Tümü')),
-                              selected: _category == null,
-                              onSelected: (_) =>
-                                  setState(() => _category = null),
-                            ),
-                          ),
-                          for (final category
-                              in occasionCardTemplates
-                                  .map((t) => t.category)
-                                  .toSet())
+            if (_failed)
+              TextButton(
+                onPressed: _load,
+                child: Text(context.tr('Yüklenemedi. Tekrar dene.')),
+              ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  Column(
+                    children: [
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          children: [
                             Padding(
                               padding: const EdgeInsets.only(right: 8),
                               child: ChoiceChip(
-                                label: Text(context.tr(category)),
-                                selected: _category == category,
+                                label: Text(context.tr('Tümü')),
+                                labelStyle: TextStyle(
+                                  color: _category == null
+                                      ? colors.onPrimary
+                                      : colors.text,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                selectedColor: colors.primary,
+                                backgroundColor: colors.surface,
+                                selected: _category == null,
                                 onSelected: (_) =>
-                                    setState(() => _category = category),
+                                    setState(() => _category = null),
                               ),
                             ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: _grid(
-                        occasionCardTemplates
-                            .where(
-                              (t) =>
-                                  _category == null || t.category == _category,
-                            )
-                            .map(
-                              (t) => createSpecialCardProject(
-                                template: t,
-                                translate: context.tr,
+                            for (final category
+                                in occasionCardTemplates
+                                    .map((t) => t.category)
+                                    .toSet())
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: ChoiceChip(
+                                  label: Text(context.tr(category)),
+                                  labelStyle: TextStyle(
+                                    color: _category == category
+                                        ? colors.onPrimary
+                                        : colors.text,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  selectedColor: colors.primary,
+                                  backgroundColor: colors.surface,
+                                  selected: _category == category,
+                                  onSelected: (_) =>
+                                      setState(() => _category = category),
+                                ),
                               ),
-                            )
-                            .toList(),
-                        catalog: true,
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                _grid(_cards),
-                _grid(_templates, template: true),
-              ],
+                      Expanded(
+                        child: _grid(
+                          occasionCardTemplates
+                              .where(
+                                (t) =>
+                                    _category == null ||
+                                    t.category == _category,
+                              )
+                              .map(
+                                (t) => createSpecialCardProject(
+                                  template: t,
+                                  translate: context.tr,
+                                ),
+                              )
+                              .toList(),
+                          catalog: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                  _grid(_cards),
+                  _grid(_templates, template: true),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }

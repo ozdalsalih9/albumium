@@ -292,7 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
         .toList(growable: false);
     final remainingAlbumCount = matchingAlbums.length - visibleAlbums.length;
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: colors.background,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _section,
         onDestinationSelected: (value) {
@@ -310,16 +310,16 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: _section == 1
-          ? const CardsHub()
-          : CraftBackdrop(
-              key: const ValueKey('home-velvet-backdrop'),
-              variant: CraftBackdropVariant.velvet,
-              baseColor: colors.background,
-              textureColor: Color.lerp(colors.text, colors.primary, .32),
-              textureIntensity: .48,
-              child: SafeArea(
-                child: CustomScrollView(
+      body: CraftBackdrop(
+        key: const ValueKey('home-velvet-backdrop'),
+        variant: CraftBackdropVariant.velvet,
+        baseColor: colors.background,
+        textureColor: Color.lerp(colors.text, colors.primary, .32),
+        textureIntensity: .48,
+        child: SafeArea(
+          child: _section == 1
+              ? const CardsHub()
+              : CustomScrollView(
                   physics: const BouncingScrollPhysics(),
                   slivers: [
                     SliverToBoxAdapter(
