@@ -148,19 +148,14 @@ class _PageCurlPainter extends SnapshotPainter {
   // The front/back split follows triangle edges. A denser grid keeps that
   // physical face boundary smooth even on tall phone previews, without
   // changing the deterministic curl geometry used by exports.
-  static const _cols = 72;
-  static const _rows = 44;
-  static const _faceSplitColumn = _cols ~/ 2;
+  static const _cols = 64;
+  static const _rows = 36;
 
-  /// Silindirin yarıçapı (genişliğe oran). Kâğıdın sertliğini belirler:
-  /// büyüdükçe kıvrım yayvan, küçüldükçe keskin olur.
-  // A slightly broader roll keeps the moving leaf visibly curved instead of
-  // reading as a rigid card hinged at the binding. The conservative value
-  // still leaves a firm paper body and avoids the rubber-sheet look.
-  static const _radiusRatio = 0.11;
+  /// Silindirin yarıçapı (genişliğe oran). Kâğıdın sertliğini belirler.
+  static const _radiusRatio = 0.10;
 
-  /// Kat çizgisinin, köşeden tutulduğunda alabileceği en büyük eğim (radyan).
-  static const _maxTilt = 0.38;
+  /// Kat çizgisinin en büyük eğimi (radyan).
+  static const _maxTilt = 0.26;
 
   static const _vertexCount = (_cols + 1) * (_rows + 1);
 
@@ -174,7 +169,6 @@ class _PageCurlPainter extends SnapshotPainter {
   ui.Image? _shaderImage;
   ui.ImageShader? _shader;
 
-  // Tamponlar kare başına yeniden ayrılmaz; ağın boyutu sabittir.
   final _positions = Float32List(_vertexCount * 2);
   final _texCoords = Float32List(_vertexCount * 2);
   final _shades = Int32List(_vertexCount);
@@ -240,10 +234,6 @@ class _PageCurlPainter extends SnapshotPainter {
     return indices;
   }
 
-  /// Front and back snapshots share the same geometry, but never the same
-  /// triangle. Partitioning indices instead of relying on interpolated vertex
-  /// alpha avoids the Android GPU rounding that used to draw a second, ghost
-  /// sheet in front of the curl.
   Uint16List _indicesForSurface() {
     if (_surface == PageCurlSurface.paper) return _indices;
 
@@ -264,8 +254,6 @@ class _PageCurlPainter extends SnapshotPainter {
     return Uint16List.sublistView(_visibleIndices, 0, visibleCount);
   }
 
-  /// Rasterleştirilmiş sayfayı doku olarak bağlar. Gölgelendirici kare başına
-  /// değil, yalnızca görüntü değiştiğinde yeniden kurulur.
   ui.ImageShader _shaderFor(ui.Image image) {
     final cached = _shader;
     if (cached != null && identical(_shaderImage, image)) return cached;
@@ -300,9 +288,6 @@ class _PageCurlPainter extends SnapshotPainter {
     Size size,
     PaintingContextCallback painter,
   ) {
-    // Rasterleştirme yapılamadığında (ör. içeride bir platform görünümü varsa)
-    // sayfayı kıvırmadan olduğu gibi çiz; hareket kaybolur ama içerik doğru
-    // kalır.
     if (_surface != PageCurlSurface.back) painter(context, offset);
   }
 
@@ -320,21 +305,12 @@ class _PageCurlPainter extends SnapshotPainter {
       return;
     }
 
-    // Kırpma sınırı yalnızca cilt tarafında dardır.
-    //
-    // Üstte ve altta serbest bırakılır: köşesinden tutulan yaprak, çapraz kat
-    // çizgisi etrafında dönerken ucu sayfanın üst kenarını aşar ve gerçek bir
-    // kitapta da masanın üzerine taşar. Burayı sayfa dikdörtgenine kırpmak
-    // kâğıdı üstte düz bir çizgi hâlinde keserdi.
-    //
-    // Fiziksel kitapta sol sınır karşı sayfanın dış kenarına kadar açılır.
-    // Tek sayfalı kullanım ise önceki cilt kırpmasını korur.
     canvas.save();
     canvas.clipRect(
       Rect.fromLTRB(
-        offset.dx - (_allowBindingOverflow ? size.width * 1.08 : 0),
+        offset.dx - (_allowBindingOverflow ? size.width * 1.15 : 0),
         offset.dy - size.height * 0.3,
-        offset.dx + size.width * 1.06,
+        offset.dx + size.width * (_allowBindingOverflow ? 1.15 : 1.06),
         offset.dy + size.height * 1.3,
       ),
     );
@@ -343,28 +319,18 @@ class _PageCurlPainter extends SnapshotPainter {
     final h = size.height;
     final grab = _grabY.clamp(0.0, 1.0);
 
-    // Kat çizgisi sağ kenardan cilde doğru süpürür. Eğimi, parmağın sayfanın
-    // ortasından ne kadar uzakta tuttuğuyla orantılıdır ve çevirmenin ortasında
-    // tepe yapıp sonunda yeniden dikleşir.
-    final tilt = (grab - 0.5) * 2 * _maxTilt * math.sin(math.pi * t);
+    final tilt = (grab - 0.5) * 1.5 * _maxTilt * math.sin(math.pi * t);
     final foldX = w * (1 - t);
     final foldY = h * grab;
-    // Yarıçap ilk anda kademeli açılır, yoksa kâğıt daha ilk pikselde
-    // katlanmış görünür.
-    // Kıvrım ortada genişler, yaprak karşı sayfaya tamamen indiğinde yeniden
-    // düzleşir. Sabit yarıçap son karede sayfayı ciltte kısa bırakıp bir içerik
-    // sıçramasına yol açıyordu.
-    final curlEnvelope = math.sqrt(math.max(0.0, math.sin(math.pi * t)));
-    final radius = math.max(0.75, w * _radiusRatio * curlEnvelope);
 
-    // Kat çizgisinin birim normali (katlanan tarafa bakar) ve doğrultusu.
+    final curlEnvelope = math.sin(math.pi * t).clamp(0.0, 1.0);
+    final radius = math.max(0.1, w * _radiusRatio * curlEnvelope);
+
     final nx = math.cos(tilt);
     final ny = math.sin(tilt);
     final ux = -ny;
     final uy = nx;
 
-    // Kalkan kapağın sola ne kadar uzandığı; altında kalan düz bölgeyi
-    // gölgelemek için kullanılır.
     final reach = math.max(0.0, (w - foldX) - math.pi * radius);
 
     if (_surface != PageCurlSurface.back) {
@@ -375,25 +341,12 @@ class _PageCurlPainter extends SnapshotPainter {
     for (var j = 0; j <= _rows; j++) {
       final fy = j / _rows;
       final y = h * fy;
-      // Make the exact 90° face boundary a shared mesh column. Without this,
-      // a diagonal front/back cut has to follow arbitrary cell diagonals and
-      // reads as a serrated shadow strip on high-density phone screens.
-      final faceBoundaryX =
-          (foldX + (math.pi * radius / 2 - (y - foldY) * ny) / nx).clamp(
-            0.0,
-            w,
-          );
       for (var i = 0; i <= _cols; i++) {
-        final x = i <= _faceSplitColumn
-            ? faceBoundaryX * (i / _faceSplitColumn)
-            : faceBoundaryX +
-                  (w - faceBoundaryX) *
-                      ((i - _faceSplitColumn) / (_cols - _faceSplitColumn));
-        final fx = w == 0 ? 0.0 : x / w;
+        final fx = i / _cols;
+        final x = w * fx;
 
         final relX = x - foldX;
         final relY = y - foldY;
-        // Kat çizgisine dik uzaklık ve çizgi boyunca konum.
         final d = relX * nx + relY * ny;
         final p = relX * ux + relY * uy;
 
@@ -401,19 +354,21 @@ class _PageCurlPainter extends SnapshotPainter {
         double phi;
         var covered = 0.0;
         if (d <= 0) {
-          // Kâğıdın hâlâ düz duran kısmı; dönüşüm birim dönüşümdür.
           shifted = d;
           phi = 0;
           if (reach > 0) covered = (1 + d / reach).clamp(0.0, 1.0);
         } else {
-          phi = d / radius;
-          if (phi <= math.pi) {
-            // Silindirin üzerine sarılan kısım.
-            shifted = radius * math.sin(phi);
-          } else {
-            // Yarım turu tamamlayıp öbür yana düz uzanan kapak.
-            shifted = -(d - math.pi * radius);
+          if (radius <= 0.1) {
+            shifted = -d;
             phi = math.pi;
+          } else {
+            phi = d / radius;
+            if (phi <= math.pi) {
+              shifted = radius * math.sin(phi);
+            } else {
+              shifted = -(d - math.pi * radius);
+              phi = math.pi;
+            }
           }
         }
 
@@ -423,46 +378,31 @@ class _PageCurlPainter extends SnapshotPainter {
             (_surface == PageCurlSurface.back ? 1 - fx : fx) * image.width;
         _texCoords[v * 2 + 1] = fy * image.height;
 
-        // Yüzeyin ışığa göre eğimi. phi büyüdükçe kâğıt okuyucudan uzaklaşır;
-        // yarım turdan sonrası kâğıdın arka yüzüdür ve belirgin biçimde daha
-        // koyu olur.
         double shade;
         if (phi <= math.pi / 2) {
-          shade = 0.55 + 0.45 * math.cos(phi);
+          shade = 0.88 + 0.12 * math.cos(phi);
         } else {
-          shade = 0.50 + 0.20 * -math.cos(phi);
+          final unroll = ((phi - math.pi / 2) / (math.pi / 2)).clamp(0.0, 1.0);
+          shade = 0.88 + 0.12 * unroll;
         }
-        // Kapağın altında kalan düz bölge gölgede kalır.
-        shade *= 1 - 0.34 * covered;
-        final sideMix = ((phi - math.pi * 0.46) / (math.pi * 0.08)).clamp(
+        shade *= 1 - 0.14 * covered;
+
+        final sideMix = ((phi - math.pi * 0.48) / (math.pi * 0.04)).clamp(
           0.0,
           1.0,
         );
-        final surfaceOpacity = switch (_surface) {
-          PageCurlSurface.front ||
-          PageCurlSurface.back ||
-          PageCurlSurface.paper => 1.0,
-        };
         _faceMix[v] = sideMix;
-        _shades[v] = _grey(shade, opacity: surfaceOpacity);
+        _shades[v] = _grey(shade);
 
-        // Yarım turu geçen yüzey kâğıdın arkasıdır: orada mürekkep değil
-        // kâğıt görünmeli. Ön yüzün dokusu yalnızca soluk bir iz olarak
-        // sızar, aynalanmış yazı okunur kalmaz.
         final washOpacity = switch (_surface) {
-          // Match the same narrow face transition used by the mesh opacity.
-          // Once the sheet faces away, paper fully covers mirrored front ink;
-          // otherwise it reads as a ghost-like second page on Android GPUs.
-          PageCurlSurface.paper => sideMix,
-          PageCurlSurface.back => 0.07,
+          PageCurlSurface.paper => sideMix * 0.85,
+          PageCurlSurface.back => 0.0,
           PageCurlSurface.front => 0.0,
         };
         _backWash[v] = _paperColor.withValues(alpha: washOpacity).toARGB32();
 
-        // Işık kâğıdın kıvrıldığı yeri sıyırarak vurur. Çok hafif tutulur;
-        // abartılırsa kâğıt değil plastik görünür.
-        final specular = math.sin(phi) * (phi < math.pi / 2 ? 1.0 : 0.25);
-        _speculars[v] = _grey(specular * 0.12, opacity: surfaceOpacity);
+        final specular = math.sin(phi) * (phi < math.pi / 2 ? 1.0 : 0.35);
+        _speculars[v] = _grey(specular * 0.07);
 
         v++;
       }
@@ -490,8 +430,7 @@ class _PageCurlPainter extends SnapshotPainter {
     );
     sheet.dispose();
 
-    // Arka yüzün hafif kâğıt yıkaması mürekkebi kâğıdın içine oturtur.
-    if (_surface != PageCurlSurface.front) {
+    if (_surface == PageCurlSurface.paper) {
       final wash = ui.Vertices.raw(
         ui.VertexMode.triangles,
         _positions,
@@ -502,8 +441,6 @@ class _PageCurlPainter extends SnapshotPainter {
       wash.dispose();
     }
 
-    // Vurgu ayrı bir geçiş: modulate yalnızca koyulaştırabilir, ışığı eklemek
-    // için toplamalı karışım gerekir.
     final highlight = ui.Vertices.raw(
       ui.VertexMode.triangles,
       _positions,
@@ -520,8 +457,6 @@ class _PageCurlPainter extends SnapshotPainter {
     canvas.restore();
   }
 
-  /// Kalkan yaprağın kat hattında bıraktığı koyu iz. Kıvrımın hemen sağındaki,
-  /// yeni açığa çıkan sayfaya düşer ve yaprak uzaklaştıkça yumuşayarak çekilir.
   void _paintCreaseShadow(
     Canvas canvas,
     Offset offset,
@@ -531,21 +466,22 @@ class _PageCurlPainter extends SnapshotPainter {
     double tilt,
     double t,
   ) {
-    final width = size.width * 0.16;
+    final width = size.width * 0.08;
     if (width <= 0) return;
     final fade = math.sin(math.pi * t).clamp(0.0, 1.0);
+    if (fade <= 0.02) return;
+
     canvas.save();
-    // Gölge, açığa çıkan sayfanın üzerine düşer; sayfanın dışına taşmamalı.
     canvas.clipRRect(
       RRect.fromRectAndRadius(offset & size, Radius.circular(borderRadius)),
     );
     canvas.translate(offset.dx + foldX, offset.dy + foldY);
     canvas.rotate(tilt);
     canvas.drawRect(
-      Rect.fromLTRB(0, -size.height, width, size.height),
+      Rect.fromLTRB(0, -size.height * 1.5, width, size.height * 1.5),
       Paint()
         ..shader = ui.Gradient.linear(Offset.zero, Offset(width, 0), [
-          Colors.black.withValues(alpha: _shadowOpacity * fade),
+          Colors.black.withValues(alpha: _shadowOpacity * 0.45 * fade),
           Colors.black.withValues(alpha: 0),
         ]),
     );

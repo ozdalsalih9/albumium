@@ -99,7 +99,7 @@ class _PreviewScreenState extends State<PreviewScreen>
     super.initState();
     _turnController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 940),
+      duration: const Duration(milliseconds: 500),
     );
     if (widget.openShareOnReady) {
       WidgetsBinding.instance.addPostFrameCallback((_) {

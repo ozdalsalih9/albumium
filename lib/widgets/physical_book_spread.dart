@@ -236,8 +236,7 @@ class PhysicalBookSpread extends StatelessWidget {
       alignment: Alignment.center,
       transform: Matrix4.identity()
         ..setEntry(3, 2, 0.00072)
-        ..rotateX(-0.028 - lift * 0.014)
-        ..rotateZ((turningForward ? -1 : 1) * lift * 0.004),
+        ..rotateX(-0.028 - lift * 0.008),
       filterQuality: FilterQuality.high,
       child: child,
     );
@@ -688,7 +687,10 @@ class _CurlingLeaf extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final halfWidth = constraints.maxWidth / 2;
+        // constraints.maxWidth is the width of turningLeaf (width - 28).
+        // The two pages have width pageWidth each, with a 4px spine gap between them:
+        // constraints.maxWidth == 2 * pageWidth + 4.
+        final pageWidth = (constraints.maxWidth - 4) / 2;
         Widget orientForEngine(Widget page) =>
             forward ? page : Transform.flip(flipX: true, child: page);
 
@@ -702,18 +704,12 @@ class _CurlingLeaf extends StatelessWidget {
           grabY: grabY.clamp(0.08, 0.92),
           paperColor: paperColor,
           borderRadius: 7,
-          // Only the front surface paints the crease shadow. A restrained
-          // value restores contact/depth without bringing back the duplicate
-          // translucent strip that the split front/back mesh removed.
           shadowOpacity: 0.30,
           allowBindingOverflow: true,
           surface: surface,
           child: orientForEngine(page),
         );
 
-        // Both sides follow identical vertices. PageCurl assigns every mesh
-        // triangle to exactly one face, so the back page is carried by the
-        // physical sheet without a second translucent/ghost layer.
         Widget curl = Stack(
           fit: StackFit.expand,
           children: [
@@ -722,10 +718,6 @@ class _CurlingLeaf extends StatelessWidget {
               page: front,
               surface: PageCurlSurface.front,
             ),
-            // Past the half-turn the back face is physically closer to the
-            // reader, so it must paint last where the projected mesh overlaps
-            // itself. Reversing this order produces a dark "second page"
-            // strip in front of the fold on Android.
             curlSurface(
               key: const ValueKey('book-page-curl-back'),
               page: back,
@@ -734,13 +726,11 @@ class _CurlingLeaf extends StatelessWidget {
           ],
         );
         if (!forward) {
-          // The engine turns right-to-left. Mirroring its geometry and both
-          // source snapshots produces the inverse leaf without reversing text.
           curl = Transform.flip(flipX: true, child: curl);
         }
 
         final leaf = SizedBox(
-          width: halfWidth,
+          width: pageWidth,
           height: constraints.maxHeight,
           child: curl,
         );
@@ -749,9 +739,9 @@ class _CurlingLeaf extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             Positioned(
-              left: forward ? halfWidth : 0,
+              left: forward ? (pageWidth + 4) : 0,
               top: 0,
-              width: halfWidth,
+              width: pageWidth,
               bottom: 0,
               child: leaf,
             ),
