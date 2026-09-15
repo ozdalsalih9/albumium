@@ -45,6 +45,7 @@ class PhysicalBookSpread extends StatelessWidget {
     this.onSelectPage,
     this.onSelectElement,
     this.onChanged,
+    this.onLongPressElement,
   });
 
   static const int titlePageIndex = -2;
@@ -84,6 +85,7 @@ class PhysicalBookSpread extends StatelessWidget {
   final ValueChanged<int>? onSelectPage;
   final ValueChanged<String?>? onSelectElement;
   final VoidCallback? onChanged;
+  final void Function(String elementId, Offset globalPosition)? onLongPressElement;
 
   bool get _hasTransition =>
       nextLeftPageIndex != null && nextRightPageIndex != null;
@@ -575,6 +577,7 @@ class PhysicalBookSpread extends StatelessWidget {
           onSelectElement?.call(id);
         },
         onChanged: onChanged,
+        onLongPressElement: onLongPressElement,
       );
     }
 

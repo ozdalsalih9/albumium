@@ -1,7 +1,9 @@
 import 'personal_stickers_screen.dart';
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../widgets/responsive_controls.dart';
 import '../services/photo_selection_service.dart';
 
@@ -47,6 +49,8 @@ class EditorScreen extends StatefulWidget {
 
 class _EditorScreenState extends State<EditorScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+  static AlbumElementModel? _clipboard;
+  late String _initialSnapshotJson;
   late final AnimationController _pageTurnController;
   int _pageIndex = 0;
   String? _selectedId;
@@ -55,6 +59,7 @@ class _EditorScreenState extends State<EditorScreen>
   Future<bool>? _saving;
   int _revision = 0;
   int _savedRevision = -1;
+  bool _hasUnsavedEdits = false;
   bool _allowPop = false;
   bool _leaving = false;
   int? _nextSpreadLeftPageIndex;
@@ -186,6 +191,7 @@ class _EditorScreenState extends State<EditorScreen>
   @override
   void initState() {
     super.initState();
+    _initialSnapshotJson = jsonEncode(album.toJson());
     WidgetsBinding.instance.addObserver(this);
     _pageTurnController = AnimationController(
       vsync: this,
@@ -198,7 +204,7 @@ class _EditorScreenState extends State<EditorScreen>
     WidgetsBinding.instance.removeObserver(this);
     _saveDebounce?.cancel();
     _pageTurnController.dispose();
-    if (_savedRevision != _revision && _saving == null) {
+    if (_savedRevision != _revision && _saving == null && !_leaving) {
       unawaited(_persistChanges());
     }
     super.dispose();
@@ -206,6 +212,7 @@ class _EditorScreenState extends State<EditorScreen>
 
   void _changed() {
     _revision++;
+    _hasUnsavedEdits = true;
     _saveDebounce?.cancel();
     _saveDebounce = Timer(const Duration(milliseconds: 450), () {
       unawaited(_save());
@@ -224,6 +231,10 @@ class _EditorScreenState extends State<EditorScreen>
     final success = await pending;
     if (identical(_saving, pending)) _saving = null;
     if (!mounted) return success;
+    if (success && notify) {
+      _initialSnapshotJson = jsonEncode(album.toJson());
+      _hasUnsavedEdits = false;
+    }
     setState(() {});
     if (!success || notify) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -259,6 +270,70 @@ class _EditorScreenState extends State<EditorScreen>
 
   Future<void> _leave() async {
     if (_leaving) return;
+
+    // Kaydedilmemiş değişiklik varsa kullanıcıya sor.
+    final currentJson = jsonEncode(album.toJson());
+    final hasUnsavedChanges =
+        _hasUnsavedEdits || (currentJson != _initialSnapshotJson);
+    if (hasUnsavedChanges && mounted) {
+      final choice = await showDialog<_LeaveChoice>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(ctx.tr('Kaydedilmemiş değişiklikler var')),
+          content: Text(
+            ctx.tr('Kaydetmeden çıkmak istediğine emin misin? Değişiklikler kaybolacak.'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, _LeaveChoice.cancel),
+              child: Text(ctx.tr('İptal')),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, _LeaveChoice.discard),
+              child: Text(
+                ctx.tr('Kaydetme'),
+                style: TextStyle(
+                  color: Theme.of(ctx).colorScheme.error,
+                ),
+              ),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, _LeaveChoice.save),
+              child: Text(ctx.tr('Kaydet ve Çık')),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      if (choice == null || choice == _LeaveChoice.cancel) return;
+      if (choice == _LeaveChoice.discard) {
+        _saveDebounce?.cancel();
+        _leaving = true;
+        try {
+          final snapshot = AlbumModel.fromJson(
+            jsonDecode(_initialSnapshotJson) as Map<String, dynamic>,
+          );
+          await AlbumStorage.instance.saveAlbum(snapshot);
+        } catch (_) {}
+        setState(() => _allowPop = true);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) Navigator.of(context).pop();
+        });
+        return;
+      }
+      if (choice == _LeaveChoice.save) {
+        _leaving = true;
+        final saved = await _save(notify: true);
+        _leaving = false;
+        if (!saved || !mounted) return;
+        setState(() => _allowPop = true);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) Navigator.of(context).pop();
+        });
+        return;
+      }
+    }
+
     _leaving = true;
     final saved = await _save();
     _leaving = false;
@@ -268,6 +343,7 @@ class _EditorScreenState extends State<EditorScreen>
       if (mounted) Navigator.of(context).pop();
     });
   }
+
 
   void _canvasChanged() {
     if (!mounted) return;
@@ -280,17 +356,21 @@ class _EditorScreenState extends State<EditorScreen>
     if (picked.isEmpty || !mounted) return;
     setState(() => _importing = true);
     final paths = <String>[];
-    final sizes = <Size>[];
-    try {
-      for (final file in picked) {
+    final aspectRatios = <double>[];
+    for (final file in picked) {
+      try {
         final path = await AlbumStorage.instance.importImage(file);
         final info = await loadAlbumPhoto(path);
-        sizes.add(albumPhotoSize(info.image.width / info.image.height));
+        aspectRatios.add(info.image.width / info.image.height);
         info.dispose();
         paths.add(path);
+      } catch (_) {
+        // Hatalı fotoğraf olursa diğer fotoğrafları yüklemeye devam et.
       }
-    } catch (_) {
-      if (mounted) {
+    }
+    if (mounted) setState(() => _importing = false);
+    if (!mounted || paths.isEmpty) {
+      if (mounted && picked.isNotEmpty && paths.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -299,34 +379,157 @@ class _EditorScreenState extends State<EditorScreen>
           ),
         );
       }
-    } finally {
-      if (mounted) setState(() => _importing = false);
+      return;
     }
-    if (!mounted || paths.isEmpty) return;
+
     setState(() {
-      for (var index = 0; index < paths.length; index++) {
-        final target = index == 0
-            ? page
-            : AlbumPageModel(id: newId(), backgroundColor: _defaultPageColor);
-        if (index > 0) album.pages.insert(_pageIndex + index, target);
-        final offset = target.elements
-            .where((element) => element.type == AlbumElementType.photo)
-            .length;
-        target.elements.add(
+      final existingPhotoCount = page.elements
+          .where((e) => e.type == AlbumElementType.photo)
+          .length;
+
+      if (existingPhotoCount == 0 && paths.length == 2) {
+        // 2 fotoğraf: Sayfaya üst ve alt olarak güzelce yerleştir (asla üst üste binmez).
+        final size0 = albumPhotoSize(aspectRatios[0], maxWidth: .72, maxHeight: .38);
+        final size1 = albumPhotoSize(aspectRatios[1], maxWidth: .72, maxHeight: .38);
+        page.elements.add(
           AlbumElementModel(
             id: newId(),
             type: AlbumElementType.photo,
-            content: paths[index],
-            x: (1 - sizes[index].width) / 2,
-            y: (1 - sizes[index].height) / 2,
-            width: sizes[index].width,
-            height: sizes[index].height,
+            content: paths[0],
+            x: ((1 - size0.width) / 2).clamp(0.04, 0.55),
+            y: 0.08,
+            width: size0.width,
+            height: size0.height,
             photoCrop: fullPhotoCrop,
-            rotation: offset.isEven ? -0.02 : 0.025,
+            rotation: -0.015,
             frameStyle: 1,
           ),
         );
+        page.elements.add(
+          AlbumElementModel(
+            id: newId(),
+            type: AlbumElementType.photo,
+            content: paths[1],
+            x: ((1 - size1.width) / 2).clamp(0.04, 0.55),
+            y: 0.52,
+            width: size1.width,
+            height: size1.height,
+            photoCrop: fullPhotoCrop,
+            rotation: 0.02,
+            frameStyle: 1,
+          ),
+        );
+      } else if (existingPhotoCount == 0 && paths.length == 3) {
+        // 3 fotoğraf: Üstte bir geniş, altta iki yan yana.
+        final size0 = albumPhotoSize(aspectRatios[0], maxWidth: .70, maxHeight: .35);
+        final size1 = albumPhotoSize(aspectRatios[1], maxWidth: .44, maxHeight: .34);
+        final size2 = albumPhotoSize(aspectRatios[2], maxWidth: .44, maxHeight: .34);
+        page.elements.add(
+          AlbumElementModel(
+            id: newId(),
+            type: AlbumElementType.photo,
+            content: paths[0],
+            x: ((1 - size0.width) / 2).clamp(0.04, 0.55),
+            y: 0.06,
+            width: size0.width,
+            height: size0.height,
+            photoCrop: fullPhotoCrop,
+            rotation: -0.015,
+            frameStyle: 1,
+          ),
+        );
+        page.elements.add(
+          AlbumElementModel(
+            id: newId(),
+            type: AlbumElementType.photo,
+            content: paths[1],
+            x: 0.04,
+            y: 0.50,
+            width: size1.width,
+            height: size1.height,
+            photoCrop: fullPhotoCrop,
+            rotation: 0.02,
+            frameStyle: 1,
+          ),
+        );
+        page.elements.add(
+          AlbumElementModel(
+            id: newId(),
+            type: AlbumElementType.photo,
+            content: paths[2],
+            x: 0.52,
+            y: 0.50,
+            width: size2.width,
+            height: size2.height,
+            photoCrop: fullPhotoCrop,
+            rotation: -0.018,
+            frameStyle: 1,
+          ),
+        );
+      } else if (existingPhotoCount == 0 && paths.length == 4) {
+        // 4 fotoğraf: 2x2 dengeli grid kolaj.
+        final coords = [
+          const Offset(0.04, 0.06),
+          const Offset(0.52, 0.06),
+          const Offset(0.04, 0.50),
+          const Offset(0.52, 0.50),
+        ];
+        final rots = [-0.018, 0.015, 0.02, -0.015];
+        for (var i = 0; i < 4; i++) {
+          final size = albumPhotoSize(aspectRatios[i], maxWidth: .44, maxHeight: .38);
+          page.elements.add(
+            AlbumElementModel(
+              id: newId(),
+              type: AlbumElementType.photo,
+              content: paths[i],
+              x: coords[i].dx,
+              y: coords[i].dy,
+              width: size.width,
+              height: size.height,
+              photoCrop: fullPhotoCrop,
+              rotation: rots[i],
+              frameStyle: 1,
+            ),
+          );
+        }
+      } else {
+        // Tek fotoğraf veya sayfada zaten fotoğraf varken eklenen fotoğraflar:
+        // Her fotoğrafı belirgin şekilde farklı koordinatlara yerleştirerek örtüşmeyi önle.
+        for (var index = 0; index < paths.length; index++) {
+          final photoIndex = existingPhotoCount + index;
+          final size = albumPhotoSize(
+            aspectRatios[index],
+            maxWidth: paths.length == 1 && existingPhotoCount == 0 ? .76 : .54,
+            maxHeight: paths.length == 1 && existingPhotoCount == 0 ? .70 : .40,
+          );
+          final double posX;
+          final double posY;
+          if (paths.length == 1 && existingPhotoCount == 0) {
+            posX = ((1 - size.width) / 2).clamp(0.04, 0.55);
+            posY = ((1 - size.height) / 2).clamp(0.04, 0.55);
+          } else {
+            final col = photoIndex % 2;
+            final row = (photoIndex ~/ 2) % 3;
+            posX = (0.05 + col * 0.46 + (photoIndex % 3 - 1) * 0.02).clamp(0.02, 0.55);
+            posY = (0.06 + row * 0.29 + (photoIndex % 2 == 0 ? 0.0 : 0.04)).clamp(0.04, 0.60);
+          }
+          page.elements.add(
+            AlbumElementModel(
+              id: newId(),
+              type: AlbumElementType.photo,
+              content: paths[index],
+              x: posX,
+              y: posY,
+              width: size.width,
+              height: size.height,
+              photoCrop: fullPhotoCrop,
+              rotation: photoIndex.isEven ? -0.02 : 0.025,
+              frameStyle: 1,
+            ),
+          );
+        }
       }
+
       _selectedId = page.elements.last.id;
       _importing = false;
     });
@@ -820,6 +1023,237 @@ class _EditorScreenState extends State<EditorScreen>
     }
   }
 
+  AlbumElementModel? _findElement(String id) {
+    for (final element in page.elements) {
+      if (element.id == id) return element;
+    }
+    for (final p in album.pages) {
+      for (final element in p.elements) {
+        if (element.id == id) return element;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _showElementContextMenu(
+    String elementId,
+    Offset globalPosition,
+  ) async {
+    final element = _findElement(elementId);
+    if (element == null) return;
+    setState(() => _selectedId = elementId);
+
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    final overlayRect = overlay != null
+        ? Offset.zero & overlay.size
+        : Rect.fromLTWH(
+            0,
+            0,
+            MediaQuery.sizeOf(context).width,
+            MediaQuery.sizeOf(context).height,
+          );
+
+    final choice = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(globalPosition.dx, globalPosition.dy, 1, 1),
+        overlayRect,
+      ),
+      items: [
+        PopupMenuItem(
+          value: 'cut',
+          child: Row(
+            children: [
+              const Icon(Icons.content_cut_rounded, size: 20),
+              const SizedBox(width: 10),
+              Text(context.tr('Kes')),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'copy',
+          child: Row(
+            children: [
+              const Icon(Icons.content_copy_rounded, size: 20),
+              const SizedBox(width: 10),
+              Text(context.tr('Kopyala')),
+            ],
+          ),
+        ),
+        if (_clipboard != null)
+          PopupMenuItem(
+            value: 'paste',
+            child: Row(
+              children: [
+                const Icon(Icons.content_paste_rounded, size: 20),
+                const SizedBox(width: 10),
+                Text(context.tr('Yapıştır')),
+              ],
+            ),
+          ),
+        PopupMenuItem(
+          value: 'duplicate',
+          child: Row(
+            children: [
+              const Icon(Icons.copy_all_rounded, size: 20),
+              const SizedBox(width: 10),
+              Text(context.tr('Çoğalt')),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(
+                Icons.delete_outline_rounded,
+                size: 20,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                context.tr('Sil'),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (choice == null || !mounted) return;
+    switch (choice) {
+      case 'cut':
+        _cutElement(element);
+        break;
+      case 'copy':
+        _copyElement(element);
+        break;
+      case 'paste':
+        _pasteElement();
+        break;
+      case 'duplicate':
+        _duplicateElement(element);
+        break;
+      case 'delete':
+        _deleteElement(element);
+        break;
+    }
+  }
+
+  void _cutElement(AlbumElementModel element) {
+    _clipboard = AlbumElementModel.fromJson(element.toJson());
+    setState(() {
+      page.elements.removeWhere((e) => e.id == element.id);
+      if (_selectedId == element.id) _selectedId = null;
+    });
+    _changed();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(context.tr('Öğe kesildi ve panoya alındı.')),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  void _copyElement(AlbumElementModel element) {
+    _clipboard = AlbumElementModel.fromJson(element.toJson());
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(context.tr('Öğe panoya kopyalandı.')),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  void _pasteElement() {
+    final clip = _clipboard;
+    if (clip == null) return;
+    final json = clip.toJson();
+    json['id'] = newId();
+    final pasted = AlbumElementModel.fromJson(json);
+    pasted.x = (pasted.x + 0.04).clamp(-0.15, 0.65);
+    pasted.y = (pasted.y + 0.04).clamp(-0.1, 0.65);
+    setState(() {
+      page.elements.add(pasted);
+      _selectedId = pasted.id;
+    });
+    _changed();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(context.tr('Öğe yapıştırıldı.')),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  void _duplicateElement(AlbumElementModel element) {
+    final json = element.toJson();
+    json['id'] = newId();
+    final dup = AlbumElementModel.fromJson(json);
+    dup.x = (dup.x + 0.035).clamp(-0.3, 0.9);
+    dup.y = (dup.y + 0.025).clamp(-0.2, 0.92);
+    setState(() {
+      page.elements.add(dup);
+      _selectedId = dup.id;
+    });
+    _changed();
+  }
+
+  void _deleteElement(AlbumElementModel element) {
+    setState(() {
+      page.elements.removeWhere((e) => e.id == element.id);
+      if (_selectedId == element.id) _selectedId = null;
+    });
+    _changed();
+  }
+
+  Future<void> _fitPhotoToShape() async {
+    final selected = selectedElement;
+    if (selected == null) return;
+    final picker = ImagePicker();
+    final file = await picker.pickImage(source: ImageSource.gallery);
+    if (file == null || !mounted) return;
+
+    AlbumPhotoShape shape = AlbumPhotoShape.free;
+    final content = selected.content.toLowerCase();
+    if (content.contains('circle') || content.contains('round')) {
+      shape = AlbumPhotoShape.circle;
+    } else if (content.contains('arch')) {
+      shape = AlbumPhotoShape.arch;
+    } else if (content.contains('square') || content.contains('box')) {
+      shape = AlbumPhotoShape.square;
+    }
+
+    final photoElement = AlbumElementModel(
+      id: newId(),
+      type: AlbumElementType.photo,
+      content: file.path,
+      x: selected.x,
+      y: selected.y,
+      width: selected.width,
+      height: selected.height,
+      rotation: selected.rotation,
+      scale: selected.scale,
+      photoShape: shape,
+      photoCrop: fullPhotoCrop,
+      frameStyle: 0,
+    );
+
+    setState(() {
+      final index = page.elements.indexOf(selected);
+      if (index >= 0) {
+        page.elements[index] = photoElement;
+      } else {
+        page.elements.add(photoElement);
+      }
+      _selectedId = photoElement.id;
+    });
+    _changed();
+  }
+
   Future<void> _styleSelected() async {
     final selected = selectedElement;
     if (selected == null) return;
@@ -928,6 +1362,9 @@ class _EditorScreenState extends State<EditorScreen>
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
+          leading: ModalRoute.of(context)?.canPop == true
+              ? BackButton(onPressed: _leave)
+              : null,
           backgroundColor: colors.background,
           titleSpacing: 0,
           title: Tooltip(
@@ -1056,6 +1493,8 @@ class _EditorScreenState extends State<EditorScreen>
                                       onSelectElement: (id) =>
                                           setState(() => _selectedId = id),
                                       onChanged: _canvasChanged,
+                                      onLongPressElement:
+                                          _showElementContextMenu,
                                     ),
                                   ),
                                 ),
@@ -1105,6 +1544,7 @@ class _EditorScreenState extends State<EditorScreen>
                     onLayer: _moveSelectedLayer,
                     onDuplicate: _duplicateSelected,
                     onDelete: _removeSelected,
+                    onFitPhoto: _fitPhotoToShape,
                   ),
                 if (selectedElement == null)
                   BoundedControls(height: MediaQuery.sizeOf(context).height * .28, child: _MainToolbar(
@@ -1145,6 +1585,15 @@ class _EditorScreenState extends State<EditorScreen>
                 _changeBinding();
               },
             ),
+            if (_clipboard != null)
+              ListTile(
+                leading: const Icon(Icons.content_paste_rounded),
+                title: Text(context.tr('Panodaki nesneyi yapıştır')),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pasteElement();
+                },
+              ),
             ListTile(
               leading: const Icon(Icons.copy_all_outlined),
               title: Text(context.tr('Sayfayı çoğalt')),
@@ -1500,3 +1949,5 @@ class _PaperSamplePainter extends CustomPainter {
   bool shouldRepaint(covariant _PaperSamplePainter oldDelegate) =>
       oldDelegate.color != color;
 }
+
+enum _LeaveChoice { save, discard, cancel }
