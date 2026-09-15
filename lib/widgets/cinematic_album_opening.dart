@@ -18,7 +18,7 @@ class CinematicAlbumOpening extends StatefulWidget {
     super.key,
     required this.album,
     this.onCompleted,
-    this.duration = const Duration(milliseconds: 1950),
+    this.duration = const Duration(milliseconds: 1600),
     this.reducedMotion,
     this.backgroundColor = const Color(0xFF171310),
   });
@@ -211,7 +211,9 @@ class _AlbumStage extends StatelessWidget {
 
     final approach = _interval(progress, 0, 0.32, Curves.easeOutCubic);
     final reframe = _interval(progress, 0.08, 0.78, Curves.easeInOutCubic);
-    final opening = _interval(progress, 0.25, 0.9, Curves.easeInOutCubic);
+    // easeOutBack gives a subtle overshoot so the cover snaps shut with
+    // physical rebound rather than just decelerating to a stop.
+    final opening = _interval(progress, 0.25, 0.9, Curves.easeOutBack);
     final settle = _interval(progress, 0.72, 1, Curves.easeOutCubic);
     final reveal = _interval(progress, 0, 0.12, Curves.easeOut);
 
@@ -221,7 +223,9 @@ class _AlbumStage extends StatelessWidget {
       _lerp(-pageWidth * 0.49, 0, reframe),
       _lerp(pageHeight * 0.055, 0, approach),
     );
-    final tiltX = _lerp(0.105, 0.042, approach);
+    // Start at -15° (≈0.262 rad) tilt so the book has a clear top-down
+    // perspective from the very first frame, then sweeps to near-flat.
+    final tiltX = _lerp(0.262, 0.038, approach);
     final tiltY = _lerp(-0.032, -0.015, settle);
     final rotationZ = _lerp(-0.045, -0.012, reframe);
     final coverAngle = math.pi * 0.985 * opening;
@@ -826,4 +830,4 @@ double _interval(double value, double begin, double end, Curve curve) {
 double _lerp(double begin, double end, double t) => begin + (end - begin) * t;
 
 Duration _effectiveDuration(Duration requested) =>
-    Duration(milliseconds: requested.inMilliseconds.clamp(1600, 2200));
+    Duration(milliseconds: requested.inMilliseconds.clamp(1200, 2200));

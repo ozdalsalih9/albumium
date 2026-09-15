@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../widgets/responsive_controls.dart';
 import '../services/photo_selection_service.dart';
@@ -62,6 +63,7 @@ class _EditorScreenState extends State<EditorScreen>
   bool _hasUnsavedEdits = false;
   bool _allowPop = false;
   bool _leaving = false;
+  bool _isContextMenuOpen = false;
   int? _nextSpreadLeftPageIndex;
   int? _nextSpreadRightPageIndex;
   bool _turningForward = true;
@@ -1039,49 +1041,153 @@ class _EditorScreenState extends State<EditorScreen>
     String elementId,
     Offset globalPosition,
   ) async {
+    if (_isContextMenuOpen) return;
     final element = _findElement(elementId);
     if (element == null) return;
-    setState(() => _selectedId = elementId);
+    _isContextMenuOpen = true;
 
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox?;
-    final overlayRect = overlay != null
-        ? Offset.zero & overlay.size
-        : Rect.fromLTWH(
-            0,
-            0,
-            MediaQuery.sizeOf(context).width,
-            MediaQuery.sizeOf(context).height,
-          );
+    try {
+      setState(() => _selectedId = elementId);
 
-    final choice = await showMenu<String>(
-      context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromLTWH(globalPosition.dx, globalPosition.dy, 1, 1),
-        overlayRect,
-      ),
-      items: [
-        PopupMenuItem(
-          value: 'cut',
-          child: Row(
-            children: [
-              const Icon(Icons.content_cut_rounded, size: 20),
-              const SizedBox(width: 10),
-              Text(context.tr('Kes')),
-            ],
-          ),
+      final overlay =
+          Overlay.of(context).context.findRenderObject() as RenderBox?;
+      final overlayRect = overlay != null
+          ? Offset.zero & overlay.size
+          : Rect.fromLTWH(
+              0,
+              0,
+              MediaQuery.sizeOf(context).width,
+              MediaQuery.sizeOf(context).height,
+            );
+
+      final choice = await showMenu<String>(
+        context: context,
+        position: RelativeRect.fromRect(
+          Rect.fromLTWH(globalPosition.dx, globalPosition.dy, 1, 1),
+          overlayRect,
         ),
-        PopupMenuItem(
-          value: 'copy',
-          child: Row(
-            children: [
-              const Icon(Icons.content_copy_rounded, size: 20),
-              const SizedBox(width: 10),
-              Text(context.tr('Kopyala')),
-            ],
+        items: [
+          PopupMenuItem(
+            value: 'cut',
+            child: Row(
+              children: [
+                const Icon(Icons.content_cut_rounded, size: 20),
+                const SizedBox(width: 10),
+                Text(context.tr('Kes')),
+              ],
+            ),
           ),
+          PopupMenuItem(
+            value: 'copy',
+            child: Row(
+              children: [
+                const Icon(Icons.content_copy_rounded, size: 20),
+                const SizedBox(width: 10),
+                Text(context.tr('Kopyala')),
+              ],
+            ),
+          ),
+          if (_clipboard != null)
+            PopupMenuItem(
+              value: 'paste',
+              child: Row(
+                children: [
+                  const Icon(Icons.content_paste_rounded, size: 20),
+                  const SizedBox(width: 10),
+                  Text(context.tr('Yapıştır')),
+                ],
+              ),
+            ),
+          PopupMenuItem(
+            value: 'duplicate',
+            child: Row(
+              children: [
+                const Icon(Icons.copy_all_rounded, size: 20),
+                const SizedBox(width: 10),
+                Text(context.tr('Çoğalt')),
+              ],
+            ),
+          ),
+          const PopupMenuDivider(),
+          PopupMenuItem(
+            value: 'delete',
+            child: Row(
+              children: [
+                Icon(
+                  Icons.delete_outline_rounded,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  context.tr('Sil'),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+
+      if (choice == null || !mounted) return;
+      switch (choice) {
+        case 'cut':
+          _cutElement(element);
+          break;
+        case 'copy':
+          _copyElement(element);
+          break;
+        case 'paste':
+          _pasteElement();
+          break;
+        case 'duplicate':
+          _duplicateElement(element);
+          break;
+        case 'delete':
+          _deleteElement(element);
+          break;
+      }
+    } finally {
+      _isContextMenuOpen = false;
+    }
+  }
+
+  Future<void> _showCanvasContextMenu(
+    int pageIndex,
+    Offset localPosition,
+    Offset globalPosition,
+    Size pageSize,
+  ) async {
+    if (_clipboard == null || _isContextMenuOpen) return;
+    _isContextMenuOpen = true;
+
+    try {
+      HapticFeedback.mediumImpact();
+      if (pageIndex >= 0 &&
+          pageIndex < album.pages.length &&
+          pageIndex != _pageIndex) {
+        _selectPage(pageIndex);
+      }
+      setState(() => _selectedId = null);
+
+      final overlay =
+          Overlay.of(context).context.findRenderObject() as RenderBox?;
+      final overlayRect = overlay != null
+          ? Offset.zero & overlay.size
+          : Rect.fromLTWH(
+              0,
+              0,
+              MediaQuery.sizeOf(context).width,
+              MediaQuery.sizeOf(context).height,
+            );
+
+      final choice = await showMenu<String>(
+        context: context,
+        position: RelativeRect.fromRect(
+          Rect.fromLTWH(globalPosition.dx, globalPosition.dy, 1, 1),
+          overlayRect,
         ),
-        if (_clipboard != null)
+        items: [
           PopupMenuItem(
             value: 'paste',
             child: Row(
@@ -1092,54 +1198,24 @@ class _EditorScreenState extends State<EditorScreen>
               ],
             ),
           ),
-        PopupMenuItem(
-          value: 'duplicate',
-          child: Row(
-            children: [
-              const Icon(Icons.copy_all_rounded, size: 20),
-              const SizedBox(width: 10),
-              Text(context.tr('Çoğalt')),
-            ],
-          ),
-        ),
-        const PopupMenuDivider(),
-        PopupMenuItem(
-          value: 'delete',
-          child: Row(
-            children: [
-              Icon(
-                Icons.delete_outline_rounded,
-                size: 20,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              const SizedBox(width: 10),
-              Text(
-                context.tr('Sil'),
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
+        ],
+      );
 
-    if (choice == null || !mounted) return;
-    switch (choice) {
-      case 'cut':
-        _cutElement(element);
-        break;
-      case 'copy':
-        _copyElement(element);
-        break;
-      case 'paste':
-        _pasteElement();
-        break;
-      case 'duplicate':
-        _duplicateElement(element);
-        break;
-      case 'delete':
-        _deleteElement(element);
-        break;
+      if (choice == 'paste' && mounted) {
+        Offset? target;
+        if (pageSize.width > 0 && pageSize.height > 0) {
+          target = Offset(
+            localPosition.dx / pageSize.width,
+            localPosition.dy / pageSize.height,
+          );
+        }
+        _pasteElement(
+          targetPageIndex: pageIndex,
+          targetNormalizedPos: target,
+        );
+      }
+    } finally {
+      _isContextMenuOpen = false;
     }
   }
 
@@ -1168,16 +1244,32 @@ class _EditorScreenState extends State<EditorScreen>
     );
   }
 
-  void _pasteElement() {
+  void _pasteElement({int? targetPageIndex, Offset? targetNormalizedPos}) {
     final clip = _clipboard;
     if (clip == null) return;
+    final targetPage = (targetPageIndex != null &&
+            targetPageIndex >= 0 &&
+            targetPageIndex < album.pages.length)
+        ? album.pages[targetPageIndex]
+        : page;
     final json = clip.toJson();
     json['id'] = newId();
     final pasted = AlbumElementModel.fromJson(json);
-    pasted.x = (pasted.x + 0.04).clamp(-0.15, 0.65);
-    pasted.y = (pasted.y + 0.04).clamp(-0.1, 0.65);
+    if (targetNormalizedPos != null) {
+      pasted.x = (targetNormalizedPos.dx - pasted.width / 2).clamp(-0.15, 0.75);
+      pasted.y = (targetNormalizedPos.dy - pasted.height / 2).clamp(-0.10, 0.75);
+    } else {
+      pasted.x = (pasted.x + 0.04).clamp(-0.15, 0.65);
+      pasted.y = (pasted.y + 0.04).clamp(-0.1, 0.65);
+    }
     setState(() {
-      page.elements.add(pasted);
+      if (targetPageIndex != null &&
+          targetPageIndex >= 0 &&
+          targetPageIndex < album.pages.length &&
+          _pageIndex != targetPageIndex) {
+        _pageIndex = targetPageIndex;
+      }
+      targetPage.elements.add(pasted);
       _selectedId = pasted.id;
     });
     _changed();
@@ -1495,6 +1587,8 @@ class _EditorScreenState extends State<EditorScreen>
                                       onChanged: _canvasChanged,
                                       onLongPressElement:
                                           _showElementContextMenu,
+                                      onLongPressCanvas:
+                                          _showCanvasContextMenu,
                                     ),
                                   ),
                                 ),
