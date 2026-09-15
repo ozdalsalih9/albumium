@@ -212,6 +212,7 @@ class _HomeScreenState extends State<HomeScreen> {
           builder: (_) => SpecialCardStudioScreen(project: album),
         ),
       );
+      await AlbumStorage.instance.flush();
       await _reload();
       return;
     }
@@ -236,6 +237,9 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       ),
     );
+    // Dispose'daki olası gecikmiş _persistChanges() tamamlanmadan
+    // okuma yapılmaması için yazma kuyruğunun bitmesini bekle.
+    await AlbumStorage.instance.flush();
     await _reload();
   }
 
