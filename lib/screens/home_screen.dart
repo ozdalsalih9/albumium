@@ -1307,95 +1307,101 @@ class _CinematicOpeningScreenState extends State<_CinematicOpeningScreen> {
 
   void _enterEditor() {
     if (_enteringEditor || !mounted) return;
-    _enteringEditor = true;
     HapticFeedback.selectionClick();
-    Navigator.of(context).pushReplacement<void, void>(
-      PageRouteBuilder<void>(
-        transitionDuration: const Duration(milliseconds: 520),
-        pageBuilder: (_, _, _) => EditorScreen(album: widget.album),
-        transitionsBuilder: (_, animation, _, child) {
-          final curved = CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOutCubic,
-          );
-          return FadeTransition(
-            opacity: curved,
-            child: ScaleTransition(
-              scale: Tween(begin: 1.018, end: 1.0).animate(curved),
-              child: child,
-            ),
-          );
-        },
-      ),
-    );
+    setState(() => _enteringEditor = true);
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = AlbumiumAppTheme.colorsOf(context);
-    return Scaffold(
-      backgroundColor: colors.background,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: CinematicAlbumOpening(
-              album: widget.album,
-              backgroundColor: colors.background,
-              onCompleted: _enterEditor,
-            ),
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 400),
+      switchInCurve: Curves.easeOutCubic,
+      transitionBuilder: (child, animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: Tween<double>(
+              begin: child.key == const ValueKey('editor') ? 1.018 : 1.0,
+              end: 1.0,
+            ).animate(animation),
+            child: child,
           ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-              child: Column(
+        );
+      },
+      child: _enteringEditor
+          ? EditorScreen(
+              key: const ValueKey('editor'),
+              album: widget.album,
+            )
+          : Scaffold(
+              key: const ValueKey('opening'),
+              backgroundColor: colors.background,
+              body: Stack(
                 children: [
-                  Row(
-                    children: [
-                      IconButton.filledTonal(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close_rounded),
-                        tooltip: context.tr('Kapat'),
-                      ),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: _enterEditor,
-                        child: Text(context.tr('Geç')),
-                      ),
-                    ],
+                  Positioned.fill(
+                    child: CinematicAlbumOpening(
+                      album: widget.album,
+                      backgroundColor: colors.background,
+                      onCompleted: _enterEditor,
+                    ),
                   ),
-                  const Spacer(),
-                  AnimatedOpacity(
-                    opacity: _enteringEditor ? 0 : 1,
-                    duration: const Duration(milliseconds: 180),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 15,
-                        vertical: 9,
-                      ),
-                      decoration: BoxDecoration(
-                        color: colors.surface.withValues(alpha: 0.76),
-                        borderRadius: BorderRadius.circular(99),
-                        border: Border.all(color: colors.border),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                  SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                      child: Column(
                         children: [
-                          SizedBox(
-                            width: 13,
-                            height: 13,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 1.6,
-                              color: colors.primary,
-                            ),
+                          Row(
+                            children: [
+                              IconButton.filledTonal(
+                                onPressed: () => Navigator.pop(context),
+                                icon: const Icon(Icons.close_rounded),
+                                tooltip: context.tr('Kapat'),
+                              ),
+                              const Spacer(),
+                              TextButton(
+                                onPressed: _enterEditor,
+                                child: Text(context.tr('Geç')),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 9),
-                          Text(
-                            context.tr('Hikâyen açılıyor'),
-                            style: TextStyle(
-                              color: colors.text,
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.2,
+                          const Spacer(),
+                          AnimatedOpacity(
+                            opacity: _enteringEditor ? 0 : 1,
+                            duration: const Duration(milliseconds: 180),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 15,
+                                vertical: 9,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colors.surface.withValues(alpha: 0.76),
+                                borderRadius: BorderRadius.circular(99),
+                                border: Border.all(color: colors.border),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    width: 13,
+                                    height: 13,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 1.6,
+                                      color: colors.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 9),
+                                  Text(
+                                    context.tr('Hikâyen açılıyor'),
+                                    style: TextStyle(
+                                      color: colors.text,
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
@@ -1405,9 +1411,6 @@ class _CinematicOpeningScreenState extends State<_CinematicOpeningScreen> {
                 ],
               ),
             ),
-          ),
-        ],
-      ),
     );
   }
 }
