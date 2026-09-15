@@ -203,4 +203,47 @@ void main() {
     expect(find.text('Albüm Ciltleme Tipi'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'long-pressing empty space on canvas shows paste menu and pastes at touch position',
+    (tester) async {
+      final album = _album([_sticker('copy-target', '💎', .35)]);
+      await _pumpEditor(tester, album);
+
+      // Long press element to bring up context menu
+      await tester.longPress(find.text('💎'));
+      await tester.pumpAndSettle();
+
+      // Tap 'Kopyala'
+      expect(find.text('Kopyala'), findsOneWidget);
+      await tester.tap(find.text('Kopyala'));
+      await tester.pumpAndSettle();
+
+      // Long press empty space on the canvas
+      final canvasFinder = find.byKey(const ValueKey('controls-page'));
+      expect(canvasFinder, findsOneWidget);
+      final canvasRect = tester.getRect(canvasFinder);
+      // Pick a point clearly in empty space: bottom-center of canvas
+      final emptyLocation = Offset(canvasRect.center.dx, canvasRect.bottom - 40);
+
+      await tester.longPressAt(emptyLocation);
+      await tester.pumpAndSettle();
+
+      // Verify 'Yapıştır' appears
+      expect(find.text('Yapıştır'), findsOneWidget);
+
+      // Tap 'Yapıştır'
+      await tester.tap(find.text('Yapıştır'));
+      await tester.pumpAndSettle();
+
+      // Now page has 2 elements
+      expect(album.pages.first.elements.length, 2);
+      final pasted = album.pages.first.elements.last;
+      expect(pasted.content, '💎');
+      // Verify the element was placed near the touch point (towards the bottom)
+      expect(pasted.y, greaterThan(0.5));
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
+
