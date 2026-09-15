@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../l10n/albumium_localizations.dart';
@@ -70,6 +72,7 @@ class AlbumPageCanvas extends StatelessWidget {
     this.selectedId,
     this.onSelect,
     this.onChanged,
+    this.onLongPressElement,
     this.showPageNumber = true,
   });
 
@@ -79,6 +82,9 @@ class AlbumPageCanvas extends StatelessWidget {
   final String? selectedId;
   final ValueChanged<String?>? onSelect;
   final VoidCallback? onChanged;
+  /// Called when the user long-presses an element. Provides the element ID
+  /// and the global position of the press so a context menu can be shown.
+  final void Function(String elementId, Offset globalPosition)? onLongPressElement;
   final bool showPageNumber;
 
   TextStyle _getPageNumberStyle() {
@@ -177,6 +183,7 @@ class AlbumPageCanvas extends StatelessWidget {
                       selectedId: selectedId,
                       onSelect: onSelect,
                       onChanged: onChanged,
+                      onLongPressElement: onLongPressElement,
                     ),
                   ),
                   if (showPageNumber)
@@ -207,6 +214,7 @@ class _AlbumElementsLayer extends StatefulWidget {
     required this.selectedId,
     required this.onSelect,
     required this.onChanged,
+    this.onLongPressElement,
   });
 
   final AlbumPageModel page;
@@ -216,6 +224,7 @@ class _AlbumElementsLayer extends StatefulWidget {
   final String? selectedId;
   final ValueChanged<String?>? onSelect;
   final VoidCallback? onChanged;
+  final void Function(String elementId, Offset globalPosition)? onLongPressElement;
 
   @override
   State<_AlbumElementsLayer> createState() => _AlbumElementsLayerState();
@@ -246,6 +255,9 @@ class _AlbumElementsLayerState extends State<_AlbumElementsLayer> {
             onSelect: () => widget.onSelect?.call(element.id),
             onGeometryChanged: _geometryChanged,
             onChanged: widget.onChanged,
+            onLongPress: widget.onLongPressElement == null
+                ? null
+                : (pos) => widget.onLongPressElement!(element.id, pos),
           ),
         if (widget.interactive && selected != null)
           Positioned.fill(
@@ -280,6 +292,7 @@ class _AlbumElementView extends StatefulWidget {
     required this.onSelect,
     required this.onGeometryChanged,
     required this.onChanged,
+    this.onLongPress,
   });
 
   final AlbumElementModel element;
@@ -289,17 +302,27 @@ class _AlbumElementView extends StatefulWidget {
   final VoidCallback onSelect;
   final VoidCallback onGeometryChanged;
   final VoidCallback? onChanged;
+  final void Function(Offset globalPosition)? onLongPress;
 
   @override
   State<_AlbumElementView> createState() => _AlbumElementViewState();
 }
 
 class _AlbumElementViewState extends State<_AlbumElementView> {
+  Timer? _longPressTimer;
+  Offset? _pointerDownPos;
+  bool _longPressed = false;
   late double _startScale;
   late double _startRotation;
   RenderBox? _gestureCoordinateSpace;
   Offset _gestureAnchor = Offset.zero;
   bool _transformChanged = false;
+
+  @override
+  void dispose() {
+    _longPressTimer?.cancel();
+    super.dispose();
+  }
 
   Offset _rotate(Offset point, double angle) {
     final cosine = math.cos(angle);
@@ -462,26 +485,58 @@ class _AlbumElementViewState extends State<_AlbumElementView> {
           scale: element.scale,
           child: _ElementHitRegion(
             element: element,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: widget.interactive ? widget.onSelect : null,
-              onScaleStart: widget.interactive && !element.locked
-                  ? _handleScaleStart
-                  : null,
-              onScaleUpdate: widget.interactive && !element.locked
-                  ? _handleScaleUpdate
-                  : null,
-              onScaleEnd: widget.interactive && !element.locked
-                  ? _handleScaleEnd
-                  : null,
-              // Transforms can reuse a recorded display list while the element
-              // moves. Read-only/export pages do not need a layer per element.
-              child: widget.interactive
-                  ? RepaintBoundary(
-                      key: ValueKey('album-element-art-${element.id}'),
-                      child: _elementContent(element),
-                    )
-                  : _elementContent(element),
+            child: Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerDown: (event) {
+                if (!widget.interactive || widget.onLongPress == null) return;
+                _longPressed = false;
+                _longPressTimer?.cancel();
+                _pointerDownPos = event.position;
+                _longPressTimer = Timer(const Duration(milliseconds: 420), () {
+                  _longPressed = true;
+                  HapticFeedback.mediumImpact();
+                  widget.onLongPress?.call(_pointerDownPos ?? event.position);
+                });
+              },
+              onPointerMove: (event) {
+                if (_pointerDownPos != null &&
+                    (event.position - _pointerDownPos!).distance > 18) {
+                  _longPressTimer?.cancel();
+                }
+              },
+              onPointerUp: (_) => _longPressTimer?.cancel(),
+              onPointerCancel: (_) => _longPressTimer?.cancel(),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: widget.interactive ? widget.onSelect : null,
+                onLongPressStart: widget.interactive && widget.onLongPress != null
+                    ? (details) => widget.onLongPress!(details.globalPosition)
+                    : null,
+                onScaleStart: widget.interactive && !element.locked
+                    ? (details) {
+                        if (_longPressed) return;
+                        _handleScaleStart(details);
+                      }
+                    : null,
+                onScaleUpdate: widget.interactive && !element.locked
+                    ? (details) {
+                        if (_longPressed) return;
+                        _handleScaleUpdate(details);
+                      }
+                    : null,
+                onScaleEnd: widget.interactive && !element.locked
+                    ? (details) {
+                        if (_longPressed) return;
+                        _handleScaleEnd(details);
+                      }
+                    : null,
+                child: widget.interactive
+                    ? RepaintBoundary(
+                        key: ValueKey('album-element-art-${element.id}'),
+                        child: _elementContent(element),
+                      )
+                    : _elementContent(element),
+              ),
             ),
           ),
         ),
