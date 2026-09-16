@@ -235,8 +235,8 @@ class PhysicalBookSpread extends StatelessWidget {
     return Transform(
       alignment: Alignment.center,
       transform: Matrix4.identity()
-        ..setEntry(3, 2, 0.00072)
-        ..rotateX(-0.028 - lift * 0.008),
+        ..setEntry(3, 2, -0.00072)
+        ..rotateX(0.028 + lift * 0.008),
       filterQuality: FilterQuality.high,
       child: child,
     );
@@ -363,6 +363,8 @@ class PhysicalBookSpread extends StatelessWidget {
     // arka planda açık halinin görünmesi ve çakışması kesinlikle önlenir.
     final openBookFade = ((eased - 0.70) / 0.30).clamp(0.0, 1.0);
 
+    final coverPerspective = -0.0004 * math.sin(math.pi * eased);
+
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -451,6 +453,8 @@ class PhysicalBookSpread extends StatelessWidget {
         ),
 
         // 3. Sert kapak menteşe dönüşümü (Transform alignment: Alignment.centerLeft).
+        // Dinamik perspektif (-0.0004 * sin(pi*eased)) sayesinde kapak açılırken
+        // serbest kenarı kullanıcıya doğru doğal bir şekilde yükselir ve dışa açılır.
         Positioned(
           left: coverLeft,
           top: coverTop,
@@ -459,7 +463,9 @@ class PhysicalBookSpread extends StatelessWidget {
           child: Transform(
             key: const ValueKey('book-cover-hinge'),
             alignment: Alignment.centerLeft,
-            transform: Matrix4.rotationY(math.pi * eased),
+            transform: Matrix4.identity()
+              ..setEntry(3, 2, coverPerspective)
+              ..rotateY(-math.pi * eased),
             filterQuality: FilterQuality.high,
             child: showFront
                 ? _CoverLeaf(album: album)

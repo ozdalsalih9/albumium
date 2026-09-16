@@ -241,7 +241,7 @@ class _AlbumStage extends StatelessWidget {
               child: Transform(
                 alignment: Alignment.center,
                 transform: Matrix4.identity()
-                  ..setEntry(3, 2, 0.0011)
+                  ..setEntry(3, 2, -0.0006)
                   ..rotateX(tiltX)
                   ..rotateY(tiltY)
                   ..rotateZ(rotationZ),
@@ -432,14 +432,13 @@ class _HingedCover extends StatelessWidget {
           )
         : _FrontCover(album: album, lightProgress: lightProgress);
 
+    final dynamicP = -0.0004 * math.sin(angle.clamp(0.0, math.pi));
+
     return Transform(
       alignment: Alignment.centerLeft,
       transform: Matrix4.identity()
-        ..setEntry(3, 2, 0.0015)
-        // Positive Y rotation carries the right-hand cover out toward the
-        // viewer and then across to the left. The negative direction makes it
-        // visually sink through the paper block.
-        ..rotateY(angle),
+        ..setEntry(3, 2, dynamicP)
+        ..rotateY(-angle),
       child: face,
     );
   }

@@ -81,6 +81,11 @@ void main() {
         coverTransform.transform.entry(0, 0),
         closeTo(math.cos(math.pi * .25), .0001),
       );
+
+      // Matrix[2,0] is -sin(rotationY). For negative rotation (-pi * .25),
+      // -sin(-pi * .25) = +sin(pi * .25) > 0, which means the cover swings
+      // outward (+Z) towards the viewer rather than inward into the screen.
+      expect(coverTransform.transform.entry(2, 0), greaterThan(0));
     },
   );
 

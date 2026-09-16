@@ -370,9 +370,18 @@ class _PageCurlPainter extends SnapshotPainter {
       }
       return;
     }
-    // Sayfa tamamen çevrildi: kıvrılan yaprak artık görünmez, çizme.
-    // Böylece animasyon bitişinde "jump" artefaktı oluşmaz.
-    if (t >= 1.0) return;
+    // Sayfa tamamen çevrildiğinde arka yüz tam sol sayfaya düzgünce oturur.
+    if (t >= 1.0) {
+      if (_surface == PageCurlSurface.back) {
+        canvas.drawImageRect(
+          image,
+          Offset.zero & Size(image.width.toDouble(), image.height.toDouble()),
+          (offset - Offset(size.width, 0)) & size,
+          Paint()..filterQuality = FilterQuality.medium,
+        );
+      }
+      return;
+    }
 
     // Kırpma sınırı yalnızca cilt tarafında dardır.
     //
@@ -397,16 +406,24 @@ class _PageCurlPainter extends SnapshotPainter {
     final h = size.height;
     final grab = _grabY.clamp(0.0, 1.0);
 
-    // Kıvrılma ekseninin eğimi. Sayfa tam ortadan çekildiğinde kat çizgisi
-    // dikey kalır; yukarıdan tutulduğunda sola, aşağıdan tutulduğunda sağa yatar.
-    final tilt = ((grab - 0.5) * 2).clamp(-1.0, 1.0) * _maxTilt;
+    // Kıvrılma ekseninin eğimi: t=0 ve t=1'de sıfırlanır, ortada parmak konumuna göre yatar.
+    // Böylece sayfa karşı sayfaya oturduğunda kitaba tam düz ve hizalı yaslanır.
+    final curlProgress = math.sin(math.pi * t);
+    final tilt = ((grab - 0.5) * 2).clamp(-1.0, 1.0) * _maxTilt * curlProgress;
 
-    final radius = w * _radiusRatio;
+    // Silindir yarıçapı: t=0 ve t=1'de sıfıra yaklaşır, ortada yumuşakça açılır.
+    // Sayfa karşı sayfaya yaklaştıkça silindir unroll olup tam düzleşir.
+    final radius = math.max(
+      0.2,
+      w * _radiusRatio * math.pow(curlProgress.clamp(0.0, 1.0), 0.65),
+    );
 
-    // Kat çizgisinin x konumu. t=0'da sayfanın en sağındadır, t=1'de soluna geçer.
-    // Sol kenarın biraz ötesine taşmasına izin verilir; yaprak ancak o zaman
-    // tamamen düzleşip karşı sayfaya yaslanabilir.
-    final foldX = w * (1.0 - t * 1.14);
+    // Kat çizgisinin x konumu.
+    // Dış kenarın (x=w) omurgadan karşı sayfa dış kenarına (x=-w) kadar
+    // tam doğrusal ve akıcı hareket etmesi için:
+    // foldX = w * (1.0 - t) - pi * radius / 2.
+    // Böylece yaprak asla takılmaz, omurgadan kopmaz ve karşı sayfanın üzerine tam oturur.
+    final foldX = math.max(0.0, w * (1.0 - t) - math.pi * radius / 2);
     final foldY = h * grab;
 
     final nx = math.cos(tilt);

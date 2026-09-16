@@ -343,7 +343,7 @@ class _PreviewScreenState extends State<PreviewScreen>
     }
     if (_current > 0) _precachePosition(_current - 1);
     if (_current < previewCount - 1) _precachePosition(_current + 1);
-    _dragWidth = math.max(160.0, constraints.maxWidth * 0.55);
+    _dragWidth = math.max(180.0, constraints.maxWidth * 0.78);
     final height = constraints.maxHeight <= 0 ? 1.0 : constraints.maxHeight;
     _turnGrabY = (details.localPosition.dy / height).clamp(0.08, 0.92);
   }
@@ -372,10 +372,8 @@ class _PreviewScreenState extends State<PreviewScreen>
     }
 
     final sign = _turningForward ? -1.0 : 1.0;
-    // Üst sınır tam 1.0 değil: değer uç noktaya dayanınca denetleyici
-    // tamamlandı durumuna geçer ve sayfa parmak hâlâ ekrandayken ilerlerdi.
     _turnController.value =
-        (_turnController.value + sign * delta / _dragWidth).clamp(0.0, 0.995);
+        (_turnController.value + sign * delta / _dragWidth).clamp(0.0, 1.0);
   }
 
   void _handleDragEnd(DragEndDetails details) {
@@ -402,9 +400,21 @@ class _PreviewScreenState extends State<PreviewScreen>
     // yol belirler. Geriye doğru güçlü savurma ise yaprağı geri yaslar.
     final complete =
         velocity > 0.8 || (_turnController.value > 0.40 && velocity > -0.8);
+
+    if (complete && _turnController.value >= 0.999) {
+      _turnController.stop();
+      _turnController.value = 0;
+      setState(() {
+        _current = _target!;
+        _target = null;
+      });
+      HapticFeedback.selectionClick();
+      return;
+    }
+
     final target = complete ? 1.0 : 0.0;
     final remaining = (target - _turnController.value).abs();
-    final durationMs = (remaining * 360).clamp(160, 360).round();
+    final durationMs = (remaining * 340).clamp(120, 340).round();
 
     _turnController.animateTo(
       target,
