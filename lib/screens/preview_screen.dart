@@ -7,7 +7,6 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quick_video_encoder/flutter_quick_video_encoder.dart';
@@ -55,8 +54,6 @@ class PreviewScreen extends StatefulWidget {
 class _PreviewScreenState extends State<PreviewScreen>
     with SingleTickerProviderStateMixin {
   static const double _defaultGrabY = 0.62;
-  static final SpringDescription _pageSpring =
-      SpringDescription.withDampingRatio(mass: 1, stiffness: 190);
 
   final _exportBoundary = GlobalKey();
   late final AnimationController _turnController;
@@ -94,6 +91,7 @@ class _PreviewScreenState extends State<PreviewScreen>
   bool _exportCanCancel = false;
   bool _exportCancellationRequested = false;
   Timer? _timer;
+  bool _allImagesPrecached = false;
 
   /// Cover + inside title spread + the remaining two-page spreads.
   int get previewCount => 2 + widget.album.pages.length ~/ 2;
@@ -125,6 +123,92 @@ class _PreviewScreenState extends State<PreviewScreen>
   void didChangeDependencies() {
     super.didChangeDependencies();
     _reduceMotion = MediaQuery.disableAnimationsOf(context);
+    // Cache limitini artır: albümdeki tüm fotoğraflar bellekte kalsın,
+    // sayfa çevirirken birbirlerini ezmesinler.
+    PaintingBinding.instance.imageCache.maximumSizeBytes = 250 << 20; // 250 MB
+    PaintingBinding.instance.imageCache.maximumSize = 500;
+    _precacheAllAlbumImages();
+  }
+
+  void _precacheAllAlbumImages() {
+    if (_allImagesPrecached) return;
+    _allImagesPrecached = true;
+
+    final sources = <String>{
+      if (widget.album.coverPhotoPath != null &&
+          widget.album.coverPhotoPath!.trim().isNotEmpty)
+        widget.album.coverPhotoPath!,
+    };
+    final coverAsset = themeById(widget.album.themeId).coverAsset;
+    if (coverAsset != null && coverAsset.trim().isNotEmpty) {
+      sources.add(coverAsset);
+    }
+
+    for (final page in widget.album.pages) {
+      for (final element in page.elements) {
+        if (element.type == AlbumElementType.photo &&
+            element.content.trim().isNotEmpty) {
+          sources.add(element.content);
+        } else if (element.type == AlbumElementType.sticker &&
+            isPersonalSticker(element.content)) {
+          sources.add(personalStickerPath(element.content));
+        } else if (element.type == AlbumElementType.sticker &&
+            isAlbumStickerAsset(element.content)) {
+          sources.add(albumStickerAssetPath(element.content));
+        }
+      }
+    }
+
+    for (final source in sources) {
+      try {
+        precacheImage(
+          themeImageProvider(source),
+          context,
+          size: const Size(1080, 1920),
+          onError: (_, _) {},
+        );
+      } catch (_) {}
+    }
+  }
+
+  void _precachePosition(int previewIndex) {
+    if (previewIndex < 0 || previewIndex >= previewCount) return;
+    final pos = _positionFor(previewIndex);
+    final sources = <String>[
+      if (pos.closed && widget.album.coverPhotoPath != null)
+        widget.album.coverPhotoPath!,
+    ];
+    if (pos.closed) {
+      final coverAsset = themeById(widget.album.themeId).coverAsset;
+      if (coverAsset != null) sources.add(coverAsset);
+    }
+
+    for (final pageIndex in {pos.left, pos.right}) {
+      if (pageIndex < 0 || pageIndex >= widget.album.pages.length) continue;
+      for (final element in widget.album.pages[pageIndex].elements) {
+        if (element.type == AlbumElementType.photo &&
+            element.content.trim().isNotEmpty) {
+          sources.add(element.content);
+        } else if (element.type == AlbumElementType.sticker &&
+            isPersonalSticker(element.content)) {
+          sources.add(personalStickerPath(element.content));
+        } else if (element.type == AlbumElementType.sticker &&
+            isAlbumStickerAsset(element.content)) {
+          sources.add(albumStickerAssetPath(element.content));
+        }
+      }
+    }
+
+    for (final source in sources) {
+      try {
+        precacheImage(
+          themeImageProvider(source),
+          context,
+          size: const Size(1080, 1920),
+          onError: (_, _) {},
+        );
+      } catch (_) {}
+    }
   }
 
   @override
@@ -180,42 +264,43 @@ class _PreviewScreenState extends State<PreviewScreen>
         status != AnimationStatus.dismissed) {
       return;
     }
-    // animateWith ile başlatılan bir yay benzetimi, hangi değerde durursa
-    // dursun "completed" durumuna geçer. Bu yüzden sayfanın ilerleyip
-    // ilerlemeyeceğine duruma değil, yaprağın gerçekten yerine oturup
-    // oturmadığına bakılarak karar verilir; aksi hâlde geri yaslanan yaprak da
-    // sayfayı çevirmiş sayılırdı.
+    // Yay veya eğri nerede durursa dursun sayfanın ilerleyip
+    // ilerlemeyeceğine eşik değere bakılarak karar verilir.
     if (_turnController.value < 0.85) {
       if (_target != null) {
-        setState(() => _target = null);
+        // Geri yaslanıyor: önce durdur, sonra sıfırla, sonra state güncelle.
+        _turnController.stop();
         _turnController.value = 0;
+        setState(() => _target = null);
       }
       return;
     }
     final target = _target;
     if (target != null) {
+      // İlerleme tamamlandı: controller durdur, sıfırla ve state güncelle —
+      // hepsi aynı anda. Böylece fazladan bir frame çizilmez.
+      _turnController.stop();
+      _turnController.value = 0;
       setState(() {
         _current = target;
         _target = null;
       });
       HapticFeedback.selectionClick();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _target == null) _turnController.value = 0;
-      });
     }
   }
 
   void _goTo(int target, {bool animate = true, double? grabY}) {
     if (_target != null || target == _current) return;
     if (target < 0 || target >= previewCount) return;
+    _precachePosition(target);
 
     if (_reduceMotion || !animate) {
       _turnController.stop();
+      _turnController.value = 0;
       setState(() {
         _current = target;
         _target = null;
       });
-      _turnController.value = 0;
       return;
     }
 
@@ -226,8 +311,10 @@ class _PreviewScreenState extends State<PreviewScreen>
       _turnGrabY = grabY?.clamp(0.08, 0.92) ?? _defaultGrabY;
     });
 
-    _turnController.animateWith(
-      SpringSimulation(_pageSpring, 0, 1, 0),
+    _turnController.animateTo(
+      1.0,
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeInCubic,
     );
   }
 
@@ -254,6 +341,8 @@ class _PreviewScreenState extends State<PreviewScreen>
     if (_target == null && _turnController.value != 0) {
       _turnController.value = 0;
     }
+    if (_current > 0) _precachePosition(_current - 1);
+    if (_current < previewCount - 1) _precachePosition(_current + 1);
     _dragWidth = math.max(160.0, constraints.maxWidth * 0.55);
     final height = constraints.maxHeight <= 0 ? 1.0 : constraints.maxHeight;
     _turnGrabY = (details.localPosition.dy / height).clamp(0.08, 0.92);
@@ -270,11 +359,13 @@ class _PreviewScreenState extends State<PreviewScreen>
           _target = _current + 1;
           _turningForward = true;
         });
+        _precachePosition(_current + 1);
       } else if (delta > 0 && _current > 0) {
         setState(() {
           _target = _current - 1;
           _turningForward = false;
         });
+        _precachePosition(_current - 1);
       } else {
         return;
       }
@@ -297,24 +388,28 @@ class _PreviewScreenState extends State<PreviewScreen>
     final velocity = (details.primaryVelocity ?? 0) * sign / _dragWidth;
 
     if (_reduceMotion) {
-      final complete = velocity > 0.9 || _turnController.value > 0.35;
+      final complete = velocity > 0.8 || _turnController.value > 0.35;
       _turnController.stop();
+      _turnController.value = 0;
       setState(() {
         if (complete) _current = _target!;
         _target = null;
       });
-      _turnController.value = 0;
       return;
     }
 
     // Hızlı savurma mesafeye bakmadan tamamlar; yavaş bırakmada kat edilen
     // yol belirler. Geriye doğru güçlü savurma ise yaprağı geri yaslar.
     final complete =
-        velocity > 0.9 || (_turnController.value > 0.35 && velocity > -0.9);
+        velocity > 0.8 || (_turnController.value > 0.40 && velocity > -0.8);
     final target = complete ? 1.0 : 0.0;
+    final remaining = (target - _turnController.value).abs();
+    final durationMs = (remaining * 360).clamp(160, 360).round();
 
-    _turnController.animateWith(
-      SpringSimulation(_pageSpring, _turnController.value, target, velocity),
+    _turnController.animateTo(
+      target,
+      duration: Duration(milliseconds: durationMs),
+      curve: Curves.easeOutCubic,
     );
   }
 
@@ -322,8 +417,12 @@ class _PreviewScreenState extends State<PreviewScreen>
     if (!_draggingPage) return;
     _draggingPage = false;
     if (_target != null) {
-      _turnController.animateWith(
-        SpringSimulation(_pageSpring, _turnController.value, 0.0, 0.0),
+      final remaining = _turnController.value;
+      final durationMs = (remaining * 360).clamp(160, 360).round();
+      _turnController.animateTo(
+        0.0,
+        duration: Duration(milliseconds: durationMs),
+        curve: Curves.easeOutCubic,
       );
     }
   }
@@ -1346,23 +1445,414 @@ class _PreviewScreenState extends State<PreviewScreen>
 
   Widget _buildBookPreview() {
     final current = _positionFor(_current);
-    return AnimatedBuilder(
-      animation: _turnController,
-      builder: (context, _) {
-        final target = _target == null ? null : _positionFor(_target!);
-        return PhysicalBookSpread(
-          album: widget.album,
-          leftPageIndex: current.left,
-          rightPageIndex: current.right,
-          closed: current.closed,
-          nextLeftPageIndex: target?.left,
-          nextRightPageIndex: target?.right,
-          nextClosed: target?.closed ?? false,
-          turnProgress: _turnController.value,
-          turningForward: _turningForward,
-          turnGrabY: _turnGrabY,
-        );
-      },
+
+    // Komşu sayfaları Offstage ile ön-yükle: görünmez ama Flutter'ın resim
+    // çözümleyicisi çalışır ve fotoğrafları önbelleğe alır. Böylece kullanıcı
+    // sayfa çevirmeye başladığında resimler anında görünür, boş görünmez.
+    // Offstage, kendi boyutunu sıfır olarak raporlar; düzeni bozmaz.
+    //
+    // ÖNEMLI: her widget'a ValueKey verilmeli. Stack'te widget sayısı
+    // _current'e göre değişince AnimatedBuilder konum kayması yaşar ve
+    // Flutter onu dispose/recreate eder. Explicit key bu sorunu önler.
+    Widget prewarm(int previewIndex) {
+      final pos = _positionFor(previewIndex);
+      return Offstage(
+        key: ValueKey('prewarm-$previewIndex'),
+        child: SizedBox(
+          width: 320,
+          height: 220,
+          child: PhysicalBookSpread(
+            album: widget.album,
+            leftPageIndex: pos.left,
+            rightPageIndex: pos.right,
+            closed: pos.closed,
+          ),
+        ),
+      );
+    }
+
+    return Stack(
+      children: [
+        // Önceki ve sonraki yayılım için ön-yükleme widget'ları.
+        if (_current > 0) prewarm(_current - 1),
+        if (_current < previewCount - 1) prewarm(_current + 1),
+
+        // Gerçek görünür kitap. Key ile tanımlanır böylece prewarm sayısı
+        // değişse bile Flutter bu elementi dispose edip yeniden oluşturmaz.
+        AnimatedBuilder(
+          key: const ValueKey('main-book'),
+          animation: _turnController,
+          builder: (context, _) {
+            final target = _target == null ? null : _positionFor(_target!);
+            return PhysicalBookSpread(
+              album: widget.album,
+              leftPageIndex: current.left,
+              rightPageIndex: current.right,
+              closed: current.closed,
+              nextLeftPageIndex: target?.left,
+              nextRightPageIndex: target?.right,
+              nextClosed: target?.closed ?? false,
+              turnProgress: _turnController.value,
+              turningForward: _turningForward,
+              turnGrabY: _turnGrabY,
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPhoneLandscapeView(
+    BuildContext context,
+    AlbumThemePreset albumTheme,
+    AlbumiumThemeColors craftColors,
+  ) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Radyal fon ışığı
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              center: const Alignment(0, -0.1),
+              radius: 1.15,
+              colors: [
+                albumTheme.coverEnd.withValues(alpha: 0.18),
+                Colors.transparent,
+                Colors.black.withValues(alpha: .22),
+              ],
+              stops: const [0, 0.60, 1],
+            ),
+          ),
+        ),
+
+        // Kitap tam ekrana oturur: dikey boşluk en aza indirgenir
+        LayoutBuilder(
+          builder: (context, bookConstraints) => ReaderZoomView(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTapUp: (details) =>
+                  _handleBookTap(details, bookConstraints),
+              onHorizontalDragStart: (details) =>
+                  _handleDragStart(details, bookConstraints),
+              onHorizontalDragUpdate: _handleDragUpdate,
+              onHorizontalDragEnd: _handleDragEnd,
+              onHorizontalDragCancel: _handleDragCancel,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 6,
+                ),
+                child: _buildBookPreview(),
+              ),
+            ),
+          ),
+        ),
+
+        // İnce sol & sağ sayfa geçiş okları
+        Positioned(
+          left: 6,
+          top: 0,
+          bottom: 0,
+          child: Center(
+            child: _PageArrow(
+              icon: Icons.chevron_left_rounded,
+              tooltip: context.tr('Önceki sayfa'),
+              enabled: _current > 0 && _target == null,
+              onTap: () => _goTo(_current - 1),
+            ),
+          ),
+        ),
+        Positioned(
+          right: 6,
+          top: 0,
+          bottom: 0,
+          child: Center(
+            child: _PageArrow(
+              icon: Icons.chevron_right_rounded,
+              tooltip: context.tr('Sonraki sayfa'),
+              enabled: _current < previewCount - 1 && _target == null,
+              onTap: () => _goTo(_current + 1),
+            ),
+          ),
+        ),
+
+        // Sadece geri çıkma tuşu (kullanıcı isteği: "sadece geri çıkma tuşu kalsın")
+        Positioned(
+          left: 14,
+          top: 10,
+          child: SafeArea(
+            child: Material(
+              color: Colors.black.withValues(alpha: 0.52),
+              shape: const CircleBorder(),
+              elevation: 4,
+              shadowColor: Colors.black54,
+              child: InkWell(
+                key: const ValueKey('landscape_back_button'),
+                customBorder: const CircleBorder(),
+                onTap: () => Navigator.of(context).maybePop(),
+                child: Padding(
+                  padding: const EdgeInsets.all(9),
+                  child: Icon(
+                    Icons.arrow_back_rounded,
+                    color: Colors.white.withValues(alpha: 0.95),
+                    size: 22,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStandardView(
+    BuildContext context,
+    AlbumThemePreset albumTheme,
+    AlbumiumThemeColors craftColors,
+    ColorScheme colors,
+  ) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 10, 24, 18),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.album.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: craftColors.text,
+                            fontSize: 26,
+                          ),
+                    ),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      transitionBuilder: (child, animation) => FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.18),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      ),
+                      child: Text(
+                        _positionLabel(),
+                        key: ValueKey(_current),
+                        style: TextStyle(
+                          color: colors.onSurfaceVariant,
+                          fontSize: 12,
+                          height: 1.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.icon(
+                key: const ValueKey('preview_share_button'),
+                onPressed: _target == null && !_exporting
+                    ? _showShareOptions
+                    : null,
+                icon: const Icon(Icons.ios_share_rounded, size: 18),
+                label: Text(context.tr('Paylaş')),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 44),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: const Alignment(0, -0.2),
+                    radius: 1.08,
+                    colors: [
+                      albumTheme.coverEnd.withValues(alpha: 0.16),
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: .12),
+                    ],
+                    stops: const [0, 0.64, 1],
+                  ),
+                ),
+              ),
+              LayoutBuilder(
+                builder: (context, bookConstraints) => ReaderZoomView(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTapUp: (details) =>
+                        _handleBookTap(details, bookConstraints),
+                    onHorizontalDragStart: (details) =>
+                        _handleDragStart(details, bookConstraints),
+                    onHorizontalDragUpdate: _handleDragUpdate,
+                    onHorizontalDragEnd: _handleDragEnd,
+                    onHorizontalDragCancel: _handleDragCancel,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        10,
+                        10,
+                        10,
+                        30,
+                      ),
+                      child: _buildBookPreview(),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 14,
+                top: 0,
+                bottom: 20,
+                child: Center(
+                  child: _PageArrow(
+                    icon: Icons.chevron_left_rounded,
+                    tooltip: context.tr('Önceki sayfa'),
+                    enabled: _current > 0 && _target == null,
+                    onTap: () => _goTo(_current - 1),
+                  ),
+                ),
+              ),
+              Positioned(
+                right: 14,
+                top: 0,
+                bottom: 20,
+                child: Center(
+                  child: _PageArrow(
+                    icon: Icons.chevron_right_rounded,
+                    tooltip: context.tr('Sonraki sayfa'),
+                    enabled:
+                        _current < previewCount - 1 && _target == null,
+                    onTap: () => _goTo(_current + 1),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 4,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 5,
+                    ),
+                    child: Text(
+                      _reduceMotion
+                          ? context.tr(
+                              'Oklarla gez · azaltılmış hareket',
+                            )
+                          : context.tr(
+                              'Kaydır veya oklarla sayfaları çevir',
+                            ),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: craftColors.mutedText,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (previewCount > 12)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(36, 12, 36, 14),
+            child: Semantics(
+              label: context.tr(
+                'Albüm ilerlemesi {current} / {total}',
+                values: {
+                  'current': _current + 1,
+                  'total': previewCount,
+                },
+              ),
+              child: LinearProgressIndicator(
+                value: previewCount <= 1
+                    ? 1
+                    : _current / (previewCount - 1),
+                minHeight: 6,
+                borderRadius: BorderRadius.circular(99),
+                color: albumTheme.accent,
+              ),
+            ),
+          )
+        else
+          SizedBox(
+            height: 44,
+            child: Center(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (var index = 0; index < previewCount; index++)
+                      Semantics(
+                        label: index == 0
+                            ? context.tr('Kapak')
+                            : context.tr(
+                                'Kitap görünümü {index}',
+                                values: {'index': index},
+                              ),
+                        selected: index == _current,
+                        button: true,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(99),
+                          onTap: _target == null
+                              ? () => _goTo(
+                                  index,
+                                  animate:
+                                      (index - _current).abs() == 1,
+                                )
+                              : null,
+                          child: SizedBox(
+                            width: 32,
+                            height: 44,
+                            child: Center(
+                              child: AnimatedContainer(
+                                duration: const Duration(
+                                  milliseconds: 220,
+                                ),
+                                width: index == _current ? 22 : 7,
+                                height: 7,
+                                decoration: BoxDecoration(
+                                  color: index == _current
+                                      ? albumTheme.accent
+                                      : colors.onSurface.withValues(
+                                          alpha: 0.2,
+                                        ),
+                                  borderRadius: BorderRadius.circular(
+                                    99,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        const SizedBox(height: 8),
+      ],
     );
   }
 
@@ -1371,278 +1861,46 @@ class _PreviewScreenState extends State<PreviewScreen>
     final albumTheme = themeById(widget.album.themeId);
     final colors = Theme.of(context).colorScheme;
     final craftColors = AlbumiumAppTheme.colorsOf(context);
+    final isLandscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
+    final isPhoneLandscape =
+        isLandscape && MediaQuery.sizeOf(context).height < 560;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: Text(context.tr('Albüm Önizleme')),
-        backgroundColor: craftColors.background,
-        actions: [
-          IconButton(
-            onPressed: _toggleAutoPlay,
-            tooltip: _autoPlay
-                ? context.tr('Durdur')
-                : context.tr('Otomatik oynat'),
-            icon: Icon(
-              _autoPlay
-                  ? Icons.pause_circle_outline_rounded
-                  : Icons.play_circle_outline_rounded,
+      appBar: isPhoneLandscape
+          ? null
+          : AppBar(
+              title: Text(context.tr('Albüm Önizleme')),
+              backgroundColor: craftColors.background,
+              actions: [
+                IconButton(
+                  onPressed: _toggleAutoPlay,
+                  tooltip: _autoPlay
+                      ? context.tr('Durdur')
+                      : context.tr('Otomatik oynat'),
+                  icon: Icon(
+                    _autoPlay
+                        ? Icons.pause_circle_outline_rounded
+                        : Icons.play_circle_outline_rounded,
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
             ),
-          ),
-          const SizedBox(width: 6),
-        ],
-      ),
       body: CraftBackdrop(
         variant: CraftBackdropVariant.studio,
         baseColor: craftColors.background,
         textureIntensity: .66,
         child: SafeArea(
+          top: !isPhoneLandscape,
+          bottom: !isPhoneLandscape,
           child: Stack(
             children: [
-              Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 10, 24, 18),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                widget.album.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.titleLarge
-                                    ?.copyWith(
-                                      color: craftColors.text,
-                                      fontSize: 26,
-                                    ),
-                              ),
-                              AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 220),
-                                transitionBuilder: (child, animation) =>
-                                    FadeTransition(
-                                      opacity: animation,
-                                      child: SlideTransition(
-                                        position: Tween<Offset>(
-                                          begin: const Offset(0, 0.18),
-                                          end: Offset.zero,
-                                        ).animate(animation),
-                                        child: child,
-                                      ),
-                                    ),
-                                child: Text(
-                                  _positionLabel(),
-                                  key: ValueKey(_current),
-                                  style: TextStyle(
-                                    color: colors.onSurfaceVariant,
-                                    fontSize: 12,
-                                    height: 1.5,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        FilledButton.icon(
-                          key: const ValueKey('preview_share_button'),
-                          onPressed: _target == null && !_exporting
-                              ? _showShareOptions
-                              : null,
-                          icon: const Icon(Icons.ios_share_rounded, size: 18),
-                          label: Text(context.tr('Paylaş')),
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size(0, 44),
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: RadialGradient(
-                              center: const Alignment(0, -0.2),
-                              radius: 1.08,
-                              colors: [
-                                albumTheme.coverEnd.withValues(alpha: 0.16),
-                                Colors.transparent,
-                                Colors.black.withValues(alpha: .12),
-                              ],
-                              stops: const [0, 0.64, 1],
-                            ),
-                          ),
-                        ),
-                        LayoutBuilder(
-                          builder: (context, bookConstraints) => ReaderZoomView(
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTapUp: (details) =>
-                                  _handleBookTap(details, bookConstraints),
-                              onHorizontalDragStart: (details) =>
-                                  _handleDragStart(details, bookConstraints),
-                              onHorizontalDragUpdate: _handleDragUpdate,
-                              onHorizontalDragEnd: _handleDragEnd,
-                              onHorizontalDragCancel: _handleDragCancel,
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  10,
-                                  10,
-                                  10,
-                                  30,
-                                ),
-                                child: _buildBookPreview(),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: 14,
-                          top: 0,
-                          bottom: 20,
-                          child: Center(
-                            child: _PageArrow(
-                              icon: Icons.chevron_left_rounded,
-                              tooltip: context.tr('Önceki sayfa'),
-                              enabled: _current > 0 && _target == null,
-                              onTap: () => _goTo(_current - 1),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          right: 14,
-                          top: 0,
-                          bottom: 20,
-                          child: Center(
-                            child: _PageArrow(
-                              icon: Icons.chevron_right_rounded,
-                              tooltip: context.tr('Sonraki sayfa'),
-                              enabled:
-                                  _current < previewCount - 1 &&
-                                  _target == null,
-                              onTap: () => _goTo(_current + 1),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 4,
-                          child: Center(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 5,
-                              ),
-                              child: Text(
-                                _reduceMotion
-                                    ? context.tr(
-                                        'Oklarla gez · azaltılmış hareket',
-                                      )
-                                    : context.tr(
-                                        'Kaydır veya oklarla sayfaları çevir',
-                                      ),
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: craftColors.mutedText,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (previewCount > 12)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(36, 12, 36, 14),
-                      child: Semantics(
-                        label: context.tr(
-                          'Albüm ilerlemesi {current} / {total}',
-                          values: {
-                            'current': _current + 1,
-                            'total': previewCount,
-                          },
-                        ),
-                        child: LinearProgressIndicator(
-                          value: previewCount <= 1
-                              ? 1
-                              : _current / (previewCount - 1),
-                          minHeight: 6,
-                          borderRadius: BorderRadius.circular(99),
-                          color: albumTheme.accent,
-                        ),
-                      ),
-                    )
-                  else
-                    SizedBox(
-                      height: 44,
-                      child: Center(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              for (var index = 0; index < previewCount; index++)
-                                Semantics(
-                                  label: index == 0
-                                      ? context.tr('Kapak')
-                                      : context.tr(
-                                          'Kitap görünümü {index}',
-                                          values: {'index': index},
-                                        ),
-                                  selected: index == _current,
-                                  button: true,
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(99),
-                                    onTap: _target == null
-                                        ? () => _goTo(
-                                            index,
-                                            animate:
-                                                (index - _current).abs() == 1,
-                                          )
-                                        : null,
-                                    child: SizedBox(
-                                      width: 32,
-                                      height: 44,
-                                      child: Center(
-                                        child: AnimatedContainer(
-                                          duration: const Duration(
-                                            milliseconds: 220,
-                                          ),
-                                          width: index == _current ? 22 : 7,
-                                          height: 7,
-                                          decoration: BoxDecoration(
-                                            color: index == _current
-                                                ? albumTheme.accent
-                                                : colors.onSurface.withValues(
-                                                    alpha: 0.2,
-                                                  ),
-                                            borderRadius: BorderRadius.circular(
-                                              99,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 8),
-                ],
-              ),
+              if (isPhoneLandscape)
+                _buildPhoneLandscapeView(context, albumTheme, craftColors)
+              else
+                _buildStandardView(context, albumTheme, craftColors, colors),
               if (_exporting)
                 Positioned.fill(
                   child: ColoredBox(

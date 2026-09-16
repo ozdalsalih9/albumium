@@ -277,6 +277,45 @@ class PhysicalBookSpread extends StatelessWidget {
       return _ClosedBook(album: album);
     }
 
+    final backIndex = turningForward ? nextLeftPageIndex : nextRightPageIndex;
+    final frontIndex = turningForward ? rightPageIndex : leftPageIndex;
+
+    final Color leafPaperColor;
+    if (backIndex != null &&
+        backIndex >= 0 &&
+        backIndex < album.pages.length) {
+      final pageBg = album.pages[backIndex].backgroundColor;
+      leafPaperColor = Color(pageBg);
+    } else {
+      leafPaperColor = theme.pageColor;
+    }
+
+    final bool isBackEmpty;
+    if (backIndex == null ||
+        backIndex < 0 ||
+        backIndex >= album.pages.length) {
+      isBackEmpty = true;
+    } else {
+      final backPage = album.pages[backIndex];
+      isBackEmpty = !backPage.elements.any((e) =>
+          e.type == AlbumElementType.photo ||
+          e.type == AlbumElementType.sticker ||
+          e.type == AlbumElementType.drawing ||
+          e.type == AlbumElementType.card);
+    }
+
+    final bool isFrontEmpty;
+    if (frontIndex < 0 || frontIndex >= album.pages.length) {
+      isFrontEmpty = true;
+    } else {
+      final frontPage = album.pages[frontIndex];
+      isFrontEmpty = !frontPage.elements.any((e) =>
+          e.type == AlbumElementType.photo ||
+          e.type == AlbumElementType.sticker ||
+          e.type == AlbumElementType.drawing ||
+          e.type == AlbumElementType.card);
+    }
+
     return _buildOpenBook(
       theme: theme,
       leftIndex: turningForward ? leftPageIndex : nextLeftPageIndex!,
@@ -285,14 +324,16 @@ class PhysicalBookSpread extends StatelessWidget {
         progress: progress,
         forward: turningForward,
         grabY: turnGrabY,
-        paperColor: theme.pageColor,
+        paperColor: leafPaperColor,
+        isBackEmpty: isBackEmpty,
+        isFrontEmpty: isFrontEmpty,
         front: _buildPageSide(
-          index: turningForward ? rightPageIndex : leftPageIndex,
+          index: frontIndex,
           isLeft: !turningForward,
           theme: theme,
         ),
         back: _buildPageSide(
-          index: turningForward ? nextLeftPageIndex! : nextRightPageIndex!,
+          index: backIndex ?? blankPageIndex,
           isLeft: turningForward,
           theme: theme,
         ),
@@ -308,15 +349,8 @@ class PhysicalBookSpread extends StatelessWidget {
     required int openLeftIndex,
     required int openRightIndex,
   }) {
-    // The animation controller (or export timeline) owns easing. Applying a
-    // second cubic curve here made the cover barely move at first and then
-    // snap open around the midpoint. Keeping this mapping linear also makes a
-    // directly dragged cover follow the user's finger.
     final eased = openingProgress.clamp(0.0, 1.0);
     final pageWidth = (width - 32) / 2;
-    // Recenter in proportion to the leaf's projected width. A linear hinge
-    // translation moves the cover right before rotation can move its edge
-    // left, which looks like the book is resisting the finger.
     final reframe = (1 - math.cos(math.pi * eased)) / 2;
     final coverWidth = _lerp(width * 0.49, pageWidth, reframe);
     final coverLeft = _lerp(width * 0.255, width / 2 - 2, reframe);
@@ -324,42 +358,99 @@ class PhysicalBookSpread extends StatelessWidget {
     final coverHeight = _lerp(height, height - 24, reframe);
     final showFront = eased < 0.5;
 
+    // Açık kitap gövdesi yalnızca kapak tamamen açılmaya yaklaştığında
+    // (eased > 0.70) yumuşakça devreye girer. Böylece kapak henüz açılmadan
+    // arka planda açık halinin görünmesi ve çakışması kesinlikle önlenir.
+    final openBookFade = ((eased - 0.70) / 0.30).clamp(0.0, 1.0);
+
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Opacity(
-          opacity: Curves.easeOut.transform(
-            ((eased - 0.06) / 0.42).clamp(0.0, 1.0),
-          ),
-          child: _buildOpenBook(
-            theme: theme,
-            leftIndex: openLeftIndex,
-            rightIndex: openRightIndex,
-          ),
-        ),
-        if (eased < 0.55)
-          Positioned(
-            left: coverLeft + 3,
-            top: coverTop + 4,
-            width: coverWidth,
-            height: coverHeight,
-            child: Opacity(
-              opacity: (1 - eased / 0.55).clamp(0.0, 1.0),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD7C7A7),
-                  borderRadius: BorderRadius.circular(13),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x88000000),
-                      blurRadius: 20,
-                      offset: Offset(8, 14),
-                    ),
-                  ],
-                ),
-              ),
+        // 1. Nihai açık kitap gövdesi — sadece açılışın son çeyreğinde (0.70 - 1.0)
+        // pürüzsüzce belirir; erken aşamalarda tamamen gizlidir.
+        if (openBookFade > 0)
+          Opacity(
+            opacity: Curves.easeIn.transform(openBookFade),
+            child: _buildOpenBook(
+              theme: theme,
+              leftIndex: openLeftIndex,
+              rightIndex: openRightIndex,
             ),
           ),
+
+        // 2. Kapağın altında yatan sağ sayfa ve kâğıt derinlik bloğu.
+        // Kapak açıldıkça altındaki ilk sayfa (openRightIndex) doğal olarak ortaya çıkar.
+        Positioned(
+          left: coverLeft,
+          top: coverTop,
+          width: coverWidth,
+          height: coverHeight,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // Kâğıt bloğu kenar kalınlığı ve alt gölge
+              Positioned(
+                left: 9,
+                right: -4,
+                top: 8,
+                bottom: -2,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD5C4A3),
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: const Color(0xFF9A8767)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(
+                          alpha: (0.62 * (1.0 - openBookFade)).clamp(0.0, 0.62),
+                        ),
+                        blurRadius: 28,
+                        offset: const Offset(10, 18),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Kapak kalktığında altta görünen ilk sayfa
+              Positioned.fill(
+                child: _buildPageSide(
+                  index: openRightIndex,
+                  isLeft: false,
+                  theme: theme,
+                ),
+              ),
+              // Kalkan kapağın sağ sayfaya düşürdüğü gölge
+              if (eased < 0.55)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Opacity(
+                      opacity: (1.0 - eased / 0.55).clamp(0.0, 1.0),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: const BorderRadius.only(
+                            topRight: Radius.circular(9),
+                            bottomRight: Radius.circular(9),
+                          ),
+                          gradient: LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.40),
+                              Colors.black.withValues(alpha: 0.12),
+                              Colors.transparent,
+                            ],
+                            stops: const [0, 0.35, 1],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+
+        // 3. Sert kapak menteşe dönüşümü (Transform alignment: Alignment.centerLeft).
         Positioned(
           left: coverLeft,
           top: coverTop,
@@ -368,8 +459,6 @@ class PhysicalBookSpread extends StatelessWidget {
           child: Transform(
             key: const ValueKey('book-cover-hinge'),
             alignment: Alignment.centerLeft,
-            // The scene already supplies perspective. Local perspective
-            // magnified the near edge and made slow drags bulge sideways.
             transform: Matrix4.rotationY(math.pi * eased),
             filterQuality: FilterQuality.high,
             child: showFront
@@ -385,10 +474,12 @@ class PhysicalBookSpread extends StatelessWidget {
                   ),
           ),
         ),
+
+        // 4. Menteşe/cilt hattındaki derinlik gölgesi.
         Positioned(
-          left: width / 2 - 9,
-          top: 14,
-          bottom: 14,
+          left: coverLeft - 9,
+          top: coverTop + 2,
+          bottom: height - coverTop - coverHeight + 2,
           width: 18,
           child: IgnorePointer(
             child: Opacity(
@@ -672,6 +763,8 @@ class _CurlingLeaf extends StatelessWidget {
     required this.front,
     required this.back,
     required this.paperColor,
+    this.isBackEmpty = false,
+    this.isFrontEmpty = false,
   });
 
   final double progress;
@@ -680,6 +773,8 @@ class _CurlingLeaf extends StatelessWidget {
   final Widget front;
   final Widget back;
   final Color paperColor;
+  final bool isBackEmpty;
+  final bool isFrontEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -710,6 +805,25 @@ class _CurlingLeaf extends StatelessWidget {
           child: orientForEngine(page),
         );
 
+        // Kullanıcı isteği:
+        // "eğer bir sayfanın arkası boşsa o sayfanın ön yüzündeki resimler
+        // sayfanın arkasında hafif belirsin, ama bir sayfanın 2 yüzü de doluysa
+        // sayfayı çevirirken sadece o sayfadaki resimler olsun"
+        final Widget effectiveBack = (isBackEmpty && !isFrontEmpty)
+            ? Stack(
+                fit: StackFit.expand,
+                children: [
+                  back,
+                  // Arka sayfa boşsa, kâğıdın arkasından ön yüzün resimleri
+                  // hafifçe görünür (yarı-saydam kâğıt yansıması efekti).
+                  Opacity(
+                    opacity: 0.18,
+                    child: front,
+                  ),
+                ],
+              )
+            : back;
+
         Widget curl = Stack(
           fit: StackFit.expand,
           children: [
@@ -720,7 +834,7 @@ class _CurlingLeaf extends StatelessWidget {
             ),
             curlSurface(
               key: const ValueKey('book-page-curl-back'),
-              page: back,
+              page: effectiveBack,
               surface: PageCurlSurface.back,
             ),
           ],

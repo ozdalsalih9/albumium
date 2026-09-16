@@ -315,4 +315,55 @@ void main() {
       await tester.pumpAndSettle();
     }
   });
+
+  testWidgets(
+    'on a phone in landscape, only the back button remains and the book fits the screen in full size',
+    (tester) async {
+      tester.view.devicePixelRatio = 2;
+      // Typical phone in landscape: 844 x 390 logical -> physical 1688 x 780
+      tester.view.physicalSize = const Size(1688, 780);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final now = DateTime(2026);
+      final album = AlbumModel(
+        id: 'phone-landscape-test',
+        title: 'Yatay Telefon Albümü',
+        themeId: 'vintage_diary',
+        createdAt: now,
+        updatedAt: now,
+        pages: List.generate(
+          4,
+          (index) => AlbumPageModel(
+            id: 'page-$index',
+            backgroundColor: 0xFFF2E8D3,
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData.dark(),
+          home: PreviewScreen(album: album),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Only the floating back button remains:
+      expect(find.byKey(const ValueKey('landscape_back_button')), findsOneWidget);
+
+      // AppBar, header texts, share button, and bottom indicators are NOT present:
+      expect(find.byType(AppBar), findsNothing);
+      expect(find.byKey(const ValueKey('preview_share_button')), findsNothing);
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+
+      // The physical book is present and fills the vertical space of the phone:
+      final book = find.byType(PhysicalBookSpread);
+      expect(book, findsOneWidget);
+      final bookSize = tester.getSize(book);
+      // Available height is ~390px, with only 12px vertical padding, book height is ~378px:
+      expect(bookSize.height, greaterThan(320));
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
