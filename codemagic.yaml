@@ -29,29 +29,18 @@ workflows:
       - build/ios/RunnerTests.xcresult
       - /tmp/xcodebuild_logs/*.log
 
-  ios-testflight:
-    name: Signed iOS TestFlight candidate
+  ios-signing-setup:
+    name: Prepare iOS App Store signing
     instance_type: mac_mini_m2
-    max_build_duration: 60
+    max_build_duration: 15
     integrations:
       app_store_connect: Albumium Codemagic
     environment:
-      flutter: 3.41.7
       xcode: latest
-      cocoapods: default
       vars:
         BUNDLE_ID: com.albumium.albumium
-      ios_signing:
-        certificates:
-          - Albumium Distribution
     scripts:
-      - name: Resolve, analyze and test
-        script: |
-          set -e
-          flutter pub get
-          flutter analyze
-          flutter test
-      - name: Prepare App Store provisioning profile
+      - name: Create App Store bundle ID and provisioning profile
         script: |
           set -e
 
@@ -128,6 +117,29 @@ workflows:
               --state ACTIVE \
               --save
           fi
+    artifacts:
+      - $HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/*.mobileprovision
+
+  ios-testflight:
+    name: Signed iOS TestFlight candidate
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: Albumium Codemagic
+    environment:
+      flutter: 3.41.7
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.albumium.albumium
+    scripts:
+      - name: Resolve, analyze and test
+        script: |
+          set -e
+          flutter pub get
+          flutter analyze
+          flutter test
       - name: Apply signing profiles
         script: xcode-project use-profiles
       - name: Build IPA
