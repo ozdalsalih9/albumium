@@ -39,9 +39,11 @@ workflows:
       flutter: 3.41.7
       xcode: latest
       cocoapods: default
+      vars:
+        BUNDLE_ID: com.albumium.albumium
       ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.albumium.albumium
+        certificates:
+          - Albumium Distribution
     scripts:
       - name: Resolve, analyze and test
         script: |
@@ -49,6 +51,83 @@ workflows:
           flutter pub get
           flutter analyze
           flutter test
+      - name: Prepare App Store provisioning profile
+        script: |
+          set -e
+
+          first_resource_id() {
+            python3 -c '
+          import json
+          import sys
+
+          def find_id(value):
+              if isinstance(value, dict):
+                  resource_id = value.get("id")
+                  if isinstance(resource_id, str):
+                      return resource_id
+                  if "data" in value:
+                      found = find_id(value["data"])
+                      if found:
+                          return found
+                  for child in value.values():
+                      found = find_id(child)
+                      if found:
+                          return found
+              elif isinstance(value, list):
+                  for child in value:
+                      found = find_id(child)
+                      if found:
+                          return found
+              return ""
+
+          print(find_id(json.load(sys.stdin)))
+          '
+          }
+
+          bundle_response="$(app-store-connect bundle-ids list \
+            --bundle-id-identifier "$BUNDLE_ID" \
+            --strict-match-identifier \
+            --json)"
+          bundle_resource_id="$(printf '%s' "$bundle_response" | first_resource_id)"
+
+          if [ -z "$bundle_resource_id" ]; then
+            bundle_response="$(app-store-connect bundle-ids create "$BUNDLE_ID" \
+              --name "Albumium" \
+              --platform IOS \
+              --json)"
+            bundle_resource_id="$(printf '%s' "$bundle_response" | first_resource_id)"
+          fi
+
+          certificate_response="$(app-store-connect certificates list \
+            --profile-type IOS_APP_STORE \
+            --json)"
+          certificate_resource_id="$(printf '%s' "$certificate_response" | first_resource_id)"
+
+          if [ -z "$bundle_resource_id" ] || [ -z "$certificate_resource_id" ]; then
+            echo "Could not resolve the Apple bundle ID or distribution certificate."
+            exit 1
+          fi
+
+          profile_response="$(app-store-connect profiles list \
+            --name "Albumium App Store" \
+            --type IOS_APP_STORE \
+            --state ACTIVE \
+            --json)"
+          profile_resource_id="$(printf '%s' "$profile_response" | first_resource_id)"
+
+          if [ -z "$profile_resource_id" ]; then
+            app-store-connect profiles create "$bundle_resource_id" \
+              --certificate-ids "$certificate_resource_id" \
+              --type IOS_APP_STORE \
+              --name "Albumium App Store" \
+              --save
+          else
+            app-store-connect profiles list \
+              --name "Albumium App Store" \
+              --type IOS_APP_STORE \
+              --state ACTIVE \
+              --save
+          fi
       - name: Apply signing profiles
         script: xcode-project use-profiles
       - name: Build IPA
