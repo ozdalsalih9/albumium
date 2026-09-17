@@ -61,9 +61,9 @@ class SinglePageExportStoryboard {
   factory SinglePageExportStoryboard.forPages(
     int pageCount, {
     int fps = 30,
-    Duration holdDuration = const Duration(milliseconds: 1350),
-    Duration panDuration = const Duration(milliseconds: 700),
-    Duration pageTurnDuration = const Duration(milliseconds: 850),
+    Duration holdDuration = const Duration(milliseconds: 2100),
+    Duration panDuration = const Duration(milliseconds: 950),
+    Duration pageTurnDuration = const Duration(milliseconds: 1300),
     Duration maximumDuration = const Duration(seconds: 90),
   }) {
     if (pageCount < 0) {

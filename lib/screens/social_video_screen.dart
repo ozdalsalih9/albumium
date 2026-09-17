@@ -138,7 +138,7 @@ class _SocialVideoScreenState extends State<SocialVideoScreen>
         height: _quality.height,
         fps: 30,
         videoBitrate: _quality.videoBitrate,
-        profileLevel: ProfileLevel.baselineAutoLevel,
+        profileLevel: ProfileLevel.highAutoLevel,
         audioChannels: _sound ? 2 : 0,
         audioBitrate: _sound ? 128000 : 0,
         sampleRate: _sound ? 48000 : 0,

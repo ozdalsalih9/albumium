@@ -11,10 +11,10 @@ void main() {
       expect(settings.quality, VideoExportQuality.balanced);
       expect(settings.quality.width, 720);
       expect(settings.quality.height, 1280);
-      expect(settings.quality.videoBitrate, 3000000);
+      expect(settings.quality.videoBitrate, 4000000);
       expect(settings.fps, 30);
       expect(settings.audioBitrate, 128000);
-      expect(settings.estimatedBytes(const Duration(seconds: 60)), 23460000);
+      expect(settings.estimatedBytes(const Duration(seconds: 60)), 30960000);
       expect(settings.estimatedBytes(Duration.zero), 0);
       expect(settings.estimatedBytes(const Duration(seconds: -1)), 0);
       expect(
@@ -23,16 +23,16 @@ void main() {
       );
     });
 
-    test('Full HD preserves resolution with a lower target bitrate', () {
+    test('Full HD preserves resolution with a high-fidelity target bitrate', () {
       const settings = VideoExportSettings(
         quality: VideoExportQuality.fullHd,
         includeSoundtrack: false,
       );
       expect(settings.quality.width, 1080);
       expect(settings.quality.height, 1920);
-      expect(settings.quality.videoBitrate, 6000000);
+      expect(settings.quality.videoBitrate, 10000000);
       expect(settings.audioBitrate, 0);
-      expect(settings.estimatedBytes(const Duration(seconds: 60)), 45000000);
+      expect(settings.estimatedBytes(const Duration(seconds: 60)), 75000000);
       for (final quality in VideoExportQuality.values) {
         expect(quality.width / quality.height, 9 / 16);
         expect(quality.width.isEven, isTrue);
