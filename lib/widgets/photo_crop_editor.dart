@@ -10,15 +10,34 @@ import '../themes/theme_image_helper.dart';
 
 const fullPhotoCrop = Rect.fromLTWH(0, 0, 1, 1);
 
+final Map<String, ImageInfo> _loadedPhotoCache = <String, ImageInfo>{};
+
+ImageInfo? peekLoadedAlbumPhoto(String path) {
+  final cached = _loadedPhotoCache[path];
+  if (cached != null) {
+    try {
+      return cached.clone();
+    } catch (_) {
+      _loadedPhotoCache.remove(path);
+    }
+  }
+  return null;
+}
+
 /// Uses the same oriented, bounded decode as the canvas and video exporter.
 /// The caller owns the returned image reference.
 Future<ImageInfo> loadAlbumPhoto(String path) async {
+  final existing = peekLoadedAlbumPhoto(path);
+  if (existing != null) return existing;
+
   final stream = themeImageProvider(path).resolve(ImageConfiguration.empty);
   final completer = Completer<ImageInfo>();
   late final ImageStreamListener listener;
   listener = ImageStreamListener(
     (info, _) {
       if (!completer.isCompleted) {
+        _loadedPhotoCache[path]?.dispose();
+        _loadedPhotoCache[path] = info.clone();
         completer.complete(info);
       } else {
         info.dispose();
@@ -96,13 +115,22 @@ class _CroppedAlbumPhotoState extends State<CroppedAlbumPhoto> {
   @override
   void initState() {
     super.initState();
-    _load();
+    final cached = peekLoadedAlbumPhoto(widget.path);
+    if (cached != null) {
+      _info = cached;
+    } else {
+      _load();
+    }
   }
 
   @override
   void didUpdateWidget(CroppedAlbumPhoto oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.path != widget.path) _load();
+    if (oldWidget.path != widget.path) {
+      _info?.dispose();
+      _info = peekLoadedAlbumPhoto(widget.path);
+      if (_info == null) _load();
+    }
   }
 
   Future<void> _load() async {

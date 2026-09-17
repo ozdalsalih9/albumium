@@ -8,8 +8,8 @@ const albumiumExportRetention = Duration(hours: 24);
 /// Both presets retain the same 30 FPS timeline and 9:16 framing. The default
 /// reduces encoder traffic and output size without changing page animations.
 enum VideoExportQuality {
-  balanced(width: 720, height: 1280, videoBitrate: 3000000),
-  fullHd(width: 1080, height: 1920, videoBitrate: 6000000);
+  balanced(width: 720, height: 1280, videoBitrate: 4000000),
+  fullHd(width: 1080, height: 1920, videoBitrate: 10000000);
 
   const VideoExportQuality({
     required this.width,

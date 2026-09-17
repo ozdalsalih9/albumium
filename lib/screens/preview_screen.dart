@@ -27,6 +27,7 @@ import '../services/video_export_support.dart';
 import '../theme/albumium_app_theme.dart';
 import '../themes/theme_image_helper.dart';
 import '../widgets/handmade_craft.dart';
+import '../widgets/photo_crop_editor.dart';
 import '../widgets/physical_book_spread.dart';
 import '../widgets/sticker_packs.dart';
 
@@ -464,12 +465,14 @@ class _PreviewScreenState extends State<PreviewScreen>
       if (coverAsset != null) sources.add(coverAsset);
     }
 
+    final photoPaths = <String>[];
     for (final pageIndex in {position.left, position.right}) {
       if (pageIndex < 0 || pageIndex >= widget.album.pages.length) continue;
       for (final element in widget.album.pages[pageIndex].elements) {
         if (element.type == AlbumElementType.photo &&
             element.content.trim().isNotEmpty) {
           sources.add(element.content);
+          photoPaths.add(element.content);
         } else if (element.type == AlbumElementType.sticker &&
             isPersonalSticker(element.content)) {
           sources.add(personalStickerPath(element.content));
@@ -496,6 +499,13 @@ class _PreviewScreenState extends State<PreviewScreen>
           ),
         );
       }
+    }
+
+    for (final photoPath in photoPaths.toSet()) {
+      try {
+        final info = await loadAlbumPhoto(photoPath);
+        info.dispose();
+      } catch (_) {}
     }
   }
 
@@ -510,12 +520,14 @@ class _PreviewScreenState extends State<PreviewScreen>
     final sources = <String>[
       if (widget.album.coverPhotoPath != null) widget.album.coverPhotoPath!,
     ];
+    final photoPaths = <String>[];
     for (final index in {spreadLeft, spreadLeft + 1}) {
       if (index < 0 || index >= widget.album.pages.length) continue;
       for (final element in widget.album.pages[index].elements) {
         if (element.type == AlbumElementType.photo &&
             element.content.trim().isNotEmpty) {
           sources.add(element.content);
+          photoPaths.add(element.content);
         } else if (element.type == AlbumElementType.sticker &&
             isPersonalSticker(element.content)) {
           sources.add(personalStickerPath(element.content));
@@ -542,6 +554,13 @@ class _PreviewScreenState extends State<PreviewScreen>
           ),
         );
       }
+    }
+
+    for (final photoPath in photoPaths.toSet()) {
+      try {
+        final info = await loadAlbumPhoto(photoPath);
+        info.dispose();
+      } catch (_) {}
     }
   }
 
@@ -633,7 +652,7 @@ class _PreviewScreenState extends State<PreviewScreen>
       // frames only need one paint boundary, otherwise hundreds of identical
       // font waits turn a short movie into a very slow export.
       await GoogleFonts.pendingFonts();
-      await Future<void>.delayed(const Duration(milliseconds: 18));
+      await Future<void>.delayed(const Duration(milliseconds: 60));
       await WidgetsBinding.instance.endOfFrame;
       _throwIfExportCancelled();
     }
@@ -1098,7 +1117,7 @@ class _PreviewScreenState extends State<PreviewScreen>
         }
         final pngBytes = await _captureExportBookFrame(
           from: position,
-          settleAssets: index == 0,
+          settleAssets: true,
           format: ui.ImageByteFormat.png,
         );
         final suffix = positions.length == 1
@@ -1251,7 +1270,7 @@ class _PreviewScreenState extends State<PreviewScreen>
         height: settings.quality.height,
         fps: storyboard.fps,
         videoBitrate: settings.quality.videoBitrate,
-        profileLevel: ProfileLevel.baselineAutoLevel,
+        profileLevel: ProfileLevel.highAutoLevel,
         audioChannels: includeSoundtrack ? CinematicSoundtrack.channelCount : 0,
         audioBitrate: settings.audioBitrate,
         sampleRate: includeSoundtrack ? CinematicSoundtrack.sampleRate : 0,
