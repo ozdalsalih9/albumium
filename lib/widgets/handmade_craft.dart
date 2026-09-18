@@ -63,7 +63,7 @@ class CraftBackdrop extends StatelessWidget {
                       color: background,
                       image: DecorationImage(
                         image: const AssetImage(
-                          'assets/textures/home-fabric.png',
+                          'assets/textures/home-fabric.webp',
                         ),
                         repeat: ImageRepeat.repeat,
                         scale: 2,

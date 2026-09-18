@@ -121,7 +121,7 @@ void main() {
       final image = decoration.image!;
       expect(
         (image.image as AssetImage).assetName,
-        'assets/textures/home-fabric.png',
+        'assets/textures/home-fabric.webp',
       );
       expect(image.repeat, ImageRepeat.repeat);
       expect(image.scale, 2);

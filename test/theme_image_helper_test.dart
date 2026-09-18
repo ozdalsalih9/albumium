@@ -57,7 +57,7 @@ void main() {
     expect(file.statCount, 1);
 
     for (final path in [
-      'assets/covers/cover-rose-heirloom.png',
+      'assets/covers/cover-rose-heirloom.webp',
       'https://example.com/photo.jpg',
       '/photos/original.jpg',
     ]) {

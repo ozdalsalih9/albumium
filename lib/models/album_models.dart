@@ -76,13 +76,13 @@ class AlbumThemePreset {
   /// separate from the saved album JSON, so older albums gain the richer
   /// cover automatically after an app update.
   String? get coverAsset => switch (id) {
-    'soft_romance' => 'assets/covers/cover-rose-heirloom.png',
-    'vintage_diary' => 'assets/covers/cover-vintage-quill.png',
-    'animals' || 'dark_leather' => 'assets/covers/cover-obsidian-lion.png',
+    'soft_romance' => 'assets/covers/cover-rose-heirloom.webp',
+    'vintage_diary' => 'assets/covers/cover-vintage-quill.webp',
+    'animals' || 'dark_leather' => 'assets/covers/cover-obsidian-lion.webp',
     'travel_postcard' ||
-    'midnight_atlas' => 'assets/covers/cover-atlas-compass.png',
-    'best_friends' => 'assets/covers/cover-emerald-friendship.png',
-    'minimal_editorial' => 'assets/covers/cover-minimal-editorial.png',
+    'midnight_atlas' => 'assets/covers/cover-atlas-compass.webp',
+    'best_friends' => 'assets/covers/cover-emerald-friendship.webp',
+    'minimal_editorial' => 'assets/covers/cover-minimal-editorial.webp',
     _ => null,
   };
 }
