@@ -23,22 +23,25 @@ void main() {
       );
     });
 
-    test('Full HD preserves resolution with a high-fidelity target bitrate', () {
-      const settings = VideoExportSettings(
-        quality: VideoExportQuality.fullHd,
-        includeSoundtrack: false,
-      );
-      expect(settings.quality.width, 1080);
-      expect(settings.quality.height, 1920);
-      expect(settings.quality.videoBitrate, 10000000);
-      expect(settings.audioBitrate, 0);
-      expect(settings.estimatedBytes(const Duration(seconds: 60)), 75000000);
-      for (final quality in VideoExportQuality.values) {
-        expect(quality.width / quality.height, 9 / 16);
-        expect(quality.width.isEven, isTrue);
-        expect(quality.height.isEven, isTrue);
-      }
-    });
+    test(
+      'Full HD preserves resolution with a high-fidelity target bitrate',
+      () {
+        const settings = VideoExportSettings(
+          quality: VideoExportQuality.fullHd,
+          includeSoundtrack: false,
+        );
+        expect(settings.quality.width, 1080);
+        expect(settings.quality.height, 1920);
+        expect(settings.quality.videoBitrate, 10000000);
+        expect(settings.audioBitrate, 0);
+        expect(settings.estimatedBytes(const Duration(seconds: 60)), 75000000);
+        for (final quality in VideoExportQuality.values) {
+          expect(quality.width / quality.height, 9 / 16);
+          expect(quality.width.isEven, isTrue);
+          expect(quality.height.isEven, isTrue);
+        }
+      },
+    );
 
     test('reuses static captures but captures every animation frame', () {
       final storyboard = SinglePageExportStoryboard.forPages(4);

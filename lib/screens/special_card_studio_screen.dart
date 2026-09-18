@@ -42,7 +42,7 @@ AlbumModel createSpecialCardProject({
   final now = DateTime.now();
   return AlbumModel(
     id: newId(),
-    title: '${localize(selected.title)} ${localize('Kartı')}',
+    title: _defaultCardTitle(selected, localize),
     themeId: 'soft_romance',
     projectType: AlbumProjectType.occasionCard,
     cardThemeId: selected.id,
@@ -57,6 +57,11 @@ AlbumModel createSpecialCardProject({
     ],
   );
 }
+
+String _defaultCardTitle(
+  OccasionCardTemplate template,
+  String Function(String text) localize,
+) => '${localize(template.title)} ${localize('Kartı')}';
 
 List<AlbumElementModel> _defaultCardElements(
   OccasionCardTemplate template,
@@ -190,10 +195,26 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
   }
 
   void _selectTemplate(OccasionCardTemplate next) {
+    final previous = template;
+    // Cards are created with untranslated copy and may be viewed in another
+    // language later, so a default can be in either form.
+    String raw(String text) => text;
+    final previousDefaults = [
+      ..._defaultCardElements(previous, raw),
+      ..._defaultCardElements(previous, context.tr),
+    ];
+    bool untouched(String role, String content) => previousDefaults.any(
+      (element) => element.id.startsWith(role) && element.content == content,
+    );
     setState(() {
       project.cardThemeId = next.id;
       page.backgroundColor = next.primaryColor.toARGB32();
-      // A theme changes visual styling, never the user's wording.
+      // Wording the user typed survives a theme change; copy that still
+      // matches the previous template is replaced with the new template's.
+      if (project.title == _defaultCardTitle(previous, raw) ||
+          project.title == _defaultCardTitle(previous, context.tr)) {
+        project.title = _defaultCardTitle(next, context.tr);
+      }
       for (final element in page.elements.where(
         (e) => e.type == AlbumElementType.text,
       )) {
@@ -212,6 +233,9 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
           page.elements.add(desired.first);
         } else {
           final layout = desired.first;
+          if (untouched(role, existing.first.content)) {
+            existing.first.content = layout.content;
+          }
           existing.first
             ..x = layout.x
             ..y = layout.y
@@ -830,7 +854,10 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
                 return Column(
                   children: [
                     Expanded(child: canvas),
-                    BoundedControls(height: constraints.maxHeight * .48, child: controls),
+                    BoundedControls(
+                      height: constraints.maxHeight * .48,
+                      child: controls,
+                    ),
                   ],
                 );
               },
@@ -986,9 +1013,14 @@ class _CardControls extends StatelessWidget {
   Widget _buildContent(BuildContext context) {
     final colors = AlbumiumAppTheme.colorsOf(context);
     const cardTextStyle = TextStyle(fontSize: 12, fontWeight: FontWeight.w600);
-    final labelSizes = [for (final card in occasionCardTemplates)
-      controlLabelSize(context, context.tr(card.title), cardTextStyle)];
-    final labelHeight = labelSizes.fold<double>(0, (h, s) => h > s.height ? h : s.height);
+    final labelSizes = [
+      for (final card in occasionCardTemplates)
+        controlLabelSize(context, context.tr(card.title), cardTextStyle),
+    ];
+    final labelHeight = labelSizes.fold<double>(
+      0,
+      (h, s) => h > s.height ? h : s.height,
+    );
     final tileHeight = (labelHeight + 18).clamp(62.0, double.infinity);
     final tools = [
       _CardTool(
@@ -1065,7 +1097,12 @@ class _CardControls extends StatelessWidget {
                     onTap: () => onTemplateSelected(card),
                     borderRadius: BorderRadius.circular(14),
                     child: Container(
-                      width: sidePanel ? double.infinity : (labelSizes[index].width + 91).clamp(168.0, double.infinity),
+                      width: sidePanel
+                          ? double.infinity
+                          : (labelSizes[index].width + 91).clamp(
+                              168.0,
+                              double.infinity,
+                            ),
                       constraints: const BoxConstraints(minHeight: 62),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
@@ -1106,11 +1143,14 @@ class _CardControls extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 5),
-                          Opacity(opacity: selected ? 1 : 0, child: Icon(
+                          Opacity(
+                            opacity: selected ? 1 : 0,
+                            child: Icon(
                               Icons.check_circle_rounded,
                               size: 16,
                               color: colors.primary,
-                            )),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -1127,9 +1167,7 @@ class _CardControls extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (final tool in tools) tool,
-            ],
+            children: [for (final tool in tools) tool],
           ),
         ),
         if (sidePanel) ...[
@@ -1163,7 +1201,9 @@ class _CardTool extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AlbumiumAppTheme.colorsOf(context);
-    final style = Theme.of(context).textTheme.labelMedium!.copyWith(fontWeight: FontWeight.w500);
+    final style = Theme.of(
+      context,
+    ).textTheme.labelMedium!.copyWith(fontWeight: FontWeight.w500);
     final labelSize = controlLabelSize(context, label, style);
     return Tooltip(
       message: label,
@@ -1171,7 +1211,10 @@ class _CardTool extends StatelessWidget {
         onPressed: onTap,
         style: TextButton.styleFrom(
           foregroundColor: colors.text,
-          minimumSize: Size((labelSize.width + 24).clamp(72.0, double.infinity), 48 + labelSize.height),
+          minimumSize: Size(
+            (labelSize.width + 24).clamp(72.0, double.infinity),
+            48 + labelSize.height,
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           textStyle: Theme.of(
             context,
@@ -1185,7 +1228,13 @@ class _CardTool extends StatelessWidget {
           children: [
             Icon(icon, size: 22, color: colors.primary),
             const SizedBox(height: 6),
-            Text(label, maxLines: 1, softWrap: false, style: style, textAlign: TextAlign.center),
+            Text(
+              label,
+              maxLines: 1,
+              softWrap: false,
+              style: style,
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),

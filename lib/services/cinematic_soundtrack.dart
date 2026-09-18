@@ -23,8 +23,10 @@ class CinematicSoundtrack {
   static const int _bpm = 75;
   static const int _samplesPerBeat = sampleRate * 60 ~/ _bpm; // 38400 samples
   static const int _cycleBeats = 32;
-  static const int _cycleSamples = _cycleBeats * _samplesPerBeat; // 1228800 samples (~25.6s)
-  static const int _maxNoteSamples = sampleRate * 5 ~/ 2; // 120000 samples (2.5s)
+  static const int _cycleSamples =
+      _cycleBeats * _samplesPerBeat; // 1228800 samples (~25.6s)
+  static const int _maxNoteSamples =
+      sampleRate * 5 ~/ 2; // 120000 samples (2.5s)
 
   static const List<_MelodyNote> _melodyNotes = [
     // --- Bar 1: C Major (Nostalgic, warm opening) ---
@@ -38,7 +40,6 @@ class CinematicSoundtrack {
     _MelodyNote(2.5, 783.99, 0.95, pan: 0.70), // G5
     _MelodyNote(3.0, 659.25, 0.80, pan: 0.60), // E5
     _MelodyNote(3.5, 587.33, 0.80, pan: 0.55), // D5
-
     // --- Bar 2: G Major / B (Gentle descent) ---
     _MelodyNote(4.0, 123.47, 0.65, pan: 0.35), // B2
     _MelodyNote(4.0, 246.94, 0.60, pan: 0.45), // B3
@@ -50,7 +51,6 @@ class CinematicSoundtrack {
     _MelodyNote(6.5, 659.25, 0.90, pan: 0.65), // E5
     _MelodyNote(7.0, 587.33, 0.80, pan: 0.60), // D5
     _MelodyNote(7.5, 493.88, 0.75, pan: 0.50), // B4
-
     // --- Bar 3: A Minor (Soulful & emotional reflection) ---
     _MelodyNote(8.0, 110.00, 0.70, pan: 0.35), // A2
     _MelodyNote(8.0, 220.00, 0.65, pan: 0.45), // A3
@@ -62,19 +62,17 @@ class CinematicSoundtrack {
     _MelodyNote(10.5, 587.33, 0.80, pan: 0.60), // D5
     _MelodyNote(11.0, 523.25, 0.80, pan: 0.55), // C5
     _MelodyNote(11.5, 440.00, 0.75, pan: 0.50), // A4
-
     // --- Bar 4: F Major -> Gsus (Hopeful lift) ---
-    _MelodyNote(12.0, 87.31, 0.65, pan: 0.30),  // F2
+    _MelodyNote(12.0, 87.31, 0.65, pan: 0.30), // F2
     _MelodyNote(12.0, 174.61, 0.65, pan: 0.40), // F3
     _MelodyNote(12.5, 261.63, 0.70, pan: 0.50), // C4
     _MelodyNote(13.0, 349.23, 0.75, pan: 0.55), // F4
     _MelodyNote(13.5, 523.25, 0.85, pan: 0.65), // C5
-    _MelodyNote(14.0, 98.00, 0.65, pan: 0.35),  // G2
+    _MelodyNote(14.0, 98.00, 0.65, pan: 0.35), // G2
     _MelodyNote(14.0, 293.66, 0.70, pan: 0.45), // D4
     _MelodyNote(14.5, 392.00, 0.80, pan: 0.55), // G4
     _MelodyNote(15.0, 587.33, 0.85, pan: 0.65), // D5
     _MelodyNote(15.5, 783.99, 0.90, pan: 0.75), // G5
-
     // --- Bar 5: C Major / E (Bright reminiscence) ---
     _MelodyNote(16.0, 164.81, 0.65, pan: 0.35), // E3
     _MelodyNote(16.0, 261.63, 0.65, pan: 0.45), // C4
@@ -86,9 +84,8 @@ class CinematicSoundtrack {
     _MelodyNote(18.5, 587.33, 0.80, pan: 0.60), // D5
     _MelodyNote(19.0, 523.25, 0.80, pan: 0.55), // C5
     _MelodyNote(19.5, 659.25, 0.85, pan: 0.65), // E5
-
     // --- Bar 6: F Major 7 (Lush warmth) ---
-    _MelodyNote(20.0, 87.31, 0.65, pan: 0.30),  // F2
+    _MelodyNote(20.0, 87.31, 0.65, pan: 0.30), // F2
     _MelodyNote(20.0, 174.61, 0.65, pan: 0.40), // F3
     _MelodyNote(20.5, 261.63, 0.70, pan: 0.50), // C4
     _MelodyNote(21.0, 329.63, 0.75, pan: 0.55), // E4
@@ -98,7 +95,6 @@ class CinematicSoundtrack {
     _MelodyNote(22.5, 659.25, 0.90, pan: 0.70), // E5
     _MelodyNote(23.0, 523.25, 0.80, pan: 0.60), // C5
     _MelodyNote(23.5, 440.00, 0.75, pan: 0.55), // A4
-
     // --- Bar 7: D Minor 7 (Soft contemplation) ---
     _MelodyNote(24.0, 146.83, 0.65, pan: 0.35), // D3
     _MelodyNote(24.0, 293.66, 0.65, pan: 0.45), // D4
@@ -110,9 +106,8 @@ class CinematicSoundtrack {
     _MelodyNote(26.5, 587.33, 0.80, pan: 0.65), // D5
     _MelodyNote(27.0, 523.25, 0.80, pan: 0.60), // C5
     _MelodyNote(27.5, 440.00, 0.75, pan: 0.50), // A4
-
     // --- Bar 8: G7 -> C Resolution (Sweet chime resolution) ---
-    _MelodyNote(28.0, 98.00, 0.65, pan: 0.35),  // G2
+    _MelodyNote(28.0, 98.00, 0.65, pan: 0.35), // G2
     _MelodyNote(28.0, 196.00, 0.65, pan: 0.45), // G3
     _MelodyNote(28.5, 246.94, 0.70, pan: 0.50), // B3
     _MelodyNote(29.0, 293.66, 0.75, pan: 0.55), // D4
@@ -279,15 +274,18 @@ class CinematicSoundtrack {
       final cycleOffset = cycle * _cycleSamples;
       for (var i = 0; i < _melodyNotes.length; i++) {
         final note = _melodyNotes[i];
-        final noteStart = cycleOffset + (note.beatOffset * _samplesPerBeat).round();
+        final noteStart =
+            cycleOffset + (note.beatOffset * _samplesPerBeat).round();
         if (noteStart >= minSample && noteStart < maxSample) {
-          voices.add(_ActiveMelodyVoice(
-            startSample: noteStart,
-            frequency: note.frequency,
-            gain: note.gain,
-            pan: note.pan,
-            initialSample: firstSample,
-          ));
+          voices.add(
+            _ActiveMelodyVoice(
+              startSample: noteStart,
+              frequency: note.frequency,
+              gain: note.gain,
+              pan: note.pan,
+              initialSample: firstSample,
+            ),
+          );
         }
       }
     }
@@ -348,7 +346,12 @@ class CinematicSoundtrack {
 }
 
 class _MelodyNote {
-  const _MelodyNote(this.beatOffset, this.frequency, this.gain, {this.pan = 0.5});
+  const _MelodyNote(
+    this.beatOffset,
+    this.frequency,
+    this.gain, {
+    this.pan = 0.5,
+  });
   final double beatOffset;
   final double frequency;
   final double gain;
@@ -369,9 +372,21 @@ class _ActiveMelodyVoice {
       decay1 = math.exp(-dt * 1.15);
       decay2 = math.exp(-dt * 2.20);
       decay3 = math.exp(-dt * 3.80);
-      osc1 = _Oscillator.atSample(frequency: frequency, sample: elapsed, phase: 0);
-      osc2 = _Oscillator.atSample(frequency: frequency * 2, sample: elapsed, phase: 0.2);
-      osc3 = _Oscillator.atSample(frequency: frequency * 2.756, sample: elapsed, phase: 0.5);
+      osc1 = _Oscillator.atSample(
+        frequency: frequency,
+        sample: elapsed,
+        phase: 0,
+      );
+      osc2 = _Oscillator.atSample(
+        frequency: frequency * 2,
+        sample: elapsed,
+        phase: 0.2,
+      );
+      osc3 = _Oscillator.atSample(
+        frequency: frequency * 2.756,
+        sample: elapsed,
+        phase: 0.5,
+      );
     }
   }
 
@@ -393,16 +408,30 @@ class _ActiveMelodyVoice {
 
   double sampleAt(int sample) {
     final elapsed = sample - startSample;
-    if (elapsed < 0 || elapsed >= CinematicSoundtrack._maxNoteSamples) return 0.0;
+    if (elapsed < 0 || elapsed >= CinematicSoundtrack._maxNoteSamples) {
+      return 0.0;
+    }
 
     if (osc1 == null) {
       final dt = elapsed / CinematicSoundtrack.sampleRate;
       decay1 = math.exp(-dt * 1.15);
       decay2 = math.exp(-dt * 2.20);
       decay3 = math.exp(-dt * 3.80);
-      osc1 = _Oscillator.atSample(frequency: frequency, sample: elapsed, phase: 0);
-      osc2 = _Oscillator.atSample(frequency: frequency * 2, sample: elapsed, phase: 0.2);
-      osc3 = _Oscillator.atSample(frequency: frequency * 2.756, sample: elapsed, phase: 0.5);
+      osc1 = _Oscillator.atSample(
+        frequency: frequency,
+        sample: elapsed,
+        phase: 0,
+      );
+      osc2 = _Oscillator.atSample(
+        frequency: frequency * 2,
+        sample: elapsed,
+        phase: 0.2,
+      );
+      osc3 = _Oscillator.atSample(
+        frequency: frequency * 2.756,
+        sample: elapsed,
+        phase: 0.5,
+      );
     }
 
     final o1 = osc1!.take();
@@ -416,7 +445,9 @@ class _ActiveMelodyVoice {
     // 4ms (192 samples) linear anti-click attack
     final attack = elapsed < 192 ? (elapsed / 192.0) : 1.0;
 
-    return attack * gain * (o1 * 0.58 * decay1 + o2 * 0.24 * decay2 + o3 * 0.18 * decay3);
+    return attack *
+        gain *
+        (o1 * 0.58 * decay1 + o2 * 0.24 * decay2 + o3 * 0.18 * decay3);
   }
 }
 

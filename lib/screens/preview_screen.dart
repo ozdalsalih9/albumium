@@ -36,7 +36,14 @@ const _exportLogicalHeight = 640.0;
 const _exportPngWidth = 1080;
 const _exportPngPixelRatio = _exportPngWidth / _exportLogicalWidth;
 
-enum _ShareExportChoice { interactiveAlbum, currentPng, allPng, mp4, socialVideo, gift }
+enum _ShareExportChoice {
+  interactiveAlbum,
+  currentPng,
+  allPng,
+  mp4,
+  socialVideo,
+  gift,
+}
 
 class PreviewScreen extends StatefulWidget {
   const PreviewScreen({
@@ -373,8 +380,8 @@ class _PreviewScreenState extends State<PreviewScreen>
     }
 
     final sign = _turningForward ? -1.0 : 1.0;
-    _turnController.value =
-        (_turnController.value + sign * delta / _dragWidth).clamp(0.0, 1.0);
+    _turnController.value = (_turnController.value + sign * delta / _dragWidth)
+        .clamp(0.0, 1.0);
   }
 
   void _handleDragEnd(DragEndDetails details) {
@@ -738,8 +745,11 @@ class _PreviewScreenState extends State<PreviewScreen>
               key: const ValueKey('share_social_video'),
               icon: Icons.video_collection_outlined,
               title: sheetContext.tr('Video şablonları'),
-              subtitle: sheetContext.tr('15 veya 30 saniyelik müzikli video. TikTok ve Reels için hazırla.'),
-              onTap: () => Navigator.pop(sheetContext, _ShareExportChoice.socialVideo),
+              subtitle: sheetContext.tr(
+                '15 veya 30 saniyelik müzikli video. TikTok ve Reels için hazırla.',
+              ),
+              onTap: () =>
+                  Navigator.pop(sheetContext, _ShareExportChoice.socialVideo),
             ),
             _ShareOptionTile(
               key: const ValueKey('share_mp4'),
@@ -774,7 +784,9 @@ class _PreviewScreenState extends State<PreviewScreen>
               key: const ValueKey('share_gift'),
               icon: Icons.card_giftcard,
               title: sheetContext.tr('Hediye albümü oluştur'),
-              subtitle: sheetContext.tr('Alıcı adı ve mesajınla ayrı bir albüm kopyası hazırla.'),
+              subtitle: sheetContext.tr(
+                'Alıcı adı ve mesajınla ayrı bir albüm kopyası hazırla.',
+              ),
               onTap: () => Navigator.pop(sheetContext, _ShareExportChoice.gift),
             ),
           ],
@@ -785,7 +797,11 @@ class _PreviewScreenState extends State<PreviewScreen>
 
     switch (choice) {
       case _ShareExportChoice.socialVideo:
-        await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SocialVideoScreen(album: widget.album)));
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => SocialVideoScreen(album: widget.album),
+          ),
+        );
       case _ShareExportChoice.gift:
         await _createGift();
       case _ShareExportChoice.interactiveAlbum:
@@ -806,27 +822,71 @@ class _PreviewScreenState extends State<PreviewScreen>
     var recipient = '';
     var message = '';
     final formKey = GlobalKey<FormState>();
-    final accepted = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(
-      title: Text(dialogContext.tr('Hediye albümü oluştur')),
-      content: SingleChildScrollView(child: Form(key: formKey, child: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextFormField(maxLength: 60, decoration: InputDecoration(labelText: dialogContext.tr('Alıcı adı')),
-          onChanged: (value) => recipient = value,
-          validator: (value) => (value ?? '').trim().isEmpty ? dialogContext.tr('Alıcı adını yaz.') : null),
-        TextFormField(maxLength: 280, minLines: 2, maxLines: 5,
-          decoration: InputDecoration(labelText: dialogContext.tr('Kişisel mesaj')),
-          onChanged: (value) => message = value),
-      ]))),
-      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: Text(dialogContext.tr('Vazgeç'))),
-        FilledButton(onPressed: () { if (formKey.currentState!.validate()) Navigator.pop(dialogContext, true); }, child: Text(dialogContext.tr('Oluştur')))],
-    ));
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(dialogContext.tr('Hediye albümü oluştur')),
+        content: SingleChildScrollView(
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  maxLength: 60,
+                  decoration: InputDecoration(
+                    labelText: dialogContext.tr('Alıcı adı'),
+                  ),
+                  onChanged: (value) => recipient = value,
+                  validator: (value) => (value ?? '').trim().isEmpty
+                      ? dialogContext.tr('Alıcı adını yaz.')
+                      : null,
+                ),
+                TextFormField(
+                  maxLength: 280,
+                  minLines: 2,
+                  maxLines: 5,
+                  decoration: InputDecoration(
+                    labelText: dialogContext.tr('Kişisel mesaj'),
+                  ),
+                  onChanged: (value) => message = value,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(dialogContext.tr('Vazgeç')),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(dialogContext, true);
+              }
+            },
+            child: Text(dialogContext.tr('Oluştur')),
+          ),
+        ],
+      ),
+    );
     if (accepted != true || !mounted) return;
     try {
       final gift = createGiftAlbum(widget.album, recipient, message);
       await AlbumStorage.instance.saveAlbum(gift);
       if (!mounted) return;
-      await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => PreviewScreen(album: gift, openShareOnReady: true)));
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => PreviewScreen(album: gift, openShareOnReady: true),
+        ),
+      );
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('Kaydedilemedi. Tekrar dene.'))));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.tr('Kaydedilemedi. Tekrar dene.'))),
+        );
+      }
     }
   }
 
@@ -1560,8 +1620,7 @@ class _PreviewScreenState extends State<PreviewScreen>
           builder: (context, bookConstraints) => ReaderZoomView(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTapUp: (details) =>
-                  _handleBookTap(details, bookConstraints),
+              onTapUp: (details) => _handleBookTap(details, bookConstraints),
               onHorizontalDragStart: (details) =>
                   _handleDragStart(details, bookConstraints),
               onHorizontalDragUpdate: _handleDragUpdate,
@@ -1657,9 +1716,9 @@ class _PreviewScreenState extends State<PreviewScreen>
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: craftColors.text,
-                            fontSize: 26,
-                          ),
+                        color: craftColors.text,
+                        fontSize: 26,
+                      ),
                     ),
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 220),
@@ -1732,12 +1791,7 @@ class _PreviewScreenState extends State<PreviewScreen>
                     onHorizontalDragEnd: _handleDragEnd,
                     onHorizontalDragCancel: _handleDragCancel,
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        10,
-                        10,
-                        10,
-                        30,
-                      ),
+                      padding: const EdgeInsets.fromLTRB(10, 10, 10, 30),
                       child: _buildBookPreview(),
                     ),
                   ),
@@ -1764,8 +1818,7 @@ class _PreviewScreenState extends State<PreviewScreen>
                   child: _PageArrow(
                     icon: Icons.chevron_right_rounded,
                     tooltip: context.tr('Sonraki sayfa'),
-                    enabled:
-                        _current < previewCount - 1 && _target == null,
+                    enabled: _current < previewCount - 1 && _target == null,
                     onTap: () => _goTo(_current + 1),
                   ),
                 ),
@@ -1782,12 +1835,8 @@ class _PreviewScreenState extends State<PreviewScreen>
                     ),
                     child: Text(
                       _reduceMotion
-                          ? context.tr(
-                              'Oklarla gez · azaltılmış hareket',
-                            )
-                          : context.tr(
-                              'Kaydır veya oklarla sayfaları çevir',
-                            ),
+                          ? context.tr('Oklarla gez · azaltılmış hareket')
+                          : context.tr('Kaydır veya oklarla sayfaları çevir'),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: craftColors.mutedText,
@@ -1806,15 +1855,10 @@ class _PreviewScreenState extends State<PreviewScreen>
             child: Semantics(
               label: context.tr(
                 'Albüm ilerlemesi {current} / {total}',
-                values: {
-                  'current': _current + 1,
-                  'total': previewCount,
-                },
+                values: {'current': _current + 1, 'total': previewCount},
               ),
               child: LinearProgressIndicator(
-                value: previewCount <= 1
-                    ? 1
-                    : _current / (previewCount - 1),
+                value: previewCount <= 1 ? 1 : _current / (previewCount - 1),
                 minHeight: 6,
                 borderRadius: BorderRadius.circular(99),
                 color: albumTheme.accent,
@@ -1846,8 +1890,7 @@ class _PreviewScreenState extends State<PreviewScreen>
                           onTap: _target == null
                               ? () => _goTo(
                                   index,
-                                  animate:
-                                      (index - _current).abs() == 1,
+                                  animate: (index - _current).abs() == 1,
                                 )
                               : null,
                           child: SizedBox(
@@ -1855,20 +1898,14 @@ class _PreviewScreenState extends State<PreviewScreen>
                             height: 44,
                             child: Center(
                               child: AnimatedContainer(
-                                duration: const Duration(
-                                  milliseconds: 220,
-                                ),
+                                duration: const Duration(milliseconds: 220),
                                 width: index == _current ? 22 : 7,
                                 height: 7,
                                 decoration: BoxDecoration(
                                   color: index == _current
                                       ? albumTheme.accent
-                                      : colors.onSurface.withValues(
-                                          alpha: 0.2,
-                                        ),
-                                  borderRadius: BorderRadius.circular(
-                                    99,
-                                  ),
+                                      : colors.onSurface.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(99),
                                 ),
                               ),
                             ),

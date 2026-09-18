@@ -17,7 +17,7 @@ class ThemeScreen extends StatefulWidget {
 class _ThemeScreenState extends State<ThemeScreen> {
   static const _phoneViewportFraction = 0.70;
   static const _tabletViewportFraction = 0.42;
-  static const _bindingCardWidth = 156.0;
+  static const _bindingCardWidth = 146.0;
   static const _bindingCardGap = 10.0;
 
   int _selected = 0;
@@ -120,7 +120,7 @@ class _ThemeScreenState extends State<ThemeScreen> {
     final colors = AlbumiumAppTheme.colorsOf(context);
 
     return SizedBox(
-      height: 130,
+      height: 118,
       child: ListView.separated(
         key: const ValueKey('binding-selector'),
         scrollDirection: Axis.horizontal,
@@ -144,7 +144,7 @@ class _ThemeScreenState extends State<ThemeScreen> {
                 duration: const Duration(milliseconds: 220),
                 curve: Curves.easeOut,
                 width: _bindingCardWidth,
-                padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+                padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
                 decoration: BoxDecoration(
                   color: selected
                       ? colors.primary.withValues(alpha: .10)
@@ -173,8 +173,8 @@ class _ThemeScreenState extends State<ThemeScreen> {
                       children: [
                         AnimatedContainer(
                           duration: const Duration(milliseconds: 220),
-                          width: 32,
-                          height: 32,
+                          width: 28,
+                          height: 28,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: selected
@@ -183,7 +183,7 @@ class _ThemeScreenState extends State<ThemeScreen> {
                           ),
                           child: Icon(
                             binding.icon,
-                            size: 17,
+                            size: 15,
                             color: selected ? colors.onPrimary : colors.primary,
                           ),
                         ),
@@ -200,7 +200,7 @@ class _ThemeScreenState extends State<ThemeScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 11),
+                    const SizedBox(height: 8),
                     Text(
                       context.tr(binding.title),
                       maxLines: 1,
@@ -241,12 +241,11 @@ class _ThemeScreenState extends State<ThemeScreen> {
     final colors = AlbumiumAppTheme.colorsOf(context);
     final mediaSize = MediaQuery.sizeOf(context);
     final tablet = mediaSize.shortestSide >= 600;
-    final compact = mediaSize.height < 740 && !tablet;
-    final coverHeight = tablet
-        ? (mediaSize.height * 0.46).clamp(300.0, 380.0)
-        : compact
-        ? 220.0
-        : 280.0;
+    // The cover takes whatever height is left, up to these caps, so the whole
+    // setup fits on one screen. Below the minimum layout height (a short
+    // phone with the keyboard open) the page scrolls instead of overflowing.
+    final maxCover = tablet ? 380.0 : 280.0;
+    const minLayoutHeight = 620.0;
     final currentTitle = _titleController.text.trim();
     final selectedTheme = albumThemes[_selected];
 
@@ -266,134 +265,159 @@ class _ThemeScreenState extends State<ThemeScreen> {
               constraints: BoxConstraints(
                 maxWidth: tablet ? 820 : double.infinity,
               ),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
-                      child: Text(
-                        context.tr('Hangi hikâyeyi anlatıyoruz?'),
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(
-                              fontSize: tablet ? 38 : 32,
-                              height: 1.12,
-                            ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Text(
-                        '${context.tr(selectedTheme.name)} · ${context.tr(selectedTheme.subtitle)}',
-                        key: const ValueKey('selected-theme-summary'),
-                        style: TextStyle(
-                          color: colors.mutedText,
-                          height: 1.5,
-                          fontSize: 13,
+              child: LayoutBuilder(
+                builder: (context, viewport) => SingleChildScrollView(
+                  child: SizedBox(
+                    height: viewport.maxHeight < minLayoutHeight
+                        ? minLayoutHeight
+                        : viewport.maxHeight,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 8, 24, 6),
+                          child: Text(
+                            context.tr('Hangi hikâyeyi anlatıyoruz?'),
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(
+                                  fontSize: tablet ? 38 : 32,
+                                  height: 1.12,
+                                ),
+                          ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 26),
-                    SizedBox(
-                      height: coverHeight,
-                      child: PageView.builder(
-                        key: const ValueKey('theme-carousel'),
-                        controller: _pageController,
-                        itemCount: albumThemes.length,
-                        onPageChanged: (index) =>
-                            setState(() => _selected = index),
-                        itemBuilder: (context, index) {
-                          final theme = albumThemes[index];
-                          final selected = index == _selected;
-                          return AnimatedPadding(
-                            duration: const Duration(milliseconds: 220),
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: selected ? 0 : 14,
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(
+                            '${context.tr(selectedTheme.name)} · ${context.tr(selectedTheme.subtitle)}',
+                            key: const ValueKey('selected-theme-summary'),
+                            style: TextStyle(
+                              color: colors.mutedText,
+                              height: 1.5,
+                              fontSize: 13,
                             ),
-                            child: AnimatedScale(
-                              duration: const Duration(milliseconds: 220),
-                              scale: selected ? 1 : 0.94,
-                              child: _buildThemedCover(theme, currentTitle),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Center(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          for (var i = 0; i < albumThemes.length; i++)
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              margin: const EdgeInsets.symmetric(horizontal: 3),
-                              width: i == _selected ? 18 : 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                color: i == _selected
-                                    ? selectedTheme.accent
-                                    : Theme.of(
-                                        context,
-                                      ).colorScheme.outlineVariant,
-                                borderRadius: BorderRadius.circular(99),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Expanded(
+                          child: LayoutBuilder(
+                            builder: (context, space) => Center(
+                              child: SizedBox(
+                                height: space.maxHeight < maxCover
+                                    ? space.maxHeight
+                                    : maxCover,
+                                child: PageView.builder(
+                                  key: const ValueKey('theme-carousel'),
+                                  controller: _pageController,
+                                  itemCount: albumThemes.length,
+                                  onPageChanged: (index) =>
+                                      setState(() => _selected = index),
+                                  itemBuilder: (context, index) {
+                                    final theme = albumThemes[index];
+                                    final selected = index == _selected;
+                                    return AnimatedPadding(
+                                      duration: const Duration(
+                                        milliseconds: 220,
+                                      ),
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: selected ? 0 : 14,
+                                      ),
+                                      child: AnimatedScale(
+                                        duration: const Duration(
+                                          milliseconds: 220,
+                                        ),
+                                        scale: selected ? 1 : 0.94,
+                                        child: _buildThemedCover(
+                                          theme,
+                                          currentTitle,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
                               ),
                             ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Text(
-                        context.tr('Ciltleme Türü'),
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    _buildBindingSelector(context),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 26, 24, 8),
-                      child: TextField(
-                        controller: _titleController,
-                        textCapitalization: TextCapitalization.sentences,
-                        textInputAction: TextInputAction.done,
-                        decoration: InputDecoration(
-                          labelText: context.tr('Albüm adı (isteğe bağlı)'),
-                          hintText: context.tr('Örn. Bizim Yazımız'),
-                          prefixIcon: const Icon(Icons.edit_outlined),
-                          suffixText: selectedTheme.emoji,
-                          suffixStyle: const TextStyle(fontSize: 18),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 17,
-                            ),
-                          ),
-                          onPressed: _continue,
-                          icon: const Icon(Icons.auto_stories_rounded),
-                          label: Text(
-                            context.tr(
-                              '{theme} ile Başla',
-                              values: {'theme': context.tr(selectedTheme.name)},
-                            ),
-                            textAlign: TextAlign.center,
                           ),
                         ),
-                      ),
+                        const SizedBox(height: 8),
+                        Center(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (var i = 0; i < albumThemes.length; i++)
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 3,
+                                  ),
+                                  width: i == _selected ? 18 : 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: i == _selected
+                                        ? selectedTheme.accent
+                                        : Theme.of(
+                                            context,
+                                          ).colorScheme.outlineVariant,
+                                    borderRadius: BorderRadius.circular(99),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(
+                            context.tr('Ciltleme Türü'),
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        _buildBindingSelector(context),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 12, 24, 6),
+                          child: TextField(
+                            controller: _titleController,
+                            textCapitalization: TextCapitalization.sentences,
+                            textInputAction: TextInputAction.done,
+                            decoration: InputDecoration(
+                              labelText: context.tr('Albüm adı (isteğe bağlı)'),
+                              hintText: context.tr('Örn. Bizim Yazımız'),
+                              prefixIcon: const Icon(Icons.edit_outlined),
+                              suffixText: selectedTheme.emoji,
+                              suffixStyle: const TextStyle(fontSize: 18),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 10, 24, 16),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 15,
+                                ),
+                              ),
+                              onPressed: _continue,
+                              icon: const Icon(Icons.auto_stories_rounded),
+                              label: Text(
+                                context.tr(
+                                  '{theme} ile Başla',
+                                  values: {
+                                    'theme': context.tr(selectedTheme.name),
+                                  },
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),

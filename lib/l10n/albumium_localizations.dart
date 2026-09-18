@@ -29,7 +29,8 @@ class AlbumiumLocalizations {
     'Albüm sayfaları': 'Album pages',
     'Fotoğraflar': 'Photos',
     'Fotoğraf {number}': 'Photo {number}',
-    'İçeriği seç ve sıralamak için sürükle. En fazla 20 öğe.': 'Select content and drag to reorder. Up to 20 items.',
+    'İçeriği seç ve sıralamak için sürükle. En fazla 20 öğe.':
+        'Select content and drag to reorder. Up to 20 items.',
     'Devam etmek için 1–20 öğe seç.': 'Select 1–20 items to continue.',
     'Birlikte': 'Together',
     'Yıl Özeti': 'Year in Review',
@@ -39,7 +40,8 @@ class AlbumiumLocalizations {
     'Video kapağı': 'Video cover',
     'Albüm kapağı': 'Album cover',
     'Sayfa {number}': 'Page {number}',
-    'Sayfaları seç ve sıralamak için sürükle. En fazla 20 sayfa.': 'Select pages and drag to reorder. Up to 20 pages.',
+    'Sayfaları seç ve sıralamak için sürükle. En fazla 20 sayfa.':
+        'Select pages and drag to reorder. Up to 20 pages.',
     'Devam etmek için 1–20 sayfa seç.': 'Select 1–20 pages to continue.',
     'Kapanış notu': 'Closing note',
     'Müzik': 'Music',
@@ -47,15 +49,21 @@ class AlbumiumLocalizations {
     'Bazı anlar bir albümü hak eder.': 'Some moments deserve an album.',
     'Anılarına yeniden dokun': 'Reconnect with your memories',
     'Video hazırlanamadı': 'Could not create video',
-    'Aynı sayfaları ve kurguyu 720p ile yeniden deneyebilirsin.': 'Try again at 720p with the same pages and arrangement.',
+    'Aynı sayfaları ve kurguyu 720p ile yeniden deneyebilirsin.':
+        'Try again at 720p with the same pages and arrangement.',
     '720p ile yeniden dene': 'Try again at 720p',
-    'Video hazırlanamadı. Tasarımın korundu; tekrar deneyebilirsin.': 'Could not create video. Your design is preserved; you can try again.',
-    'Paylaşım açılamadı. Tekrar deneyebilirsin.': 'Could not open sharing. You can try again.',
-    'Sayfaları çevirerek görüntülemek için alıcıda Albumium olmalı. Android ve iPhone arasında paylaşılabilir.': 'The recipient needs Albumium to turn the pages. Share between Android and iPhone.',
+    'Video hazırlanamadı. Tasarımın korundu; tekrar deneyebilirsin.':
+        'Could not create video. Your design is preserved; you can try again.',
+    'Paylaşım açılamadı. Tekrar deneyebilirsin.':
+        'Could not open sharing. You can try again.',
+    'Sayfaları çevirerek görüntülemek için alıcıda Albumium olmalı. Android ve iPhone arasında paylaşılabilir.':
+        'The recipient needs Albumium to turn the pages. Share between Android and iPhone.',
     'Video şablonları': 'Video templates',
-    '15 veya 30 saniyelik müzikli video. TikTok ve Reels için hazırla.': 'A 15 or 30 second video with music. Create for TikTok and Reels.',
+    '15 veya 30 saniyelik müzikli video. TikTok ve Reels için hazırla.':
+        'A 15 or 30 second video with music. Create for TikTok and Reels.',
     'Hediye albümü oluştur': 'Create a gift album',
-    'Alıcı adı ve mesajınla ayrı bir albüm kopyası hazırla.': 'Create a separate album copy with a recipient and personal message.',
+    'Alıcı adı ve mesajınla ayrı bir albüm kopyası hazırla.':
+        'Create a separate album copy with a recipient and personal message.',
     'Alıcı adı': 'Recipient name',
     'Alıcı adını yaz.': 'Enter the recipient name.',
     'Kişisel mesaj': 'Personal message',

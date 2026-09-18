@@ -143,7 +143,8 @@ class _PageCurlState extends State<PageCurl> {
       ..surface = widget.surface;
 
     // Sayfa veya yüzey değiştiyse bayat snapshot'ı temizle ve warmup başlat
-    if (oldWidget.child != widget.child || oldWidget.surface != widget.surface) {
+    if (oldWidget.child != widget.child ||
+        oldWidget.surface != widget.surface) {
       _controller.clear();
       if (widget.progress > 0.001) {
         _startWarmupRefreshes();

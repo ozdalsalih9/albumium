@@ -284,7 +284,9 @@ class _EditorScreenState extends State<EditorScreen>
         builder: (ctx) => AlertDialog(
           title: Text(ctx.tr('Kaydedilmemiş değişiklikler var')),
           content: Text(
-            ctx.tr('Kaydetmeden çıkmak istediğine emin misin? Değişiklikler kaybolacak.'),
+            ctx.tr(
+              'Kaydetmeden çıkmak istediğine emin misin? Değişiklikler kaybolacak.',
+            ),
           ),
           actions: [
             TextButton(
@@ -295,9 +297,7 @@ class _EditorScreenState extends State<EditorScreen>
               onPressed: () => Navigator.pop(ctx, _LeaveChoice.discard),
               child: Text(
                 ctx.tr('Kaydetme'),
-                style: TextStyle(
-                  color: Theme.of(ctx).colorScheme.error,
-                ),
+                style: TextStyle(color: Theme.of(ctx).colorScheme.error),
               ),
             ),
             FilledButton(
@@ -348,7 +348,6 @@ class _EditorScreenState extends State<EditorScreen>
     });
   }
 
-
   void _canvasChanged() {
     if (!mounted) return;
     setState(() {});
@@ -393,8 +392,16 @@ class _EditorScreenState extends State<EditorScreen>
 
       if (existingPhotoCount == 0 && paths.length == 2) {
         // 2 fotoğraf: Sayfaya üst ve alt olarak güzelce yerleştir (asla üst üste binmez).
-        final size0 = albumPhotoSize(aspectRatios[0], maxWidth: .72, maxHeight: .38);
-        final size1 = albumPhotoSize(aspectRatios[1], maxWidth: .72, maxHeight: .38);
+        final size0 = albumPhotoSize(
+          aspectRatios[0],
+          maxWidth: .72,
+          maxHeight: .38,
+        );
+        final size1 = albumPhotoSize(
+          aspectRatios[1],
+          maxWidth: .72,
+          maxHeight: .38,
+        );
         page.elements.add(
           AlbumElementModel(
             id: newId(),
@@ -425,9 +432,21 @@ class _EditorScreenState extends State<EditorScreen>
         );
       } else if (existingPhotoCount == 0 && paths.length == 3) {
         // 3 fotoğraf: Üstte bir geniş, altta iki yan yana.
-        final size0 = albumPhotoSize(aspectRatios[0], maxWidth: .70, maxHeight: .35);
-        final size1 = albumPhotoSize(aspectRatios[1], maxWidth: .44, maxHeight: .34);
-        final size2 = albumPhotoSize(aspectRatios[2], maxWidth: .44, maxHeight: .34);
+        final size0 = albumPhotoSize(
+          aspectRatios[0],
+          maxWidth: .70,
+          maxHeight: .35,
+        );
+        final size1 = albumPhotoSize(
+          aspectRatios[1],
+          maxWidth: .44,
+          maxHeight: .34,
+        );
+        final size2 = albumPhotoSize(
+          aspectRatios[2],
+          maxWidth: .44,
+          maxHeight: .34,
+        );
         page.elements.add(
           AlbumElementModel(
             id: newId(),
@@ -480,7 +499,11 @@ class _EditorScreenState extends State<EditorScreen>
         ];
         final rots = [-0.018, 0.015, 0.02, -0.015];
         for (var i = 0; i < 4; i++) {
-          final size = albumPhotoSize(aspectRatios[i], maxWidth: .44, maxHeight: .38);
+          final size = albumPhotoSize(
+            aspectRatios[i],
+            maxWidth: .44,
+            maxHeight: .38,
+          );
           page.elements.add(
             AlbumElementModel(
               id: newId(),
@@ -514,8 +537,12 @@ class _EditorScreenState extends State<EditorScreen>
           } else {
             final col = photoIndex % 2;
             final row = (photoIndex ~/ 2) % 3;
-            posX = (0.05 + col * 0.46 + (photoIndex % 3 - 1) * 0.02).clamp(0.02, 0.55);
-            posY = (0.06 + row * 0.29 + (photoIndex % 2 == 0 ? 0.0 : 0.04)).clamp(0.04, 0.60);
+            posX = (0.05 + col * 0.46 + (photoIndex % 3 - 1) * 0.02).clamp(
+              0.02,
+              0.55,
+            );
+            posY = (0.06 + row * 0.29 + (photoIndex % 2 == 0 ? 0.0 : 0.04))
+                .clamp(0.04, 0.60);
           }
           page.elements.add(
             AlbumElementModel(
@@ -1218,10 +1245,7 @@ class _EditorScreenState extends State<EditorScreen>
             localPosition.dy / pageSize.height,
           );
         }
-        _pasteElement(
-          targetPageIndex: pageIndex,
-          targetNormalizedPos: target,
-        );
+        _pasteElement(targetPageIndex: pageIndex, targetNormalizedPos: target);
       }
     } finally {
       _isContextMenuOpen = false;
@@ -1256,7 +1280,8 @@ class _EditorScreenState extends State<EditorScreen>
   void _pasteElement({int? targetPageIndex, Offset? targetNormalizedPos}) {
     final clip = _clipboard;
     if (clip == null) return;
-    final targetPage = (targetPageIndex != null &&
+    final targetPage =
+        (targetPageIndex != null &&
             targetPageIndex >= 0 &&
             targetPageIndex < album.pages.length)
         ? album.pages[targetPageIndex]
@@ -1266,7 +1291,10 @@ class _EditorScreenState extends State<EditorScreen>
     final pasted = AlbumElementModel.fromJson(json);
     if (targetNormalizedPos != null) {
       pasted.x = (targetNormalizedPos.dx - pasted.width / 2).clamp(-0.15, 0.75);
-      pasted.y = (targetNormalizedPos.dy - pasted.height / 2).clamp(-0.10, 0.75);
+      pasted.y = (targetNormalizedPos.dy - pasted.height / 2).clamp(
+        -0.10,
+        0.75,
+      );
     } else {
       pasted.x = (pasted.x + 0.04).clamp(-0.15, 0.65);
       pasted.y = (pasted.y + 0.04).clamp(-0.1, 0.65);
@@ -1596,12 +1624,28 @@ class _EditorScreenState extends State<EditorScreen>
                                       onChanged: _canvasChanged,
                                       onLongPressElement:
                                           _showElementContextMenu,
-                                      onLongPressCanvas:
-                                          _showCanvasContextMenu,
+                                      onLongPressCanvas: _showCanvasContextMenu,
                                     ),
                                   ),
                                 ),
                               ),
+                              // The outer edges always move through the book:
+                              // across the open spread first, then onto the
+                              // next leaf, like the arrow buttons.
+                              if (_canGoPrevious)
+                                _PageEdgeTap(
+                                  key: const ValueKey('editor-edge-previous'),
+                                  forward: false,
+                                  label: context.tr('Önceki sayfa'),
+                                  onTap: _goToPreviousPage,
+                                ),
+                              if (_canGoNext)
+                                _PageEdgeTap(
+                                  key: const ValueKey('editor-edge-next'),
+                                  forward: true,
+                                  label: context.tr('Sonraki sayfa'),
+                                  onTap: _goToNextPage,
+                                ),
                               if (_importing)
                                 Positioned.fill(
                                   child: ColoredBox(
@@ -1650,16 +1694,19 @@ class _EditorScreenState extends State<EditorScreen>
                     onFitPhoto: _fitPhotoToShape,
                   ),
                 if (selectedElement == null)
-                  BoundedControls(height: MediaQuery.sizeOf(context).height * .28, child: _MainToolbar(
-                    onPhoto: _addPhotos,
-                    onText: _addText,
-                    onDraw: _addHandwriting,
-                    onSticker: _addSticker,
-                    onPersonalSticker: () => _addSticker(personal: true),
-                    onShape: _addShape,
-                    onBackground: _changeBackground,
-                    onPage: _addPage,
-                  )),
+                  BoundedControls(
+                    height: MediaQuery.sizeOf(context).height * .28,
+                    child: _MainToolbar(
+                      onPhoto: _addPhotos,
+                      onText: _addText,
+                      onDraw: _addHandwriting,
+                      onSticker: _addSticker,
+                      onPersonalSticker: () => _addSticker(personal: true),
+                      onShape: _addShape,
+                      onBackground: _changeBackground,
+                      onPage: _addPage,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -1789,7 +1836,7 @@ class _PageNavigator extends StatelessWidget {
   }
 }
 
-class _MainToolbar extends StatelessWidget {
+class _MainToolbar extends StatefulWidget {
   const _MainToolbar({
     required this.onPhoto,
     required this.onText,
@@ -1811,6 +1858,19 @@ class _MainToolbar extends StatelessWidget {
   final VoidCallback onPage;
 
   @override
+  State<_MainToolbar> createState() => _MainToolbarState();
+}
+
+class _MainToolbarState extends State<_MainToolbar> {
+  final _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colors = AlbumiumAppTheme.colorsOf(context);
     return DecoratedBox(
@@ -1819,57 +1879,120 @@ class _MainToolbar extends StatelessWidget {
         border: Border(top: BorderSide(color: colors.border)),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
-        child: LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minWidth: constraints.maxWidth),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _Tool(
-                    icon: Icons.add_photo_alternate_outlined,
-                    label: context.tr('Fotoğraf'),
-                    onTap: onPhoto,
-                    emphasized: true,
-                  ),
-                  _Tool(
-                    icon: Icons.text_fields_rounded,
-                    label: context.tr('Yazı / Font'),
-                    onTap: onText,
-                  ),
-                  _Tool(
-                    icon: Icons.gesture_rounded,
-                    label: context.tr('Elle Yaz'),
-                    onTap: onDraw,
-                  ),
-                  _Tool(
-                    icon: Icons.add_reaction_outlined,
-                    label: context.tr('Sticker'),
-                    onTap: onPersonalSticker,
-                  ),
-                  _Tool(
-                    icon: Icons.auto_awesome_outlined,
-                    label: context.tr('Süsler'),
-                    onTap: onSticker,
-                  ),
-                  _Tool(
-                    icon: Icons.interests_outlined,
-                    label: context.tr('Şekiller'),
-                    onTap: onShape,
-                  ),
-                  _Tool(
-                    icon: Icons.palette_outlined,
-                    label: context.tr('Sayfa'),
-                    onTap: onBackground,
-                  ),
-                  _Tool(
-                    icon: Icons.note_add_outlined,
-                    label: context.tr('Yeni'),
-                    onTap: onPage,
-                  ),
-                ],
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+        // A thin, always-visible thumb hints that more tools sit off-screen.
+        // It only paints when the row is actually wider than the screen.
+        child: Scrollbar(
+          controller: _scroll,
+          thumbVisibility: true,
+          thickness: 3,
+          radius: const Radius.circular(99),
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              controller: _scroll,
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.only(bottom: 8),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _Tool(
+                      icon: Icons.add_photo_alternate_outlined,
+                      label: context.tr('Fotoğraf'),
+                      onTap: widget.onPhoto,
+                      emphasized: true,
+                    ),
+                    _Tool(
+                      icon: Icons.text_fields_rounded,
+                      label: context.tr('Yazı / Font'),
+                      onTap: widget.onText,
+                    ),
+                    _Tool(
+                      icon: Icons.gesture_rounded,
+                      label: context.tr('Elle Yaz'),
+                      onTap: widget.onDraw,
+                    ),
+                    _Tool(
+                      icon: Icons.add_reaction_outlined,
+                      label: context.tr('Sticker'),
+                      onTap: widget.onPersonalSticker,
+                    ),
+                    _Tool(
+                      icon: Icons.auto_awesome_outlined,
+                      label: context.tr('Süsler'),
+                      onTap: widget.onSticker,
+                    ),
+                    _Tool(
+                      icon: Icons.interests_outlined,
+                      label: context.tr('Şekiller'),
+                      onTap: widget.onShape,
+                    ),
+                    _Tool(
+                      icon: Icons.palette_outlined,
+                      label: context.tr('Sayfa'),
+                      onTap: widget.onBackground,
+                    ),
+                    _Tool(
+                      icon: Icons.note_add_outlined,
+                      label: context.tr('Yeni'),
+                      onTap: widget.onPage,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A slim tap target on the book's outer edge with a small chevron, so the
+/// page can be turned by tapping the side of the screen.
+class _PageEdgeTap extends StatelessWidget {
+  const _PageEdgeTap({
+    super.key,
+    required this.forward,
+    required this.label,
+    required this.onTap,
+  });
+
+  final bool forward;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AlbumiumAppTheme.colorsOf(context);
+    return Positioned(
+      left: forward ? null : 0,
+      right: forward ? 0 : null,
+      top: 0,
+      bottom: 0,
+      width: 30,
+      child: Semantics(
+        button: true,
+        label: label,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: Center(
+            child: Container(
+              width: 22,
+              height: 48,
+              decoration: BoxDecoration(
+                color: colors.elevatedSurface.withValues(alpha: .78),
+                borderRadius: BorderRadius.circular(99),
+                border: Border.all(color: colors.border),
+              ),
+              child: Icon(
+                forward
+                    ? Icons.chevron_right_rounded
+                    : Icons.chevron_left_rounded,
+                size: 18,
+                color: colors.mutedText,
               ),
             ),
           ),

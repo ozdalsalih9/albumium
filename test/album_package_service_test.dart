@@ -151,33 +151,63 @@ void main() {
     expect(preview.album.pages, hasLength(1));
   });
 
-  test('gift survives two exports with cover, photos, sticker, text and page order', () async {
-    final picture = image.Image(width: 48, height: 32, numChannels: 4);
-    image.fill(picture, color: image.ColorRgba8(192, 116, 92, 160));
-    final photo = File('${root.path}/gift.png');
-    await photo.writeAsBytes(image.encodePng(picture));
-    final source = _album(photoPath: photo.path)..coverPhotoPath = photo.path;
-    source.pages.first.elements.add(AlbumElementModel(
-      id: 'personal', type: AlbumElementType.sticker, content: personalSticker(photo.path, 1.5),
-      x: .1, y: .1, width: .2, height: .2,
-    ));
-    final gift = createGiftAlbum(source, 'Ada', 'Anılarımız hep bizimle.');
-    final first = await service.createPackage(gift);
-    final opened = await service.openPackage(first.file.path);
-    addTearDown(opened.dispose);
-    final imported = await service.importCopy(opened);
-    final second = await service.createPackage(imported);
-    final reopened = await service.openPackage(second.file.path);
-    addTearDown(reopened.dispose);
-    expect(reopened.album.pages.length, gift.pages.length);
-    expect(reopened.album.pages.first.elements.map((e) => e.content), ['Ada', 'Anılarımız hep bizimle.']);
-    expect(reopened.album.pages.last.elements.where((e) => e.type == AlbumElementType.text).single.content, 'Bir yaz hatırası');
-    expect(reopened.album.pages.last.elements.where((e) => e.type == AlbumElementType.photo), hasLength(2));
-    expect(reopened.album.pages.last.elements.last.type, AlbumElementType.sticker);
-    expect(await File(reopened.album.coverPhotoPath!).exists(), true);
-    expect(reopened.album.bindingType, source.bindingType);
-    expect(reopened.album.pages.last.backgroundColor, source.pages.first.backgroundColor);
-  });
+  test(
+    'gift survives two exports with cover, photos, sticker, text and page order',
+    () async {
+      final picture = image.Image(width: 48, height: 32, numChannels: 4);
+      image.fill(picture, color: image.ColorRgba8(192, 116, 92, 160));
+      final photo = File('${root.path}/gift.png');
+      await photo.writeAsBytes(image.encodePng(picture));
+      final source = _album(photoPath: photo.path)..coverPhotoPath = photo.path;
+      source.pages.first.elements.add(
+        AlbumElementModel(
+          id: 'personal',
+          type: AlbumElementType.sticker,
+          content: personalSticker(photo.path, 1.5),
+          x: .1,
+          y: .1,
+          width: .2,
+          height: .2,
+        ),
+      );
+      final gift = createGiftAlbum(source, 'Ada', 'Anılarımız hep bizimle.');
+      final first = await service.createPackage(gift);
+      final opened = await service.openPackage(first.file.path);
+      addTearDown(opened.dispose);
+      final imported = await service.importCopy(opened);
+      final second = await service.createPackage(imported);
+      final reopened = await service.openPackage(second.file.path);
+      addTearDown(reopened.dispose);
+      expect(reopened.album.pages.length, gift.pages.length);
+      expect(reopened.album.pages.first.elements.map((e) => e.content), [
+        'Ada',
+        'Anılarımız hep bizimle.',
+      ]);
+      expect(
+        reopened.album.pages.last.elements
+            .where((e) => e.type == AlbumElementType.text)
+            .single
+            .content,
+        'Bir yaz hatırası',
+      );
+      expect(
+        reopened.album.pages.last.elements.where(
+          (e) => e.type == AlbumElementType.photo,
+        ),
+        hasLength(2),
+      );
+      expect(
+        reopened.album.pages.last.elements.last.type,
+        AlbumElementType.sticker,
+      );
+      expect(await File(reopened.album.coverPhotoPath!).exists(), true);
+      expect(reopened.album.bindingType, source.bindingType);
+      expect(
+        reopened.album.pages.last.backgroundColor,
+        source.pages.first.backgroundColor,
+      );
+    },
+  );
 
   test('rejects a package with path traversal content', () async {
     final file = await _writeArchive(temporary, {

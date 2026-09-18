@@ -224,7 +224,10 @@ void main() {
       expect(canvasFinder, findsOneWidget);
       final canvasRect = tester.getRect(canvasFinder);
       // Pick a point clearly in empty space: bottom-center of canvas
-      final emptyLocation = Offset(canvasRect.center.dx, canvasRect.bottom - 40);
+      final emptyLocation = Offset(
+        canvasRect.center.dx,
+        canvasRect.bottom - 40,
+      );
 
       await tester.longPressAt(emptyLocation);
       await tester.pumpAndSettle();
@@ -246,4 +249,3 @@ void main() {
     },
   );
 }
-

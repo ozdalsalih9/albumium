@@ -142,39 +142,84 @@ void main() {
     );
   }
   for (final width in [320.0, 360.0, 384.0, 390.0, 412.0]) {
-    testWidgets('$width album editor and selected tools fit accessibility matrix', (tester) async {
-      tester.view.devicePixelRatio = 1;
-      tester.view.physicalSize = Size(width, 780);
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      for (final scale in [1.0, 1.3, 1.6, 2.0]) {
-        for (final language in ['tr', 'en']) {
-          for (final dark in [false, true]) {
-            SharedPreferences.setMockInitialValues({});
-            final album = AlbumModel(id: 'responsive-editor', title: 'Anılar', themeId: 'vintage_diary',
-              createdAt: DateTime(2026), updatedAt: DateTime(2026), pages: [
-                AlbumPageModel(id: 'page', backgroundColor: 0xFFF2E8D3, elements: [
-                  AlbumElementModel(id: 'label', type: AlbumElementType.text, content: 'Seçilebilir', x: .2, y: .3, width: .6, height: .2),
-                ]),
-              ]);
-            await tester.pumpWidget(MaterialApp(key: UniqueKey(),
-              theme: dark ? AlbumiumAppTheme.dark(AlbumiumThemeId.rose) : AlbumiumAppTheme.light(AlbumiumThemeId.rose),
-              locale: Locale(language), supportedLocales: AlbumiumLocalizations.supportedLocales,
-              localizationsDelegates: const [AlbumiumLocalizationsDelegate(), GlobalMaterialLocalizations.delegate, GlobalWidgetsLocalizations.delegate, GlobalCupertinoLocalizations.delegate],
-              builder: (context, child) => MediaQuery(data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)), child: child!),
-              home: EditorScreen(album: album),
-            ));
-            await tester.pumpAndSettle();
-            expect(tester.takeException(), isNull, reason: '$width / $scale / $language / $dark');
-            await tester.tap(find.text('Seçilebilir').first);
-            await tester.pumpAndSettle();
-            expect(find.byType(ElementEditPanel), findsOneWidget);
-            expect(tester.takeException(), isNull, reason: 'Selected: $width / $scale / $language / $dark');
+    testWidgets(
+      '$width album editor and selected tools fit accessibility matrix',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = Size(width, 780);
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        for (final scale in [1.0, 1.3, 1.6, 2.0]) {
+          for (final language in ['tr', 'en']) {
+            for (final dark in [false, true]) {
+              SharedPreferences.setMockInitialValues({});
+              final album = AlbumModel(
+                id: 'responsive-editor',
+                title: 'Anılar',
+                themeId: 'vintage_diary',
+                createdAt: DateTime(2026),
+                updatedAt: DateTime(2026),
+                pages: [
+                  AlbumPageModel(
+                    id: 'page',
+                    backgroundColor: 0xFFF2E8D3,
+                    elements: [
+                      AlbumElementModel(
+                        id: 'label',
+                        type: AlbumElementType.text,
+                        content: 'Seçilebilir',
+                        x: .2,
+                        y: .3,
+                        width: .6,
+                        height: .2,
+                      ),
+                    ],
+                  ),
+                ],
+              );
+              await tester.pumpWidget(
+                MaterialApp(
+                  key: UniqueKey(),
+                  theme: dark
+                      ? AlbumiumAppTheme.dark(AlbumiumThemeId.rose)
+                      : AlbumiumAppTheme.light(AlbumiumThemeId.rose),
+                  locale: Locale(language),
+                  supportedLocales: AlbumiumLocalizations.supportedLocales,
+                  localizationsDelegates: const [
+                    AlbumiumLocalizationsDelegate(),
+                    GlobalMaterialLocalizations.delegate,
+                    GlobalWidgetsLocalizations.delegate,
+                    GlobalCupertinoLocalizations.delegate,
+                  ],
+                  builder: (context, child) => MediaQuery(
+                    data: MediaQuery.of(
+                      context,
+                    ).copyWith(textScaler: TextScaler.linear(scale)),
+                    child: child!,
+                  ),
+                  home: EditorScreen(album: album),
+                ),
+              );
+              await tester.pumpAndSettle();
+              expect(
+                tester.takeException(),
+                isNull,
+                reason: '$width / $scale / $language / $dark',
+              );
+              await tester.tap(find.text('Seçilebilir').first);
+              await tester.pumpAndSettle();
+              expect(find.byType(ElementEditPanel), findsOneWidget);
+              expect(
+                tester.takeException(),
+                isNull,
+                reason: 'Selected: $width / $scale / $language / $dark',
+              );
+            }
           }
         }
-      }
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pumpAndSettle();
-    });
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpAndSettle();
+      },
+    );
   }
 }

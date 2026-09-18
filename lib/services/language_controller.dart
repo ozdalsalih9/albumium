@@ -39,9 +39,8 @@ class LanguageController extends ChangeNotifier {
 
   Future<void> _loadPreferences() async {
     final preferences = _preferences ??= await SharedPreferences.getInstance();
-    _language = _parseLanguage(
-          preferences.getString(languagePreferenceKey),
-        ) ??
+    _language =
+        _parseLanguage(preferences.getString(languagePreferenceKey)) ??
         _language;
     _isInitialized = true;
     notifyListeners();

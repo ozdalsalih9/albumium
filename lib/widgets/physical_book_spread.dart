@@ -86,8 +86,15 @@ class PhysicalBookSpread extends StatelessWidget {
   final ValueChanged<int>? onSelectPage;
   final ValueChanged<String?>? onSelectElement;
   final VoidCallback? onChanged;
-  final void Function(String elementId, Offset globalPosition)? onLongPressElement;
-  final void Function(int pageIndex, Offset localPosition, Offset globalPosition, Size pageSize)? onLongPressCanvas;
+  final void Function(String elementId, Offset globalPosition)?
+  onLongPressElement;
+  final void Function(
+    int pageIndex,
+    Offset localPosition,
+    Offset globalPosition,
+    Size pageSize,
+  )?
+  onLongPressCanvas;
 
   bool get _hasTransition =>
       nextLeftPageIndex != null && nextRightPageIndex != null;
@@ -281,9 +288,7 @@ class PhysicalBookSpread extends StatelessWidget {
     final frontIndex = turningForward ? rightPageIndex : leftPageIndex;
 
     final Color leafPaperColor;
-    if (backIndex != null &&
-        backIndex >= 0 &&
-        backIndex < album.pages.length) {
+    if (backIndex != null && backIndex >= 0 && backIndex < album.pages.length) {
       final pageBg = album.pages[backIndex].backgroundColor;
       leafPaperColor = Color(pageBg);
     } else {
@@ -291,17 +296,17 @@ class PhysicalBookSpread extends StatelessWidget {
     }
 
     final bool isBackEmpty;
-    if (backIndex == null ||
-        backIndex < 0 ||
-        backIndex >= album.pages.length) {
+    if (backIndex == null || backIndex < 0 || backIndex >= album.pages.length) {
       isBackEmpty = true;
     } else {
       final backPage = album.pages[backIndex];
-      isBackEmpty = !backPage.elements.any((e) =>
-          e.type == AlbumElementType.photo ||
-          e.type == AlbumElementType.sticker ||
-          e.type == AlbumElementType.drawing ||
-          e.type == AlbumElementType.card);
+      isBackEmpty = !backPage.elements.any(
+        (e) =>
+            e.type == AlbumElementType.photo ||
+            e.type == AlbumElementType.sticker ||
+            e.type == AlbumElementType.drawing ||
+            e.type == AlbumElementType.card,
+      );
     }
 
     final bool isFrontEmpty;
@@ -309,11 +314,13 @@ class PhysicalBookSpread extends StatelessWidget {
       isFrontEmpty = true;
     } else {
       final frontPage = album.pages[frontIndex];
-      isFrontEmpty = !frontPage.elements.any((e) =>
-          e.type == AlbumElementType.photo ||
-          e.type == AlbumElementType.sticker ||
-          e.type == AlbumElementType.drawing ||
-          e.type == AlbumElementType.card);
+      isFrontEmpty = !frontPage.elements.any(
+        (e) =>
+            e.type == AlbumElementType.photo ||
+            e.type == AlbumElementType.sticker ||
+            e.type == AlbumElementType.drawing ||
+            e.type == AlbumElementType.card,
+      );
     }
 
     return _buildOpenBook(
@@ -822,10 +829,7 @@ class _CurlingLeaf extends StatelessWidget {
                   back,
                   // Arka sayfa boşsa, kâğıdın arkasından ön yüzün resimleri
                   // hafifçe görünür (yarı-saydam kâğıt yansıması efekti).
-                  Opacity(
-                    opacity: 0.18,
-                    child: front,
-                  ),
+                  Opacity(opacity: 0.18, child: front),
                 ],
               )
             : back;

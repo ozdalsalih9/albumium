@@ -246,7 +246,10 @@ void main() {
             backgroundColor: 0xFFF2E8D3,
             elements: [photoElement],
           ),
-          AlbumPageModel(id: 'page-2', backgroundColor: 0xFFF2E8D3), // Empty back!
+          AlbumPageModel(
+            id: 'page-2',
+            backgroundColor: 0xFFF2E8D3,
+          ), // Empty back!
           AlbumPageModel(id: 'page-3', backgroundColor: 0xFFF2E8D3),
         ],
       );
@@ -364,7 +367,10 @@ void main() {
       // In the old buggy behavior, _buildOpenBook was drawn with opacity from 0.04,
       // so the title page was already rendered on the left table!
       // Now, it is completely absent:
-      expect(find.textContaining('Hareket'), findsWidgets); // Album title on cover
+      expect(
+        find.textContaining('Hareket'),
+        findsWidgets,
+      ); // Album title on cover
     },
   );
 }

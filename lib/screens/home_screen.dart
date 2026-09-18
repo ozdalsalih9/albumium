@@ -559,8 +559,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                   ],
                 ),
-              ),
-            ),
+        ),
+      ),
       floatingActionButton: _section == 1 || _albums.isEmpty
           ? null
           : FloatingActionButton(
@@ -1330,10 +1330,7 @@ class _CinematicOpeningScreenState extends State<_CinematicOpeningScreen> {
         );
       },
       child: _enteringEditor
-          ? EditorScreen(
-              key: const ValueKey('editor'),
-              album: widget.album,
-            )
+          ? EditorScreen(key: const ValueKey('editor'), album: widget.album)
           : Scaffold(
               key: const ValueKey('opening'),
               backgroundColor: colors.background,

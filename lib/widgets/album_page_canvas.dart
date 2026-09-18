@@ -83,11 +83,19 @@ class AlbumPageCanvas extends StatelessWidget {
   final String? selectedId;
   final ValueChanged<String?>? onSelect;
   final VoidCallback? onChanged;
+
   /// Called when the user long-presses an element. Provides the element ID
   /// and the global position of the press so a context menu can be shown.
-  final void Function(String elementId, Offset globalPosition)? onLongPressElement;
+  final void Function(String elementId, Offset globalPosition)?
+  onLongPressElement;
+
   /// Called when the user long-presses empty space on the canvas.
-  final void Function(Offset localPosition, Offset globalPosition, Size pageSize)? onLongPressCanvas;
+  final void Function(
+    Offset localPosition,
+    Offset globalPosition,
+    Size pageSize,
+  )?
+  onLongPressCanvas;
   final bool showPageNumber;
 
   TextStyle _getPageNumberStyle() {
@@ -147,10 +155,10 @@ class AlbumPageCanvas extends StatelessWidget {
           onTap: interactive ? () => onSelect?.call(null) : null,
           onLongPressStart: interactive && onLongPressCanvas != null
               ? (details) => onLongPressCanvas!(
-                    details.localPosition,
-                    details.globalPosition,
-                    size,
-                  )
+                  details.localPosition,
+                  details.globalPosition,
+                  size,
+                )
               : null,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(6),
@@ -235,7 +243,8 @@ class _AlbumElementsLayer extends StatefulWidget {
   final String? selectedId;
   final ValueChanged<String?>? onSelect;
   final VoidCallback? onChanged;
-  final void Function(String elementId, Offset globalPosition)? onLongPressElement;
+  final void Function(String elementId, Offset globalPosition)?
+  onLongPressElement;
 
   @override
   State<_AlbumElementsLayer> createState() => _AlbumElementsLayerState();
@@ -520,7 +529,8 @@ class _AlbumElementViewState extends State<_AlbumElementView> {
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: widget.interactive ? widget.onSelect : null,
-                onLongPressStart: widget.interactive && widget.onLongPress != null
+                onLongPressStart:
+                    widget.interactive && widget.onLongPress != null
                     ? (details) => widget.onLongPress!(details.globalPosition)
                     : null,
                 onScaleStart: widget.interactive && !element.locked

@@ -190,11 +190,10 @@ void main() {
       ];
 
       for (final sort in AlbumLibrarySort.values) {
-        expect(
-          queryAlbumLibrary(ties, sort: sort).map((album) => album.id),
-          ['a-id', 'z-id'],
-          reason: 'failed for $sort',
-        );
+        expect(queryAlbumLibrary(ties, sort: sort).map((album) => album.id), [
+          'a-id',
+          'z-id',
+        ], reason: 'failed for $sort');
       }
     });
   });

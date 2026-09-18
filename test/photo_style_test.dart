@@ -97,9 +97,6 @@ void main() {
     applyAlbumPhotoShape(element, AlbumPhotoShape.free);
 
     expect(element.photoShape, AlbumPhotoShape.free);
-    expect(
-      (element.x, element.y, element.width, element.height),
-      geometry,
-    );
+    expect((element.x, element.y, element.width, element.height), geometry);
   });
 }

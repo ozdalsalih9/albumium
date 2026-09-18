@@ -334,10 +334,8 @@ void main() {
         updatedAt: now,
         pages: List.generate(
           4,
-          (index) => AlbumPageModel(
-            id: 'page-$index',
-            backgroundColor: 0xFFF2E8D3,
-          ),
+          (index) =>
+              AlbumPageModel(id: 'page-$index', backgroundColor: 0xFFF2E8D3),
         ),
       );
 
@@ -350,7 +348,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // Only the floating back button remains:
-      expect(find.byKey(const ValueKey('landscape_back_button')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('landscape_back_button')),
+        findsOneWidget,
+      );
 
       // AppBar, header texts, share button, and bottom indicators are NOT present:
       expect(find.byType(AppBar), findsNothing);

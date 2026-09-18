@@ -209,10 +209,11 @@ class _CardsHubState extends State<CardsHub> {
                   Expanded(
                     child: Text(
                       context.tr('Kartlar'),
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: colors.text,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(
+                            color: colors.text,
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
                   ),
                   FilledButton.tonalIcon(
