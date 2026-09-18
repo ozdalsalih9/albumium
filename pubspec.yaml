@@ -19,7 +19,9 @@ dependencies:
   shared_preferences: ^2.5.5
   path_provider: ^2.1.6
   share_plus: ^13.3.0
-  flutter_quick_video_encoder: ^1.7.2
+  # Vendored with an Android bitrate fix; see packages/flutter_quick_video_encoder/CHANGELOG.md
+  flutter_quick_video_encoder:
+    path: packages/flutter_quick_video_encoder
   google_fonts: ^6.2.1
   archive: ^4.2.0
   crypto: ^3.0.7
