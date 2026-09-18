@@ -18,6 +18,7 @@ import '../models/album_models.dart';
 import '../services/album_storage.dart';
 import '../theme/albumium_app_theme.dart';
 import '../widgets/album_page_canvas.dart';
+import '../widgets/export_delivery.dart';
 import '../widgets/element_edit_panel.dart';
 import '../widgets/font_selector_dialog.dart';
 import '../widgets/handmade_craft.dart';
@@ -617,15 +618,28 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
       );
       await file.writeAsBytes(data.buffer.asUint8List(), flush: true);
       if (!mounted) return;
-      await SharePlus.instance.share(
-        ShareParams(
-          sharePositionOrigin: albumShareOrigin(context),
-          files: [XFile(file.path)],
-          title: project.title,
-          subject: '${project.title} · Albumium',
-          text: localizations.text('Özel gün kartımı Albumium ile tasarladım.'),
-        ),
+      final shareParams = ShareParams(
+        sharePositionOrigin: albumShareOrigin(context),
+        files: [XFile(file.path)],
+        title: project.title,
+        subject: '${project.title} · Albumium',
+        text: localizations.text('Özel gün kartımı Albumium ile tasarladım.'),
       );
+      final choice = await showExportDeliverySheet(context, video: false);
+      if (!mounted) return;
+      switch (choice) {
+        case ExportDelivery.saveToGallery:
+          await saveExportsToGallery(
+            context,
+            [file.path],
+            video: false,
+            onShare: () => unawaited(SharePlus.instance.share(shareParams)),
+          );
+        case ExportDelivery.share:
+          await SharePlus.instance.share(shareParams);
+        case null:
+          break;
+      }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

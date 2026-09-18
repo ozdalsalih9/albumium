@@ -879,6 +879,26 @@ class AlbumiumLocalizations {
     'Sonraki sayfa çevriliyor…': 'Turning the next page…',
     'Video dosyası tamamlanıyor…': 'Finalizing video file…',
     'Hazır! Paylaşım menüsü açılıyor…': 'Ready! Opening share menu…',
+    'Hazır!': 'Ready!',
+    'Video hazır': 'Video ready',
+    'Görsel hazır': 'Image ready',
+    'Galeriye kaydet': 'Save to gallery',
+    'Videoyu telefonunun galerisine indir':
+        'Download the video to your phone gallery',
+    'Görseli telefonunun galerisine indir':
+        'Download the image to your phone gallery',
+    '{count} görseli telefonunun galerisine indir':
+        'Download {count} images to your phone gallery',
+    'Uygulamalara veya kişilere gönder': 'Send to apps or people',
+    'Galeriye kaydetmek için izin vermen gerekiyor.':
+        'Allow gallery access to save.',
+    'Video galeriye kaydedildi.': 'Video saved to your gallery.',
+    'Görsel galeriye kaydedildi.': 'Image saved to your gallery.',
+    '{count} görsel galeriye kaydedildi.':
+        '{count} images saved to your gallery.',
+    'Telefonda yeterli boş alan yok.': 'Not enough free space on your phone.',
+    'Galeriye kaydedilemedi. Tekrar dene.':
+        'Could not save to your gallery. Try again.',
     'Video hazırlanamadı: {error}': 'The video could not be prepared: {error}',
     'Fotoğraf okunamadı: {source} ({error})':
         'The photo could not be read: {source} ({error})',

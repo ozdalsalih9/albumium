@@ -26,6 +26,7 @@ import '../services/cinematic_soundtrack.dart';
 import '../services/video_export_support.dart';
 import '../theme/albumium_app_theme.dart';
 import '../themes/theme_image_helper.dart';
+import '../widgets/export_delivery.dart';
 import '../widgets/handmade_craft.dart';
 import '../widgets/photo_crop_editor.dart';
 import '../widgets/physical_book_spread.dart';
@@ -1200,25 +1201,42 @@ class _PreviewScreenState extends State<PreviewScreen>
       }
 
       if (!mounted) return;
-      setState(() => _exportStatus = context.tr('Paylaşım menüsü açılıyor…'));
-      await SharePlus.instance.share(
-        ShareParams(
-          sharePositionOrigin: albumShareOrigin(context),
-          files: files,
-          fileNameOverrides: names,
-          title: widget.album.title,
-          subject: '${widget.album.title} · Albumium',
-          text: allPositions
-              ? context.tr(
-                  '“{title}” albümümün sayfalarını Albumium ile hazırladım.',
-                  values: {'title': widget.album.title},
-                )
-              : context.tr(
-                  '“{title}” albümümden bir anı kartı.',
-                  values: {'title': widget.album.title},
-                ),
-        ),
+      setState(() => _exportStatus = context.tr('Hazır!'));
+      final shareParams = ShareParams(
+        sharePositionOrigin: albumShareOrigin(context),
+        files: files,
+        fileNameOverrides: names,
+        title: widget.album.title,
+        subject: '${widget.album.title} · Albumium',
+        text: allPositions
+            ? context.tr(
+                '“{title}” albümümün sayfalarını Albumium ile hazırladım.',
+                values: {'title': widget.album.title},
+              )
+            : context.tr(
+                '“{title}” albümümden bir anı kartı.',
+                values: {'title': widget.album.title},
+              ),
       );
+      final choice = await showExportDeliverySheet(
+        context,
+        video: false,
+        count: files.length,
+      );
+      if (!mounted) return;
+      switch (choice) {
+        case ExportDelivery.saveToGallery:
+          await saveExportsToGallery(
+            context,
+            [for (final file in files) file.path],
+            video: false,
+            onShare: () => unawaited(SharePlus.instance.share(shareParams)),
+          );
+        case ExportDelivery.share:
+          await SharePlus.instance.share(shareParams);
+        case null:
+          break;
+      }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1435,7 +1453,7 @@ class _PreviewScreenState extends State<PreviewScreen>
       if (!mounted) return;
       setState(() {
         _exportProgress = 1;
-        _exportStatus = context.tr('Hazır! Paylaşım menüsü açılıyor…');
+        _exportStatus = context.tr('Hazır!');
         _exportProgressDetails = _localizedProgressLabel(
           VideoExportProgressEstimate(
             progress: 1,
@@ -1445,18 +1463,31 @@ class _PreviewScreenState extends State<PreviewScreen>
         );
         _exportCanCancel = false;
       });
-      await SharePlus.instance.share(
-        ShareParams(
-          sharePositionOrigin: albumShareOrigin(context),
-          files: [XFile(videoFile.path)],
-          fileNameOverrides: [
-            '${safeAlbumiumExportTitle(widget.album.title)}.mp4',
-          ],
-          title: widget.album.title,
-          subject: '${widget.album.title} · Albumium',
-          text: localizedShareText,
-        ),
+      final shareParams = ShareParams(
+        sharePositionOrigin: albumShareOrigin(context),
+        files: [XFile(videoFile.path)],
+        fileNameOverrides: [
+          '${safeAlbumiumExportTitle(widget.album.title)}.mp4',
+        ],
+        title: widget.album.title,
+        subject: '${widget.album.title} · Albumium',
+        text: localizedShareText,
       );
+      final choice = await showExportDeliverySheet(context, video: true);
+      if (!mounted) return;
+      switch (choice) {
+        case ExportDelivery.saveToGallery:
+          await saveExportsToGallery(
+            context,
+            [videoFile.path],
+            video: true,
+            onShare: () => unawaited(SharePlus.instance.share(shareParams)),
+          );
+        case ExportDelivery.share:
+          await SharePlus.instance.share(shareParams);
+        case null:
+          break;
+      }
     } catch (error) {
       final cancelled =
           error is _VideoExportCancelled ||

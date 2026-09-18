@@ -16,6 +16,7 @@ import '../services/personal_sticker_storage.dart';
 import '../services/video_export_support.dart';
 import '../themes/theme_image_helper.dart';
 import '../widgets/album_cover.dart';
+import '../widgets/export_delivery.dart';
 import '../widgets/album_page_canvas.dart';
 import '../widgets/sticker_packs.dart';
 
@@ -218,13 +219,28 @@ class _SocialVideoScreenState extends State<SocialVideoScreen>
     }
     if (mounted && !_cancelled && failure == null && output != null) {
       try {
-        await SharePlus.instance.share(
-          ShareParams(
-            files: [XFile(output.path, mimeType: 'video/mp4')],
-            title: widget.album.title,
-            sharePositionOrigin: albumShareOrigin(context),
-          ),
+        final shareParams = ShareParams(
+          files: [XFile(output.path, mimeType: 'video/mp4')],
+          title: widget.album.title,
+          sharePositionOrigin: albumShareOrigin(context),
         );
+        final choice = await showExportDeliverySheet(context, video: true);
+        if (!mounted) return;
+        switch (choice) {
+          case ExportDelivery.saveToGallery:
+            await saveExportsToGallery(
+              context,
+              [output.path],
+              video: true,
+              onShare: () {
+                SharePlus.instance.share(shareParams);
+              },
+            );
+          case ExportDelivery.share:
+            await SharePlus.instance.share(shareParams);
+          case null:
+            break;
+        }
       } catch (_) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
