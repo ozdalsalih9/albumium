@@ -12,10 +12,18 @@ import '../widgets/cover_purchase_sheet.dart';
 import '../widgets/handmade_craft.dart';
 
 class ThemeScreen extends StatefulWidget {
-  const ThemeScreen({super.key, this.initialCategory, this.entitlements});
+  const ThemeScreen({
+    super.key,
+    this.initialCategory,
+    this.initialThemeId,
+    this.entitlements,
+  });
 
   /// Opens the picker filtered to one category. Null shows every cover.
   final AlbumThemeCategory? initialCategory;
+
+  /// Opens the picker on one cover, as the catalogue does.
+  final String? initialThemeId;
 
   /// Which covers are unlocked. A screen opened without one runs its own,
   /// so tests and deep links can pump this screen bare.
@@ -57,7 +65,11 @@ class _ThemeScreenState extends State<ThemeScreen> {
   void initState() {
     super.initState();
     _category = widget.initialCategory;
-    _selectedThemeId = _visibleThemes.first.id;
+    final requested = widget.initialThemeId;
+    _selectedThemeId =
+        requested != null && albumThemes.any((theme) => theme.id == requested)
+        ? requested
+        : _visibleThemes.first.id;
     _ownsEntitlements = widget.entitlements == null;
     _entitlements = widget.entitlements ?? CoverEntitlements();
     // A purchase can land from the sheet or from another screen, so follow the

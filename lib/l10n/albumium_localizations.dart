@@ -675,6 +675,15 @@ class AlbumiumLocalizations {
     'Süs ara…': 'Search decorations…',
     'Kategori seç': 'Choose category',
     // Kapak kategorileri ve kapak satın alma
+    // Kapak katalogu
+    'Kapak ara': 'Search covers',
+    'Sırala': 'Sort',
+    'Alfabetik': 'Alphabetical',
+    'Kategoriye göre': 'By category',
+    'Önce ücretsiz': 'Free first',
+    'Ücretsiz': 'Free',
+    'Aramanla eşleşen kapak yok': 'No cover matches your search',
+    'Hikâyeni Başlat': 'Start your story',
     // Şehir kapakları
     'İstanbul': 'Istanbul',
     'İzmir': 'Izmir',
