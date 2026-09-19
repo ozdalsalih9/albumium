@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/albumium_localizations.dart';
+import '../models/album_library_query.dart';
 import '../models/album_models.dart';
 import '../services/cover_entitlements.dart';
 import '../theme/albumium_app_theme.dart';
@@ -8,13 +9,14 @@ import '../widgets/album_cover_3d.dart';
 import '../widgets/cover_purchase_sheet.dart';
 import '../widgets/handmade_craft.dart';
 
-/// How the catalogue orders its covers.
-enum CoverCatalogSort { alphabetical, byCategory, freeFirst }
+/// How the catalogue orders its covers. Paid covers lead by default: they are
+/// the ones worth discovering, and the free ones are easy to find anyway.
+enum CoverCatalogSort { paidFirst, alphabetical, byCategory }
 
 String _sortLabel(CoverCatalogSort sort) => switch (sort) {
+  CoverCatalogSort.paidFirst => 'Önce ücretli',
   CoverCatalogSort.alphabetical => 'Alfabetik',
   CoverCatalogSort.byCategory => 'Kategoriye göre',
-  CoverCatalogSort.freeFirst => 'Önce ücretsiz',
 };
 
 /// A preview album so a cover can be drawn on its own, outside any album.
@@ -56,7 +58,7 @@ class CoverCatalogScreen extends StatefulWidget {
 
 class _CoverCatalogScreenState extends State<CoverCatalogScreen> {
   AlbumThemeCategory? _category;
-  CoverCatalogSort _sort = CoverCatalogSort.alphabetical;
+  CoverCatalogSort _sort = CoverCatalogSort.paidFirst;
   final _searchController = TextEditingController();
 
   late final CoverEntitlements _entitlements;
@@ -92,18 +94,23 @@ class _CoverCatalogScreenState extends State<CoverCatalogScreen> {
           theme.subtitle.toLowerCase().contains(query);
     }).toList();
 
+    // Names are Turkish, so İstanbul belongs next to Izmir rather than after
+    // Trabzon, which is where a plain code-unit comparison puts it.
+    int byName(AlbumThemePreset a, AlbumThemePreset b) =>
+        compareTurkishTitles(a.name, b.name);
+
     switch (_sort) {
+      case CoverCatalogSort.paidFirst:
+        covers.sort((a, b) {
+          if (a.isPremium != b.isPremium) return a.isPremium ? -1 : 1;
+          return byName(a, b);
+        });
       case CoverCatalogSort.alphabetical:
-        covers.sort((a, b) => a.name.compareTo(b.name));
+        covers.sort(byName);
       case CoverCatalogSort.byCategory:
         covers.sort((a, b) {
           final byCategory = a.category.index.compareTo(b.category.index);
-          return byCategory != 0 ? byCategory : a.name.compareTo(b.name);
-        });
-      case CoverCatalogSort.freeFirst:
-        covers.sort((a, b) {
-          if (a.isPremium != b.isPremium) return a.isPremium ? 1 : -1;
-          return a.name.compareTo(b.name);
+          return byCategory != 0 ? byCategory : byName(a, b);
         });
     }
     return covers;

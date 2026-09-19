@@ -680,7 +680,7 @@ class AlbumiumLocalizations {
     'Sırala': 'Sort',
     'Alfabetik': 'Alphabetical',
     'Kategoriye göre': 'By category',
-    'Önce ücretsiz': 'Free first',
+    'Önce ücretli': 'Paid first',
     'Ücretsiz': 'Free',
     'Aramanla eşleşen kapak yok': 'No cover matches your search',
     'Hikâyeni Başlat': 'Start your story',

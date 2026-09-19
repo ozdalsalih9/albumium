@@ -320,12 +320,12 @@ class _HomeScreenState extends State<HomeScreen> {
             label: context.tr('Albümler'),
           ),
           NavigationDestination(
-            icon: const Icon(Icons.style_outlined),
-            label: context.tr('Kartlar'),
-          ),
-          NavigationDestination(
             icon: const Icon(Icons.auto_awesome_mosaic_outlined),
             label: context.tr('Temalar'),
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.style_outlined),
+            label: context.tr('Kartlar'),
           ),
         ],
       ),
@@ -336,12 +336,12 @@ class _HomeScreenState extends State<HomeScreen> {
         textureColor: Color.lerp(colors.text, colors.primary, .32),
         textureIntensity: .48,
         child: SafeArea(
-          child: _section == 2
+          child: _section == 1
               ? CoverCatalogScreen(
                   entitlements: widget.coverEntitlements,
                   onStartAlbum: (themeId) => _createAlbum(themeId: themeId),
                 )
-              : _section == 1
+              : _section == 2
               ? const CardsHub()
               : CustomScrollView(
                   physics: const BouncingScrollPhysics(),

@@ -156,6 +156,42 @@ void main() {
     expect(started, isEmpty);
   });
 
+  testWidgets('paid covers lead and names follow the Turkish alphabet', (
+    tester,
+  ) async {
+    await _pumpCatalog(tester, entitlements: await _emptyStore());
+
+    // Read the shelf in the order it is laid out, not catalogue order.
+    final placed = <(Offset, AlbumThemePreset)>[];
+    for (final theme in albumThemes) {
+      final tile = find.byKey(ValueKey('catalog-cover-${theme.id}'));
+      if (tile.evaluate().isEmpty) continue;
+      placed.add((tester.getTopLeft(tile), theme));
+    }
+    placed.sort((a, b) {
+      final byRow = a.$1.dy.compareTo(b.$1.dy);
+      return byRow != 0 ? byRow : a.$1.dx.compareTo(b.$1.dx);
+    });
+    final shown = placed.map((entry) => entry.$2).toList();
+
+    final firstFree = shown.indexWhere((theme) => !theme.isPremium);
+    final lastPaid = shown.lastIndexWhere((theme) => theme.isPremium);
+    expect(firstFree, isNonNegative);
+    expect(lastPaid, lessThan(firstFree), reason: 'paid covers come first');
+
+    // İstanbul sorts by "i", so it belongs before Kapadokya rather than after
+    // Trabzon where a code-unit sort puts it.
+    final freeNames = shown.skip(firstFree).map((theme) => theme.name).toList();
+    expect(
+      freeNames.indexOf('İstanbul'),
+      lessThan(freeNames.indexOf('Kapadokya')),
+    );
+    expect(
+      freeNames.indexOf('İstanbul'),
+      greaterThan(freeNames.indexOf('Edirne')),
+    );
+  });
+
   testWidgets('the themes tab replaces the old home showcase', (tester) async {
     SharedPreferences.setMockInitialValues({});
     tester.view.physicalSize = const Size(411, 914);
@@ -175,6 +211,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('home-cover-categories')), findsNothing);
+
+    // Themes sits between the library and the cards.
+    final destinations = tester
+        .widget<NavigationBar>(find.byType(NavigationBar))
+        .destinations
+        .cast<NavigationDestination>()
+        .map((destination) => destination.label)
+        .toList();
+    expect(destinations, ['Albümler', 'Temalar', 'Kartlar']);
 
     await tester.tap(find.text('Temalar'));
     await tester.pumpAndSettle();

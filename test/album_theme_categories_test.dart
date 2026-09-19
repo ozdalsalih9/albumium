@@ -50,7 +50,6 @@ void main() {
       'travel_postcard',
       'best_friends',
       'minimal_editorial',
-      'midnight_atlas',
       'dark_leather',
     });
   });
@@ -59,5 +58,18 @@ void main() {
     for (final theme in albumThemes) {
       expect(theme.coverAsset, isNotNull, reason: '${theme.id} has no cover.');
     }
+  });
+
+  test('a retired cover keeps the artwork its albums were made with', () {
+    // Midnight Atlas shared Travel Postcard's artwork and was dropped; albums
+    // saved with it must not fall back to the first cover in the catalogue.
+    expect(albumThemes.any((theme) => theme.id == 'midnight_atlas'), isFalse);
+    expect(themeById('midnight_atlas').id, 'travel_postcard');
+    expect(
+      themeById('midnight_atlas').coverAsset,
+      themeById('travel_postcard').coverAsset,
+    );
+    // An id that never existed still falls back to the free starter cover.
+    expect(themeById('no_such_theme').id, 'soft_romance');
   });
 }

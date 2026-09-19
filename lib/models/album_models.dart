@@ -189,20 +189,6 @@ const albumThemes = <AlbumThemePreset>[
     coverAsset: 'assets/covers/cover-minimal-editorial.webp',
   ),
   AlbumThemePreset(
-    id: 'midnight_atlas',
-    name: 'Midnight Atlas',
-    subtitle: 'Lacivert deri, göksel desenler & altın varak',
-    emoji: '🌙',
-    coverStart: Color(0xFF20345C),
-    coverEnd: Color(0xFF07101F),
-    pageColor: Color(0xFFF2EADB),
-    accent: Color(0xFFD6B56F),
-    textureLabel: 'Kabartma deri',
-    category: AlbumThemeCategory.travel,
-    isPremium: true,
-    coverAsset: 'assets/covers/cover-atlas-compass.webp',
-  ),
-  AlbumThemePreset(
     id: 'dark_leather',
     name: 'Dark Leather',
     subtitle: 'Deri cilt, altın varak & dikiş detayı',
@@ -349,10 +335,20 @@ const albumThemes = <AlbumThemePreset>[
   ),
 ];
 
-AlbumThemePreset themeById(String id) => albumThemes.firstWhere(
-  (theme) => theme.id == id,
-  orElse: () => albumThemes.first,
-);
+/// Covers that were retired, pointing at the one that replaced them.
+///
+/// Midnight Atlas shared its artwork with Travel Postcard, so it was dropped.
+/// Albums saved with it keep that artwork instead of silently falling back to
+/// the first cover in the catalogue.
+const _retiredThemes = <String, String>{'midnight_atlas': 'travel_postcard'};
+
+AlbumThemePreset themeById(String id) {
+  final current = _retiredThemes[id] ?? id;
+  return albumThemes.firstWhere(
+    (theme) => theme.id == current,
+    orElse: () => albumThemes.first,
+  );
+}
 
 /// Covers of one category, in catalogue order. A null category means "Tümü".
 List<AlbumThemePreset> themesInCategory(AlbumThemeCategory? category) =>
