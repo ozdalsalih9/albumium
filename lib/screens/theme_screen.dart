@@ -1,14 +1,25 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../l10n/albumium_localizations.dart';
 import '../models/album_models.dart';
 import '../services/album_storage.dart';
+import '../services/cover_entitlements.dart';
 import '../theme/albumium_app_theme.dart';
 import '../widgets/album_cover_3d.dart';
+import '../widgets/cover_purchase_sheet.dart';
 import '../widgets/handmade_craft.dart';
 
 class ThemeScreen extends StatefulWidget {
-  const ThemeScreen({super.key});
+  const ThemeScreen({super.key, this.initialCategory, this.entitlements});
+
+  /// Opens the picker filtered to one category. Null shows every cover.
+  final AlbumThemeCategory? initialCategory;
+
+  /// Which covers are unlocked. A screen opened without one runs its own,
+  /// so tests and deep links can pump this screen bare.
+  final CoverEntitlements? entitlements;
 
   @override
   State<ThemeScreen> createState() => _ThemeScreenState();
@@ -20,14 +31,39 @@ class _ThemeScreenState extends State<ThemeScreen> {
   static const _bindingCardWidth = 146.0;
   static const _bindingCardGap = 10.0;
 
-  int _selected = 0;
+  // The carousel is filtered, so a position in it is meaningless on its own.
+  // Keeping the chosen cover by id survives category changes.
+  late String _selectedThemeId;
+  AlbumThemeCategory? _category;
   AlbumBindingType _selectedBinding = AlbumBindingType.spiral;
   final _titleController = TextEditingController();
   PageController? _pageController;
 
+  List<AlbumThemePreset> get _visibleThemes => themesInCategory(_category);
+
+  AlbumThemePreset get _selectedTheme => themeById(_selectedThemeId);
+
+  int get _selectedIndex {
+    final index = _visibleThemes.indexWhere(
+      (theme) => theme.id == _selectedThemeId,
+    );
+    return index < 0 ? 0 : index;
+  }
+
+  late final CoverEntitlements _entitlements;
+  late final bool _ownsEntitlements;
+
   @override
   void initState() {
     super.initState();
+    _category = widget.initialCategory;
+    _selectedThemeId = _visibleThemes.first.id;
+    _ownsEntitlements = widget.entitlements == null;
+    _entitlements = widget.entitlements ?? CoverEntitlements();
+    // A purchase can land from the sheet or from another screen, so follow the
+    // service rather than assuming this screen caused the change.
+    _entitlements.addListener(_onEntitlementsChanged);
+    if (_ownsEntitlements) unawaited(_entitlements.initialize());
     _titleController.addListener(() {
       setState(() {});
     });
@@ -42,11 +78,19 @@ class _ThemeScreenState extends State<ThemeScreen> {
         : _phoneViewportFraction;
     final currentController = _pageController;
     if (currentController?.viewportFraction == viewportFraction) return;
+    _rebuildPageController(viewportFraction: viewportFraction);
+  }
 
+  void _rebuildPageController({double? viewportFraction}) {
+    final currentController = _pageController;
+    final fraction =
+        viewportFraction ??
+        currentController?.viewportFraction ??
+        _phoneViewportFraction;
     _pageController = PageController(
-      initialPage: _selected,
+      initialPage: _selectedIndex,
       keepPage: false,
-      viewportFraction: viewportFraction,
+      viewportFraction: fraction,
     );
     if (currentController == null) return;
 
@@ -57,15 +101,57 @@ class _ThemeScreenState extends State<ThemeScreen> {
     });
   }
 
+  void _selectCategory(AlbumThemeCategory? category) {
+    if (_category == category) return;
+    setState(() {
+      _category = category;
+      final visible = _visibleThemes;
+      // Keep the chosen cover when it is still on screen; otherwise start at
+      // the top of the new category.
+      if (!visible.any((theme) => theme.id == _selectedThemeId)) {
+        _selectedThemeId = visible.first.id;
+      }
+      // Rebuilding beats animateToPage here: the item count changes in the
+      // same frame, and it also cancels a fling that is still in flight.
+      _rebuildPageController();
+    });
+  }
+
+  void _onEntitlementsChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    _entitlements.removeListener(_onEntitlementsChanged);
+    if (_ownsEntitlements) _entitlements.dispose();
     _pageController?.dispose();
     _titleController.dispose();
     super.dispose();
   }
 
+  Future<void> _openPurchaseSheet() async {
+    final theme = _selectedTheme;
+    final unlocked = await showCoverPurchaseSheet(
+      context,
+      theme: theme,
+      entitlements: _entitlements,
+    );
+    if (!unlocked || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          context.tr(
+            '{theme} kapağı açıldı.',
+            values: {'theme': context.tr(theme.name)},
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _continue() async {
-    final theme = albumThemes[_selected];
+    final theme = _selectedTheme;
     final now = DateTime.now();
     final album = AlbumModel(
       id: newId(),
@@ -105,13 +191,108 @@ class _ThemeScreenState extends State<ThemeScreen> {
       ],
     );
 
+    final colors = AlbumiumAppTheme.colorsOf(context);
+    final locked = !_entitlements.isUnlockedTheme(theme);
+
     return Center(
       child: AspectRatio(
         aspectRatio: 15 / 22,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: AlbumCover3D(album: previewAlbum),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: AlbumCover3D(album: previewAlbum),
+              ),
+            ),
+            // The artwork stays fully visible: a locked cover should still be
+            // worth wanting. Only the badge says it has to be unlocked.
+            if (locked)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  key: ValueKey('theme-lock-badge-${theme.id}'),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colors.surface.withValues(alpha: .92),
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(color: colors.border),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.lock_rounded, size: 13, color: colors.primary),
+                      const SizedBox(width: 5),
+                      Text(
+                        _entitlements.priceLabelFor(theme.id),
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: colors.text,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryStrip(BuildContext context) {
+    final colors = AlbumiumAppTheme.colorsOf(context);
+
+    Widget chip({
+      required Key key,
+      required String label,
+      required bool selected,
+      required VoidCallback onTap,
+    }) => Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        key: key,
+        label: Text(label),
+        labelStyle: TextStyle(
+          color: selected ? colors.onPrimary : colors.text,
+          fontWeight: FontWeight.w500,
+          fontSize: 12.5,
+        ),
+        visualDensity: VisualDensity.compact,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        selectedColor: colors.primary,
+        backgroundColor: colors.surface,
+        selected: selected,
+        onSelected: (_) => onTap(),
+      ),
+    );
+
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        key: const ValueKey('theme-category-strip'),
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        children: [
+          chip(
+            key: const ValueKey('theme-category-all'),
+            label: context.tr('Tümü'),
+            selected: _category == null,
+            onTap: () => _selectCategory(null),
+          ),
+          for (final category in AlbumThemeCategory.values)
+            chip(
+              key: ValueKey('theme-category-${category.name}'),
+              label: context.tr(category.label),
+              selected: _category == category,
+              onTap: () => _selectCategory(category),
+            ),
+        ],
       ),
     );
   }
@@ -247,7 +428,9 @@ class _ThemeScreenState extends State<ThemeScreen> {
     final maxCover = tablet ? 380.0 : 280.0;
     const minLayoutHeight = 620.0;
     final currentTitle = _titleController.text.trim();
-    final selectedTheme = albumThemes[_selected];
+    final selectedTheme = _selectedTheme;
+    final visibleThemes = _visibleThemes;
+    final selectedLocked = !_entitlements.isUnlockedTheme(selectedTheme);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -288,7 +471,8 @@ class _ThemeScreenState extends State<ThemeScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 24),
                           child: Text(
-                            '${context.tr(selectedTheme.name)} · ${context.tr(selectedTheme.subtitle)}',
+                            '${context.tr(selectedTheme.name)} · ${context.tr(selectedTheme.subtitle)}'
+                            ' · ${_selectedIndex + 1}/${visibleThemes.length}',
                             key: const ValueKey('selected-theme-summary'),
                             style: TextStyle(
                               color: colors.mutedText,
@@ -297,7 +481,29 @@ class _ThemeScreenState extends State<ThemeScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 14),
+                        if (selectedLocked)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(24, 4, 24, 0),
+                            child: Text(
+                              context.tr(
+                                'Kilitli · {price}',
+                                values: {
+                                  'price': _entitlements.priceLabelFor(
+                                    selectedTheme.id,
+                                  ),
+                                },
+                              ),
+                              key: const ValueKey('theme-lock-note'),
+                              style: TextStyle(
+                                color: colors.primary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 8),
+                        _buildCategoryStrip(context),
+                        const SizedBox(height: 8),
                         Expanded(
                           child: LayoutBuilder(
                             builder: (context, space) => Center(
@@ -308,12 +514,14 @@ class _ThemeScreenState extends State<ThemeScreen> {
                                 child: PageView.builder(
                                   key: const ValueKey('theme-carousel'),
                                   controller: _pageController,
-                                  itemCount: albumThemes.length,
-                                  onPageChanged: (index) =>
-                                      setState(() => _selected = index),
+                                  itemCount: visibleThemes.length,
+                                  onPageChanged: (index) => setState(
+                                    () => _selectedThemeId =
+                                        visibleThemes[index].id,
+                                  ),
                                   itemBuilder: (context, index) {
-                                    final theme = albumThemes[index];
-                                    final selected = index == _selected;
+                                    final theme = visibleThemes[index];
+                                    final selected = index == _selectedIndex;
                                     return AnimatedPadding(
                                       duration: const Duration(
                                         milliseconds: 220,
@@ -339,32 +547,7 @@ class _ThemeScreenState extends State<ThemeScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Center(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              for (var i = 0; i < albumThemes.length; i++)
-                                AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  margin: const EdgeInsets.symmetric(
-                                    horizontal: 3,
-                                  ),
-                                  width: i == _selected ? 18 : 6,
-                                  height: 6,
-                                  decoration: BoxDecoration(
-                                    color: i == _selected
-                                        ? selectedTheme.accent
-                                        : Theme.of(
-                                            context,
-                                          ).colorScheme.outlineVariant,
-                                    borderRadius: BorderRadius.circular(99),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 24),
                           child: Text(
@@ -401,15 +584,33 @@ class _ThemeScreenState extends State<ThemeScreen> {
                                   vertical: 15,
                                 ),
                               ),
-                              onPressed: _continue,
-                              icon: const Icon(Icons.auto_stories_rounded),
+                              key: const ValueKey('theme-primary-action'),
+                              onPressed: selectedLocked
+                                  ? _openPurchaseSheet
+                                  : _continue,
+                              icon: Icon(
+                                selectedLocked
+                                    ? Icons.lock_open_rounded
+                                    : Icons.auto_stories_rounded,
+                              ),
                               label: Text(
-                                context.tr(
-                                  '{theme} ile Başla',
-                                  values: {
-                                    'theme': context.tr(selectedTheme.name),
-                                  },
-                                ),
+                                selectedLocked
+                                    ? context.tr(
+                                        '{price} · Kapağı aç',
+                                        values: {
+                                          'price': _entitlements.priceLabelFor(
+                                            selectedTheme.id,
+                                          ),
+                                        },
+                                      )
+                                    : context.tr(
+                                        '{theme} ile Başla',
+                                        values: {
+                                          'theme': context.tr(
+                                            selectedTheme.name,
+                                          ),
+                                        },
+                                      ),
                                 textAlign: TextAlign.center,
                               ),
                             ),

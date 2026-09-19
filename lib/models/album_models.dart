@@ -49,6 +49,22 @@ enum AlbumBindingType {
   final IconData icon;
 }
 
+/// Groups covers in the picker. "Tümü" is not a member: an absent category
+/// (null) means no filter, the same way the occasion card picker works.
+enum AlbumThemeCategory {
+  travel('Seyahat', Icons.flight_takeoff_rounded),
+  family('Aile', Icons.family_restroom_rounded),
+  love('Aşk', Icons.favorite_rounded),
+  wedding('Düğün & Nişan', Icons.diamond_outlined),
+  friendship('Arkadaşlık', Icons.groups_rounded),
+  animals('Hayvanlar', Icons.pets_rounded);
+
+  const AlbumThemeCategory(this.label, this.icon);
+
+  final String label;
+  final IconData icon;
+}
+
 class AlbumThemePreset {
   const AlbumThemePreset({
     required this.id,
@@ -60,6 +76,9 @@ class AlbumThemePreset {
     required this.pageColor,
     required this.accent,
     required this.textureLabel,
+    this.category = AlbumThemeCategory.love,
+    this.isPremium = false,
+    this.coverAsset,
   });
 
   final String id;
@@ -72,19 +91,17 @@ class AlbumThemePreset {
   final Color accent;
   final String textureLabel;
 
+  /// Where the cover shows up in the picker.
+  final AlbumThemeCategory category;
+
+  /// Premium covers have to be unlocked before a new album can use them.
+  /// Albums already saved with the theme keep rendering it either way.
+  final bool isPremium;
+
   /// Optional high-resolution physical cover artwork. The artwork is kept
   /// separate from the saved album JSON, so older albums gain the richer
   /// cover automatically after an app update.
-  String? get coverAsset => switch (id) {
-    'soft_romance' => 'assets/covers/cover-rose-heirloom.webp',
-    'vintage_diary' => 'assets/covers/cover-vintage-quill.webp',
-    'animals' || 'dark_leather' => 'assets/covers/cover-obsidian-lion.webp',
-    'travel_postcard' ||
-    'midnight_atlas' => 'assets/covers/cover-atlas-compass.webp',
-    'best_friends' => 'assets/covers/cover-emerald-friendship.webp',
-    'minimal_editorial' => 'assets/covers/cover-minimal-editorial.webp',
-    _ => null,
-  };
+  final String? coverAsset;
 }
 
 const albumThemes = <AlbumThemePreset>[
@@ -98,6 +115,8 @@ const albumThemes = <AlbumThemePreset>[
     pageColor: SoftRomancePalette.cream,
     accent: SoftRomancePalette.deepRose,
     textureLabel: 'Keten',
+    category: AlbumThemeCategory.love,
+    coverAsset: 'assets/covers/cover-rose-heirloom.webp',
   ),
   AlbumThemePreset(
     id: 'vintage_diary',
@@ -109,6 +128,9 @@ const albumThemes = <AlbumThemePreset>[
     pageColor: VintageDiaryPalette.agedPaper,
     accent: VintageDiaryPalette.sepia,
     textureLabel: 'Deri',
+    category: AlbumThemeCategory.family,
+    isPremium: true,
+    coverAsset: 'assets/covers/cover-vintage-quill.webp',
   ),
   AlbumThemePreset(
     id: 'animals',
@@ -120,6 +142,9 @@ const albumThemes = <AlbumThemePreset>[
     pageColor: AnimalsPalette.cream,
     accent: AnimalsPalette.deepSage,
     textureLabel: 'Pati',
+    category: AlbumThemeCategory.animals,
+    isPremium: true,
+    coverAsset: 'assets/covers/cover-obsidian-lion.webp',
   ),
   AlbumThemePreset(
     id: 'travel_postcard',
@@ -131,6 +156,9 @@ const albumThemes = <AlbumThemePreset>[
     pageColor: TravelPostcardPalette.paper,
     accent: TravelPostcardPalette.airmailRed,
     textureLabel: 'Kanvas',
+    category: AlbumThemeCategory.travel,
+    isPremium: true,
+    coverAsset: 'assets/covers/cover-atlas-compass.webp',
   ),
   AlbumThemePreset(
     id: 'best_friends',
@@ -142,6 +170,9 @@ const albumThemes = <AlbumThemePreset>[
     pageColor: BestFriendsPalette.lilac,
     accent: BestFriendsPalette.deepViolet,
     textureLabel: 'Parlak',
+    category: AlbumThemeCategory.friendship,
+    isPremium: true,
+    coverAsset: 'assets/covers/cover-emerald-friendship.webp',
   ),
   AlbumThemePreset(
     id: 'minimal_editorial',
@@ -153,6 +184,9 @@ const albumThemes = <AlbumThemePreset>[
     pageColor: MinimalEditorialPalette.paper,
     accent: MinimalEditorialPalette.accent,
     textureLabel: 'Mat',
+    category: AlbumThemeCategory.wedding,
+    isPremium: true,
+    coverAsset: 'assets/covers/cover-minimal-editorial.webp',
   ),
   AlbumThemePreset(
     id: 'midnight_atlas',
@@ -164,6 +198,9 @@ const albumThemes = <AlbumThemePreset>[
     pageColor: Color(0xFFF2EADB),
     accent: Color(0xFFD6B56F),
     textureLabel: 'Kabartma deri',
+    category: AlbumThemeCategory.travel,
+    isPremium: true,
+    coverAsset: 'assets/covers/cover-atlas-compass.webp',
   ),
   AlbumThemePreset(
     id: 'dark_leather',
@@ -175,6 +212,9 @@ const albumThemes = <AlbumThemePreset>[
     pageColor: DarkLeatherPalette.page,
     accent: DarkLeatherPalette.gold,
     textureLabel: 'Deri',
+    category: AlbumThemeCategory.wedding,
+    isPremium: true,
+    coverAsset: 'assets/covers/cover-obsidian-lion.webp',
   ),
 ];
 
@@ -182,6 +222,12 @@ AlbumThemePreset themeById(String id) => albumThemes.firstWhere(
   (theme) => theme.id == id,
   orElse: () => albumThemes.first,
 );
+
+/// Covers of one category, in catalogue order. A null category means "Tümü".
+List<AlbumThemePreset> themesInCategory(AlbumThemeCategory? category) =>
+    category == null
+    ? albumThemes
+    : albumThemes.where((theme) => theme.category == category).toList();
 
 /// Bozuk alt kayıtları atlayarak bir listeyi kurtarır.
 ///

@@ -1,4 +1,5 @@
 import 'package:albumium/l10n/albumium_localizations.dart';
+import 'package:albumium/models/album_models.dart';
 import 'package:albumium/widgets/occasion_cards.dart';
 import 'package:albumium/widgets/sticker_packs.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +13,31 @@ Widget _englishApp(Widget child) => MaterialApp(
 );
 
 void main() {
+  test('cover categories and the purchase copy are translated', () {
+    final keys = <String>{
+      for (final category in AlbumThemeCategory.values) category.label,
+      'Kapak temaları',
+      'Tümünü gör',
+      '{count} kapak',
+      'Kilitli · {price}',
+      '{price} · Kapağı aç',
+      '{price} · Satın al',
+      'Satın alımları geri yükle',
+      'Bu kapağı tüm albümlerinde kullanabilirsin.',
+      'Tek seferlik satın alma.',
+      'Çevrimdışı çalışır.',
+      '{theme} kapağı açıldı.',
+      'Satın alma tamamlanamadı. Tekrar deneyebilirsin.',
+      'Geri yüklenecek satın alma bulunamadı.',
+    };
+
+    final missing = keys
+        .where((key) => !AlbumiumLocalizations.hasEnglishTranslation(key))
+        .toList(growable: false);
+
+    expect(missing, isEmpty);
+  });
+
   test(
     'all occasion cards, decoration packs, and shapes have English copy',
     () {
