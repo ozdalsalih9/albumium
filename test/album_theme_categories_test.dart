@@ -31,10 +31,28 @@ void main() {
     );
   });
 
-  test('one cover is free so a first album needs no purchase', () {
-    final free = albumThemes.where((theme) => !theme.isPremium).toList();
-    expect(free.map((theme) => theme.id), ['soft_romance']);
+  test('the starter cover and the city covers are free', () {
+    // A first album must be possible without paying, and the city covers are
+    // the draw for the travel category.
+    expect(albumThemes.first.id, 'soft_romance');
     expect(albumThemes.first.isPremium, isFalse);
+
+    final cityCovers = albumThemes.where(
+      (theme) =>
+          theme.id.startsWith('travel_') && theme.id != 'travel_postcard',
+    );
+    expect(cityCovers, isNotEmpty);
+    expect(cityCovers.every((theme) => !theme.isPremium), isTrue);
+
+    expect(albumThemes.where((theme) => theme.isPremium).map((t) => t.id), {
+      'vintage_diary',
+      'animals',
+      'travel_postcard',
+      'best_friends',
+      'minimal_editorial',
+      'midnight_atlas',
+      'dark_leather',
+    });
   });
 
   test('every cover ships artwork', () {

@@ -16,6 +16,8 @@ void main() {
   test('cover categories and the purchase copy are translated', () {
     final keys = <String>{
       for (final category in AlbumThemeCategory.values) category.label,
+      // Cover subtitles are shown under the carousel in both languages.
+      for (final theme in albumThemes) theme.subtitle,
       'Kapak temaları',
       'Tümünü gör',
       '{count} kapak',
