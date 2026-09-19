@@ -19,6 +19,7 @@ import 'editor_screen.dart';
 import 'cards_hub.dart';
 import 'memory_album_screen.dart';
 import '../models/memory_period.dart';
+import '../services/cover_entitlements.dart';
 import '../services/reminder_service.dart';
 import 'special_card_studio_screen.dart';
 import 'theme_screen.dart';
@@ -28,11 +29,15 @@ class HomeScreen extends StatefulWidget {
     super.key,
     required this.themeController,
     required this.languageController,
+    this.coverEntitlements,
     this.heroMotionEnabled = true,
   });
 
   final ThemeController themeController;
   final LanguageController languageController;
+
+  /// Shared with the cover picker so a purchase made there is visible here.
+  final CoverEntitlements? coverEntitlements;
   final bool heroMotionEnabled;
 
   @override
@@ -103,11 +108,16 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _createAlbum() async {
+  Future<void> _createAlbum({AlbumThemeCategory? category}) async {
     HapticFeedback.selectionClick();
-    final album = await Navigator.of(
-      context,
-    ).push<AlbumModel>(MaterialPageRoute(builder: (_) => const ThemeScreen()));
+    final album = await Navigator.of(context).push<AlbumModel>(
+      MaterialPageRoute(
+        builder: (_) => ThemeScreen(
+          initialCategory: category,
+          entitlements: widget.coverEntitlements,
+        ),
+      ),
+    );
     if (album == null || !mounted) return;
     await _openAlbum(album);
   }
@@ -364,6 +374,13 @@ class _HomeScreenState extends State<HomeScreen> {
                             motionEnabled: widget.heroMotionEnabled,
                           ),
                         ),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: _CoverCategoryShowcase(
+                        horizontalInset: horizontalInset,
+                        onSelect: (category) =>
+                            _createAlbum(category: category),
                       ),
                     ),
                     SliverToBoxAdapter(
@@ -1408,6 +1425,145 @@ class _CinematicOpeningScreenState extends State<_CinematicOpeningScreen> {
                 ],
               ),
             ),
+    );
+  }
+}
+
+/// Sends the user into the cover picker already filtered to one category.
+/// These are navigation cards, not filters for this page, so they are not
+/// chips: nothing on the home screen changes when one is tapped.
+class _CoverCategoryShowcase extends StatelessWidget {
+  const _CoverCategoryShowcase({
+    required this.horizontalInset,
+    required this.onSelect,
+  });
+
+  final double horizontalInset;
+  final ValueChanged<AlbumThemeCategory?> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AlbumiumAppTheme.colorsOf(context);
+
+    Widget card({
+      required Key key,
+      required IconData icon,
+      required String label,
+      required int count,
+      required VoidCallback onTap,
+    }) => Padding(
+      padding: const EdgeInsets.only(right: 10),
+      child: SizedBox(
+        width: 104,
+        child: Material(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            key: key,
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: colors.border),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: colors.primary.withValues(alpha: .12),
+                    ),
+                    child: Icon(icon, size: 18, color: colors.primary),
+                  ),
+                  const SizedBox(height: 6),
+                  Flexible(
+                    child: Text(
+                      context.tr(label),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    context.tr('{count} kapak', values: {'count': count}),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 10.5, color: colors.mutedText),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    return Padding(
+      key: const ValueKey('home-cover-categories'),
+      padding: EdgeInsets.only(bottom: 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              horizontalInset,
+              0,
+              horizontalInset,
+              10,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    context.tr('Kapak temaları'),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => onSelect(null),
+                  child: Text(context.tr('Tümünü gör')),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 118,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.symmetric(horizontal: horizontalInset),
+              children: [
+                card(
+                  key: const ValueKey('home-cover-category-all'),
+                  icon: Icons.auto_awesome_mosaic_outlined,
+                  label: 'Tümü',
+                  count: albumThemes.length,
+                  onTap: () => onSelect(null),
+                ),
+                for (final category in AlbumThemeCategory.values)
+                  card(
+                    key: ValueKey('home-cover-category-${category.name}'),
+                    icon: category.icon,
+                    label: category.label,
+                    count: themesInCategory(category).length,
+                    onTap: () => onSelect(category),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

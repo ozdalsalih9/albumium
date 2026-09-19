@@ -11,6 +11,7 @@ import 'screens/album_import_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'services/album_incoming_intent_service.dart';
+import 'services/cover_entitlements.dart';
 import 'services/error_reporter.dart';
 import 'services/language_controller.dart';
 import 'services/photo_selection_service.dart';
@@ -39,9 +40,11 @@ Future<void> main() async {
 
   final themeController = ThemeController();
   final languageController = LanguageController();
+  final coverEntitlements = CoverEntitlements();
   await Future.wait([
     themeController.initialize(),
     languageController.initialize(),
+    coverEntitlements.initialize(),
   ]);
   await ReminderService.initialize();
   await ReminderService.save(
@@ -60,6 +63,7 @@ Future<void> main() async {
     AlbumiumApp(
       themeController: themeController,
       languageController: languageController,
+      coverEntitlements: coverEntitlements,
     ),
   );
 }
@@ -69,6 +73,7 @@ class AlbumiumApp extends StatefulWidget {
     super.key,
     this.themeController,
     this.languageController,
+    this.coverEntitlements,
     this.showLaunchAnimation = true,
     this.showOnboarding = true,
     this.launchAnimationDuration = const Duration(milliseconds: 920),
@@ -78,6 +83,7 @@ class AlbumiumApp extends StatefulWidget {
   /// when this is null.
   final ThemeController? themeController;
   final LanguageController? languageController;
+  final CoverEntitlements? coverEntitlements;
 
   /// Can be disabled by focused widget tests and embedders that provide their
   /// own launch experience.
@@ -97,8 +103,10 @@ class _AlbumiumAppState extends State<AlbumiumApp> {
   late final ThemeController _themeController;
   late final LanguageController _languageController;
   late final AlbumIncomingIntentService _incomingIntentService;
+  late final CoverEntitlements _coverEntitlements;
   late final bool _ownsThemeController;
   late final bool _ownsLanguageController;
+  late final bool _ownsCoverEntitlements;
   late bool _showLaunchAnimation;
   Key _homeKey = UniqueKey();
   bool _handlingIncomingPackage = false;
@@ -143,6 +151,8 @@ class _AlbumiumAppState extends State<AlbumiumApp> {
     _themeController = widget.themeController ?? ThemeController();
     _ownsLanguageController = widget.languageController == null;
     _languageController = widget.languageController ?? LanguageController();
+    _ownsCoverEntitlements = widget.coverEntitlements == null;
+    _coverEntitlements = widget.coverEntitlements ?? CoverEntitlements();
     _incomingIntentService = AlbumIncomingIntentService();
     _showLaunchAnimation = widget.showLaunchAnimation;
     if (widget.showOnboarding) {
@@ -156,6 +166,9 @@ class _AlbumiumAppState extends State<AlbumiumApp> {
     }
     if (!_languageController.isInitialized) {
       unawaited(_languageController.initialize());
+    }
+    if (!_coverEntitlements.isInitialized) {
+      unawaited(_coverEntitlements.initialize());
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(
@@ -225,13 +238,18 @@ class _AlbumiumAppState extends State<AlbumiumApp> {
     unawaited(_incomingIntentService.dispose());
     if (_ownsThemeController) _themeController.dispose();
     if (_ownsLanguageController) _languageController.dispose();
+    if (_ownsCoverEntitlements) _coverEntitlements.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: Listenable.merge([_themeController, _languageController]),
+      animation: Listenable.merge([
+        _themeController,
+        _languageController,
+        _coverEntitlements,
+      ]),
       builder: (context, _) {
         return MaterialApp(
           navigatorKey: _navigatorKey,
@@ -286,6 +304,7 @@ class _AlbumiumAppState extends State<AlbumiumApp> {
                           key: _homeKey,
                           themeController: _themeController,
                           languageController: _languageController,
+                          coverEntitlements: _coverEntitlements,
                           heroMotionEnabled: !_showLaunchAnimation,
                         ),
                 ),
