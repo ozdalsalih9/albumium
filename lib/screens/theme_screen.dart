@@ -12,10 +12,18 @@ import '../widgets/cover_purchase_sheet.dart';
 import '../widgets/handmade_craft.dart';
 
 class ThemeScreen extends StatefulWidget {
-  const ThemeScreen({super.key, this.initialCategory, this.entitlements});
+  const ThemeScreen({
+    super.key,
+    this.initialCategory,
+    this.initialThemeId,
+    this.entitlements,
+  });
 
   /// Opens the picker filtered to one category. Null shows every cover.
   final AlbumThemeCategory? initialCategory;
+
+  /// Opens the picker on one cover, as the catalogue does.
+  final String? initialThemeId;
 
   /// Which covers are unlocked. A screen opened without one runs its own,
   /// so tests and deep links can pump this screen bare.
@@ -28,7 +36,7 @@ class ThemeScreen extends StatefulWidget {
 class _ThemeScreenState extends State<ThemeScreen> {
   static const _phoneViewportFraction = 0.70;
   static const _tabletViewportFraction = 0.42;
-  static const _bindingCardWidth = 146.0;
+  static const _bindingCardWidth = 132.0;
   static const _bindingCardGap = 10.0;
 
   // The carousel is filtered, so a position in it is meaningless on its own.
@@ -57,7 +65,11 @@ class _ThemeScreenState extends State<ThemeScreen> {
   void initState() {
     super.initState();
     _category = widget.initialCategory;
-    _selectedThemeId = _visibleThemes.first.id;
+    final requested = widget.initialThemeId;
+    _selectedThemeId =
+        requested != null && albumThemes.any((theme) => theme.id == requested)
+        ? requested
+        : _visibleThemes.first.id;
     _ownsEntitlements = widget.entitlements == null;
     _entitlements = widget.entitlements ?? CoverEntitlements();
     // A purchase can land from the sheet or from another screen, so follow the
@@ -111,9 +123,16 @@ class _ThemeScreenState extends State<ThemeScreen> {
       if (!visible.any((theme) => theme.id == _selectedThemeId)) {
         _selectedThemeId = visible.first.id;
       }
-      // Rebuilding beats animateToPage here: the item count changes in the
-      // same frame, and it also cancels a fling that is still in flight.
-      _rebuildPageController();
+    });
+    // The carousel keeps its scroll position when the item count changes, so
+    // the page has to be moved explicitly once the new list is laid out.
+    // Swapping in a fresh controller does not do it: the view stays put and
+    // the screen ends up describing a different cover than the one on show.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final controller = _pageController;
+      if (controller == null || !controller.hasClients) return;
+      controller.jumpToPage(_selectedIndex);
     });
   }
 
@@ -301,7 +320,7 @@ class _ThemeScreenState extends State<ThemeScreen> {
     final colors = AlbumiumAppTheme.colorsOf(context);
 
     return SizedBox(
-      height: 118,
+      height: 104,
       child: ListView.separated(
         key: const ValueKey('binding-selector'),
         scrollDirection: Axis.horizontal,
@@ -325,7 +344,7 @@ class _ThemeScreenState extends State<ThemeScreen> {
                 duration: const Duration(milliseconds: 220),
                 curve: Curves.easeOut,
                 width: _bindingCardWidth,
-                padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                 decoration: BoxDecoration(
                   color: selected
                       ? colors.primary.withValues(alpha: .10)
@@ -354,8 +373,8 @@ class _ThemeScreenState extends State<ThemeScreen> {
                       children: [
                         AnimatedContainer(
                           duration: const Duration(milliseconds: 220),
-                          width: 28,
-                          height: 28,
+                          width: 24,
+                          height: 24,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: selected
@@ -364,7 +383,7 @@ class _ThemeScreenState extends State<ThemeScreen> {
                           ),
                           child: Icon(
                             binding.icon,
-                            size: 15,
+                            size: 13,
                             color: selected ? colors.onPrimary : colors.primary,
                           ),
                         ),
@@ -381,13 +400,13 @@ class _ThemeScreenState extends State<ThemeScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Text(
                       context.tr(binding.title),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 13.5,
+                        fontSize: 12.5,
                         fontWeight: selected
                             ? FontWeight.w700
                             : FontWeight.w600,
@@ -401,8 +420,8 @@ class _ThemeScreenState extends State<ThemeScreen> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 11,
-                          height: 1.32,
+                          fontSize: 10,
+                          height: 1.3,
                           color: colors.mutedText,
                         ),
                       ),
@@ -425,7 +444,7 @@ class _ThemeScreenState extends State<ThemeScreen> {
     // The cover takes whatever height is left, up to these caps, so the whole
     // setup fits on one screen. Below the minimum layout height (a short
     // phone with the keyboard open) the page scrolls instead of overflowing.
-    final maxCover = tablet ? 380.0 : 280.0;
+    final maxCover = tablet ? 430.0 : 330.0;
     const minLayoutHeight = 620.0;
     final currentTitle = _titleController.text.trim();
     final selectedTheme = _selectedTheme;
@@ -463,7 +482,7 @@ class _ThemeScreenState extends State<ThemeScreen> {
                             context.tr('Hangi hikâyeyi anlatıyoruz?'),
                             style: Theme.of(context).textTheme.headlineSmall
                                 ?.copyWith(
-                                  fontSize: tablet ? 38 : 32,
+                                  fontSize: tablet ? 32 : 26,
                                   height: 1.12,
                                 ),
                           ),
@@ -476,8 +495,8 @@ class _ThemeScreenState extends State<ThemeScreen> {
                             key: const ValueKey('selected-theme-summary'),
                             style: TextStyle(
                               color: colors.mutedText,
-                              height: 1.5,
-                              fontSize: 13,
+                              height: 1.35,
+                              fontSize: 12,
                             ),
                           ),
                         ),

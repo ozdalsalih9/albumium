@@ -40,10 +40,7 @@ List<AlbumModel> queryAlbumLibrary(
       AlbumLibrarySort.createdOldest => left.createdAt.compareTo(
         right.createdAt,
       ),
-      AlbumLibrarySort.titleAz => _compareTurkishTitles(
-        left.title,
-        right.title,
-      ),
+      AlbumLibrarySort.titleAz => compareTurkishTitles(left.title, right.title),
     };
 
     return primaryComparison != 0
@@ -68,7 +65,9 @@ bool _matchesFilter(AlbumModel album, AlbumLibraryFilter filter) =>
 String _toTurkishLowerCase(String value) =>
     value.replaceAll('I', 'ı').replaceAll('İ', 'i').toLowerCase();
 
-int _compareTurkishTitles(String left, String right) {
+/// Orders text the way Turkish readers expect, where ç, ğ, ı, ö, ş and ü
+/// each have their own place in the alphabet.
+int compareTurkishTitles(String left, String right) {
   final leftRunes = _toTurkishLowerCase(left).runes.toList(growable: false);
   final rightRunes = _toTurkishLowerCase(right).runes.toList(growable: false);
   final sharedLength = leftRunes.length < rightRunes.length

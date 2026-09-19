@@ -63,6 +63,12 @@ class _ThemePagePainter extends CustomPainter {
       _paintSpecialCard(canvas, size);
       return;
     }
+    // Every city cover is a travel album, so its pages get the postcard style
+    // instead of falling through to the plain default.
+    if (themeId.startsWith('travel_')) {
+      _paintTravel(canvas, size);
+      return;
+    }
     switch (themeId) {
       case 'soft_romance':
         _paintSoftRomance(canvas, size);
