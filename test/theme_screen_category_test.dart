@@ -92,6 +92,27 @@ void main() {
     expect(_summary(tester), startsWith('Soft Romance ·'));
   });
 
+  testWidgets('the carousel shows the cover the screen is describing', (
+    tester,
+  ) async {
+    await _pumpPicker(tester);
+
+    await _tapCategory(tester, 'theme-category-travel');
+    await _tapCategory(tester, 'theme-category-all');
+
+    // Going back to "Tümü" used to leave the carousel on the first cover
+    // while the summary and the primary button still described the travel
+    // one, so a free cover looked locked.
+    final travel = themesInCategory(AlbumThemeCategory.travel).first;
+    final page = tester
+        .widget<PageView>(find.byKey(const ValueKey('theme-carousel')))
+        .controller!
+        .page!
+        .round();
+    expect(albumThemes[page].id, travel.id);
+    expect(_summary(tester), startsWith('${travel.name} ·'));
+  });
+
   testWidgets('the picker can open already filtered to one category', (
     tester,
   ) async {
