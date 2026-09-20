@@ -438,6 +438,15 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
     _changed();
   }
 
+  /// A second tap on the selected text opens the editor, the way tapping
+  /// twice works in most apps. Other element types keep their toolbar button.
+  Future<void> _activateElement(String elementId) async {
+    final element = selectedElement;
+    if (element == null || element.id != elementId || element.locked) return;
+    if (element.type != AlbumElementType.text) return;
+    await _editSelected();
+  }
+
   Future<void> _editSelected() async {
     final element = selectedElement;
     if (element == null || element.locked) return;
@@ -946,6 +955,7 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
                             interactive: true,
                             selectedId: _selectedId,
                             onSelect: (id) => setState(() => _selectedId = id),
+                            onActivate: _activateElement,
                             onChanged: _changed,
                             showPageNumber: false,
                           ),

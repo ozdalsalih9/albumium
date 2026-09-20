@@ -71,6 +71,7 @@ class AlbumPageCanvas extends StatelessWidget {
     this.interactive = false,
     this.selectedId,
     this.onSelect,
+    this.onActivate,
     this.onChanged,
     this.onLongPressElement,
     this.onLongPressCanvas,
@@ -82,6 +83,13 @@ class AlbumPageCanvas extends StatelessWidget {
   final bool interactive;
   final String? selectedId;
   final ValueChanged<String?>? onSelect;
+
+  /// Called when an already-selected element is tapped again.
+  ///
+  /// The first tap selects, the second opens the element's editor, the way
+  /// text behaves nearly everywhere else. Without it people have to find the
+  /// toolbar button to change a word.
+  final ValueChanged<String>? onActivate;
   final VoidCallback? onChanged;
 
   /// Called when the user long-presses an element. Provides the element ID
@@ -201,6 +209,7 @@ class AlbumPageCanvas extends StatelessWidget {
                       interactive: interactive,
                       selectedId: selectedId,
                       onSelect: onSelect,
+                      onActivate: onActivate,
                       onChanged: onChanged,
                       onLongPressElement: onLongPressElement,
                     ),
@@ -232,6 +241,7 @@ class _AlbumElementsLayer extends StatefulWidget {
     required this.interactive,
     required this.selectedId,
     required this.onSelect,
+    required this.onActivate,
     required this.onChanged,
     this.onLongPressElement,
   });
@@ -242,6 +252,7 @@ class _AlbumElementsLayer extends StatefulWidget {
   final bool interactive;
   final String? selectedId;
   final ValueChanged<String?>? onSelect;
+  final ValueChanged<String>? onActivate;
   final VoidCallback? onChanged;
   final void Function(String elementId, Offset globalPosition)?
   onLongPressElement;
@@ -253,6 +264,16 @@ class _AlbumElementsLayer extends StatefulWidget {
 class _AlbumElementsLayerState extends State<_AlbumElementsLayer> {
   void _geometryChanged() {
     if (mounted) setState(() {});
+  }
+
+  /// Selects an element, or opens it when it was already the selected one.
+  void _handleTap(String elementId) {
+    final activate = widget.onActivate;
+    if (activate != null && elementId == widget.selectedId) {
+      activate(elementId);
+      return;
+    }
+    widget.onSelect?.call(elementId);
   }
 
   @override
@@ -272,7 +293,7 @@ class _AlbumElementsLayerState extends State<_AlbumElementsLayer> {
             theme: widget.theme,
             pageSize: widget.pageSize,
             interactive: widget.interactive,
-            onSelect: () => widget.onSelect?.call(element.id),
+            onSelect: () => _handleTap(element.id),
             onGeometryChanged: _geometryChanged,
             onChanged: widget.onChanged,
             onLongPress: widget.onLongPressElement == null

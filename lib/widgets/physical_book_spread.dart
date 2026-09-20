@@ -44,6 +44,7 @@ class PhysicalBookSpread extends StatelessWidget {
     this.selectedElementId,
     this.onSelectPage,
     this.onSelectElement,
+    this.onActivateElement,
     this.onChanged,
     this.onLongPressElement,
     this.onLongPressCanvas,
@@ -85,6 +86,9 @@ class PhysicalBookSpread extends StatelessWidget {
   final String? selectedElementId;
   final ValueChanged<int>? onSelectPage;
   final ValueChanged<String?>? onSelectElement;
+
+  /// Called when the selected element is tapped a second time.
+  final ValueChanged<String>? onActivateElement;
   final VoidCallback? onChanged;
   final void Function(String elementId, Offset globalPosition)?
   onLongPressElement;
@@ -681,6 +685,7 @@ class PhysicalBookSpread extends StatelessWidget {
           onSelectPage?.call(index);
           onSelectElement?.call(id);
         },
+        onActivate: onActivateElement,
         onChanged: onChanged,
         onLongPressElement: onLongPressElement,
         onLongPressCanvas: onLongPressCanvas == null

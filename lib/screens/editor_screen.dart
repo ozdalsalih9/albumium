@@ -592,6 +592,15 @@ class _EditorScreenState extends State<EditorScreen>
     _changed();
   }
 
+  /// A second tap on the selected element opens it, so changing a word does
+  /// not depend on finding the right toolbar button.
+  Future<void> _activateElement(String elementId) async {
+    final element = selectedElement;
+    if (element == null || element.id != elementId || element.locked) return;
+    if (element.type != AlbumElementType.text) return;
+    await _editSelectedText(element);
+  }
+
   Future<void> _editSelectedText(AlbumElementModel element) async {
     final result = await showDialog<TextElementResult>(
       context: context,
@@ -1621,6 +1630,7 @@ class _EditorScreenState extends State<EditorScreen>
                                       onSelectPage: _selectPage,
                                       onSelectElement: (id) =>
                                           setState(() => _selectedId = id),
+                                      onActivateElement: _activateElement,
                                       onChanged: _canvasChanged,
                                       onLongPressElement:
                                           _showElementContextMenu,
