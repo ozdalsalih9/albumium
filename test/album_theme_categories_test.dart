@@ -44,14 +44,59 @@ void main() {
     expect(cityCovers, isNotEmpty);
     expect(cityCovers.every((theme) => !theme.isPremium), isTrue);
 
-    expect(albumThemes.where((theme) => theme.isPremium).map((t) => t.id), {
-      'vintage_diary',
-      'animals',
-      'travel_postcard',
-      'best_friends',
-      'minimal_editorial',
-      'dark_leather',
-    });
+    expect(
+      albumThemes
+          .where((theme) => theme.price == CoverPrice.premium)
+          .map((t) => t.id),
+      {
+        'vintage_diary',
+        'animals',
+        'travel_postcard',
+        'best_friends',
+        'minimal_editorial',
+        'dark_leather',
+        'family_tree',
+        'love_velvet',
+        'wedding_silk',
+        'friendship_knot',
+        'animals_companions',
+      },
+    );
+    expect(
+      albumThemes
+          .where((theme) => theme.price == CoverPrice.standard)
+          .map((t) => t.id),
+      {
+        'family_nest',
+        'love_swans',
+        'wedding_arch',
+        'friendship_promise',
+        'animals_wreath',
+      },
+    );
+  });
+
+  test('every category can be tried without paying', () {
+    // A locked category would be a dead end: the covers are the only way in.
+    for (final category in AlbumThemeCategory.values) {
+      expect(
+        themesInCategory(category).where((theme) => !theme.isPremium),
+        isNotEmpty,
+        reason: '${category.label} has no free cover.',
+      );
+    }
+  });
+
+  test('a price is shown exactly when the cover is paid', () {
+    for (final theme in albumThemes) {
+      expect(
+        theme.price.label != null,
+        theme.isPremium,
+        reason: '${theme.id} disagrees about whether it costs anything.',
+      );
+    }
+    expect(CoverPrice.standard.label, '₺14,99');
+    expect(CoverPrice.premium.label, '₺49,99');
   });
 
   test('every cover ships artwork', () {

@@ -101,9 +101,10 @@ class _CoverCatalogScreenState extends State<CoverCatalogScreen> {
 
     switch (_sort) {
       case CoverCatalogSort.paidFirst:
+        // Dearest first, so the richest covers open the shelf.
         covers.sort((a, b) {
-          if (a.isPremium != b.isPremium) return a.isPremium ? -1 : 1;
-          return byName(a, b);
+          final byPrice = b.price.index.compareTo(a.price.index);
+          return byPrice != 0 ? byPrice : byName(a, b);
         });
       case CoverCatalogSort.alphabetical:
         covers.sort(byName);

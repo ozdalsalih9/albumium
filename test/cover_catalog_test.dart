@@ -21,7 +21,9 @@ Future<CoverEntitlements> _emptyStore() async {
 Future<List<String>> _pumpCatalog(
   WidgetTester tester, {
   required CoverEntitlements entitlements,
-  Size size = const Size(1200, 1600),
+  // Tall enough that the whole shelf is laid out: the grid builds lazily,
+  // and the free covers now sit below the paid ones.
+  Size size = const Size(1200, 4200),
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -178,6 +180,16 @@ void main() {
     final lastPaid = shown.lastIndexWhere((theme) => theme.isPremium);
     expect(firstFree, isNonNegative);
     expect(lastPaid, lessThan(firstFree), reason: 'paid covers come first');
+
+    // Within the paid ones the dearer tier leads.
+    final lastPremium = shown.lastIndexWhere(
+      (theme) => theme.price == CoverPrice.premium,
+    );
+    final firstStandard = shown.indexWhere(
+      (theme) => theme.price == CoverPrice.standard,
+    );
+    expect(firstStandard, isNonNegative);
+    expect(lastPremium, lessThan(firstStandard));
 
     // İstanbul sorts by "i", so it belongs before Kapadokya rather than after
     // Trabzon where a code-unit sort puts it.

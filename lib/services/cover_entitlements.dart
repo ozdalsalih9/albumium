@@ -28,7 +28,7 @@ class LocalCoverPurchaseSource implements CoverPurchaseSource {
   const LocalCoverPurchaseSource();
 
   @override
-  String priceLabelFor(String themeId) => CoverEntitlements.coverPriceLabel;
+  String priceLabelFor(String themeId) => themeById(themeId).price.label ?? '';
 
   @override
   Future<bool> purchase(String themeId) async => true;
@@ -49,9 +49,6 @@ class CoverEntitlements extends ChangeNotifier {
        _source = source;
 
   static const purchasedCoversPreferenceKey = 'albumium.purchased_covers.v1';
-
-  /// Every premium cover costs the same, so the label lives in one place.
-  static const coverPriceLabel = '₺49,99';
 
   /// Product ids are derived, so Play Console entries can be added later
   /// without a second mapping table.

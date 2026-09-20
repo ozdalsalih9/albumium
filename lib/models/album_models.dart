@@ -65,6 +65,22 @@ enum AlbumThemeCategory {
   final IconData icon;
 }
 
+/// What a cover costs.
+///
+/// The price belongs to the catalogue rather than to the store, so a cover and
+/// its price can never drift apart. Real amounts will come from Play Console
+/// once billing is wired up; these labels are what the app shows meanwhile.
+enum CoverPrice {
+  free(null),
+  standard('₺14,99'),
+  premium('₺49,99');
+
+  const CoverPrice(this.label);
+
+  /// Null for a free cover, which shows no price anywhere.
+  final String? label;
+}
+
 class AlbumThemePreset {
   const AlbumThemePreset({
     required this.id,
@@ -77,7 +93,7 @@ class AlbumThemePreset {
     required this.accent,
     required this.textureLabel,
     this.category = AlbumThemeCategory.love,
-    this.isPremium = false,
+    this.price = CoverPrice.free,
     this.coverAsset,
   });
 
@@ -94,9 +110,12 @@ class AlbumThemePreset {
   /// Where the cover shows up in the picker.
   final AlbumThemeCategory category;
 
-  /// Premium covers have to be unlocked before a new album can use them.
+  /// What the cover costs, if anything.
+  final CoverPrice price;
+
+  /// Paid covers have to be unlocked before a new album can use them.
   /// Albums already saved with the theme keep rendering it either way.
-  final bool isPremium;
+  bool get isPremium => price != CoverPrice.free;
 
   /// Optional high-resolution physical cover artwork. The artwork is kept
   /// separate from the saved album JSON, so older albums gain the richer
@@ -129,7 +148,7 @@ const albumThemes = <AlbumThemePreset>[
     accent: VintageDiaryPalette.sepia,
     textureLabel: 'Deri',
     category: AlbumThemeCategory.family,
-    isPremium: true,
+    price: CoverPrice.premium,
     coverAsset: 'assets/covers/cover-vintage-quill.webp',
   ),
   AlbumThemePreset(
@@ -143,7 +162,7 @@ const albumThemes = <AlbumThemePreset>[
     accent: AnimalsPalette.deepSage,
     textureLabel: 'Pati',
     category: AlbumThemeCategory.animals,
-    isPremium: true,
+    price: CoverPrice.premium,
     coverAsset: 'assets/covers/cover-obsidian-lion.webp',
   ),
   AlbumThemePreset(
@@ -157,7 +176,7 @@ const albumThemes = <AlbumThemePreset>[
     accent: TravelPostcardPalette.airmailRed,
     textureLabel: 'Kanvas',
     category: AlbumThemeCategory.travel,
-    isPremium: true,
+    price: CoverPrice.premium,
     coverAsset: 'assets/covers/cover-atlas-compass.webp',
   ),
   AlbumThemePreset(
@@ -171,7 +190,7 @@ const albumThemes = <AlbumThemePreset>[
     accent: BestFriendsPalette.deepViolet,
     textureLabel: 'Parlak',
     category: AlbumThemeCategory.friendship,
-    isPremium: true,
+    price: CoverPrice.premium,
     coverAsset: 'assets/covers/cover-emerald-friendship.webp',
   ),
   AlbumThemePreset(
@@ -185,7 +204,7 @@ const albumThemes = <AlbumThemePreset>[
     accent: MinimalEditorialPalette.accent,
     textureLabel: 'Mat',
     category: AlbumThemeCategory.wedding,
-    isPremium: true,
+    price: CoverPrice.premium,
     coverAsset: 'assets/covers/cover-minimal-editorial.webp',
   ),
   AlbumThemePreset(
@@ -199,7 +218,7 @@ const albumThemes = <AlbumThemePreset>[
     accent: DarkLeatherPalette.gold,
     textureLabel: 'Deri',
     category: AlbumThemeCategory.wedding,
-    isPremium: true,
+    price: CoverPrice.premium,
     coverAsset: 'assets/covers/cover-obsidian-lion.webp',
   ),
   // City covers. They are free: the travel set is what brings people in.
@@ -332,6 +351,213 @@ const albumThemes = <AlbumThemePreset>[
     textureLabel: 'Kanvas',
     category: AlbumThemeCategory.travel,
     coverAsset: 'assets/covers/cover-travel-aydin.webp',
+  ),
+  // Painted covers for the remaining categories. Each category keeps one free
+  // cover, so an album can always be started without paying.
+  AlbumThemePreset(
+    id: 'family_tree',
+    name: 'Soyağacı',
+    subtitle: 'Altın yapraklı aile ağacı',
+    emoji: '🌳',
+    coverStart: Color(0xFFEFE5D6),
+    coverEnd: Color(0xFF8A6A3A),
+    pageColor: Color(0xFFFAF4E8),
+    accent: Color(0xFFB08A4A),
+    textureLabel: 'Kanvas',
+    category: AlbumThemeCategory.family,
+    price: CoverPrice.premium,
+    coverAsset: 'assets/covers/cover-family-tree.webp',
+  ),
+  AlbumThemePreset(
+    id: 'family_nest',
+    name: 'Yuva',
+    subtitle: 'Çiçekli dalda kuş ailesi',
+    emoji: '🐦',
+    coverStart: Color(0xFFF5EBDC),
+    coverEnd: Color(0xFF3A5D7A),
+    pageColor: Color(0xFFFAF4E8),
+    accent: Color(0xFF4A7CA0),
+    textureLabel: 'Kanvas',
+    category: AlbumThemeCategory.family,
+    price: CoverPrice.standard,
+    coverAsset: 'assets/covers/cover-family-nest.webp',
+  ),
+  AlbumThemePreset(
+    id: 'family_home',
+    name: 'Sıcak Yuva',
+    subtitle: 'Kalplerle çizilmiş sade ev',
+    emoji: '🏡',
+    coverStart: Color(0xFFFCF9F0),
+    coverEnd: Color(0xFFC96F52),
+    pageColor: Color(0xFFFCF9F0),
+    accent: Color(0xFFC96F52),
+    textureLabel: 'Mat',
+    category: AlbumThemeCategory.family,
+    coverAsset: 'assets/covers/cover-family-home.webp',
+  ),
+  AlbumThemePreset(
+    id: 'love_velvet',
+    name: 'Kadife Kalp',
+    subtitle: 'Bordo kadife üzerine gül çelengi',
+    emoji: '🌹',
+    coverStart: Color(0xFF7A1F2A),
+    coverEnd: Color(0xFF3A0508),
+    pageColor: Color(0xFFF7EFE6),
+    accent: Color(0xFFC9A227),
+    textureLabel: 'Kadife',
+    category: AlbumThemeCategory.love,
+    price: CoverPrice.premium,
+    coverAsset: 'assets/covers/cover-love-velvet.webp',
+  ),
+  AlbumThemePreset(
+    id: 'love_swans',
+    name: 'Kuğular',
+    subtitle: 'Gölde suluboya kuğu çifti',
+    emoji: '🦢',
+    coverStart: Color(0xFFF3E4E0),
+    coverEnd: Color(0xFF7E9BA8),
+    pageColor: Color(0xFFF8EEE3),
+    accent: Color(0xFFE0A9B0),
+    textureLabel: 'Kanvas',
+    category: AlbumThemeCategory.love,
+    price: CoverPrice.standard,
+    coverAsset: 'assets/covers/cover-love-swans.webp',
+  ),
+  AlbumThemePreset(
+    id: 'love_hearts',
+    name: 'İki Kalp',
+    subtitle: 'İç içe geçmiş sade kalpler',
+    emoji: '💗',
+    coverStart: Color(0xFFF9F4EA),
+    coverEnd: Color(0xFFC98B86),
+    pageColor: Color(0xFFF9F4EA),
+    accent: Color(0xFFC98B86),
+    textureLabel: 'Mat',
+    category: AlbumThemeCategory.love,
+    coverAsset: 'assets/covers/cover-love-hearts.webp',
+  ),
+  AlbumThemePreset(
+    id: 'wedding_silk',
+    name: 'İpek Nikâh',
+    subtitle: 'Saten üzerine alyanslar ve güller',
+    emoji: '💍',
+    coverStart: Color(0xFFF1E9DF),
+    coverEnd: Color(0xFFB79A6A),
+    pageColor: Color(0xFFFAF5EE),
+    accent: Color(0xFFC9A961),
+    textureLabel: 'Saten',
+    category: AlbumThemeCategory.wedding,
+    price: CoverPrice.premium,
+    coverAsset: 'assets/covers/cover-wedding-silk.webp',
+  ),
+  AlbumThemePreset(
+    id: 'wedding_arch',
+    name: 'Nikâh Kemeri',
+    subtitle: 'Çiçekli kemer ve alyanslar',
+    emoji: '🌸',
+    coverStart: Color(0xFFFBF5EB),
+    coverEnd: Color(0xFF9E8A6A),
+    pageColor: Color(0xFFFBF5EB),
+    accent: Color(0xFFE3B3B0),
+    textureLabel: 'Kanvas',
+    category: AlbumThemeCategory.wedding,
+    price: CoverPrice.standard,
+    coverAsset: 'assets/covers/cover-wedding-arch.webp',
+  ),
+  AlbumThemePreset(
+    id: 'wedding_rings',
+    name: 'Alyans',
+    subtitle: 'Sade altın yüzükler',
+    emoji: '✨',
+    coverStart: Color(0xFFFBF6EC),
+    coverEnd: Color(0xFFC9A961),
+    pageColor: Color(0xFFFBF6EC),
+    accent: Color(0xFFC9A961),
+    textureLabel: 'Mat',
+    category: AlbumThemeCategory.wedding,
+    coverAsset: 'assets/covers/cover-wedding-rings.webp',
+  ),
+  AlbumThemePreset(
+    id: 'friendship_knot',
+    name: 'Düğüm',
+    subtitle: 'Petrol yeşili üzerine halka düğüm',
+    emoji: '🪢',
+    coverStart: Color(0xFF2E6B6B),
+    coverEnd: Color(0xFF04262A),
+    pageColor: Color(0xFFF3EDE2),
+    accent: Color(0xFFD98C86),
+    textureLabel: 'Keten',
+    category: AlbumThemeCategory.friendship,
+    price: CoverPrice.premium,
+    coverAsset: 'assets/covers/cover-friendship-knot.webp',
+  ),
+  AlbumThemePreset(
+    id: 'friendship_promise',
+    name: 'Söz',
+    subtitle: 'Serçe parmak sözü ve yapraklar',
+    emoji: '🤝',
+    coverStart: Color(0xFFFCF7F0),
+    coverEnd: Color(0xFF7E93A8),
+    pageColor: Color(0xFFFCF7F0),
+    accent: Color(0xFF8FA98F),
+    textureLabel: 'Kanvas',
+    category: AlbumThemeCategory.friendship,
+    price: CoverPrice.standard,
+    coverAsset: 'assets/covers/cover-friendship-promise.webp',
+  ),
+  AlbumThemePreset(
+    id: 'friendship_vow',
+    name: 'Sözümüz',
+    subtitle: 'Tek çizgiyle serçe parmak',
+    emoji: '🤙',
+    coverStart: Color(0xFFFEFCF2),
+    coverEnd: Color(0xFFD08A6A),
+    pageColor: Color(0xFFFEFCF2),
+    accent: Color(0xFFD08A6A),
+    textureLabel: 'Mat',
+    category: AlbumThemeCategory.friendship,
+    coverAsset: 'assets/covers/cover-friendship-vow.webp',
+  ),
+  AlbumThemePreset(
+    id: 'animals_companions',
+    name: 'Can Dostlar',
+    subtitle: 'Köpek ve kedi suluboya portresi',
+    emoji: '🐶',
+    coverStart: Color(0xFFFDF8EB),
+    coverEnd: Color(0xFF8A6A48),
+    pageColor: Color(0xFFFDF8EB),
+    accent: Color(0xFFC99A5A),
+    textureLabel: 'Kanvas',
+    category: AlbumThemeCategory.animals,
+    price: CoverPrice.premium,
+    coverAsset: 'assets/covers/cover-animals-companions.webp',
+  ),
+  AlbumThemePreset(
+    id: 'animals_wreath',
+    name: 'Pati Çelengi',
+    subtitle: 'Pati, tüy ve kelebek çelengi',
+    emoji: '🦋',
+    coverStart: Color(0xFFFDF7EA),
+    coverEnd: Color(0xFF7E8F6A),
+    pageColor: Color(0xFFFDF7EA),
+    accent: Color(0xFFC08A5A),
+    textureLabel: 'Kanvas',
+    category: AlbumThemeCategory.animals,
+    price: CoverPrice.standard,
+    coverAsset: 'assets/covers/cover-animals-wreath.webp',
+  ),
+  AlbumThemePreset(
+    id: 'animals_paw',
+    name: 'Pati İzi',
+    subtitle: 'Adaçayı yeşili sade pati',
+    emoji: '🐾',
+    coverStart: Color(0xFFFBF7ED),
+    coverEnd: Color(0xFF7E8F6A),
+    pageColor: Color(0xFFFBF7ED),
+    accent: Color(0xFF7E8F6A),
+    textureLabel: 'Mat',
+    category: AlbumThemeCategory.animals,
+    coverAsset: 'assets/covers/cover-animals-paw.webp',
   ),
 ];
 

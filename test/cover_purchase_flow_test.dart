@@ -54,7 +54,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('theme-primary-action')),
-        matching: find.textContaining(CoverEntitlements.coverPriceLabel),
+        matching: find.textContaining(locked.price.label!),
       ),
       findsOneWidget,
     );

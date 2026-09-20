@@ -69,6 +69,28 @@ class _ThemePagePainter extends CustomPainter {
       _paintTravel(canvas, size);
       return;
     }
+    // The painted covers added per category borrow the page style of the
+    // theme that already represents that category.
+    if (themeId.startsWith('love_')) {
+      _paintSoftRomance(canvas, size);
+      return;
+    }
+    if (themeId.startsWith('family_')) {
+      _paintVintageDiary(canvas, size);
+      return;
+    }
+    if (themeId.startsWith('friendship_')) {
+      _paintBestFriends(canvas, size);
+      return;
+    }
+    if (themeId.startsWith('animals_')) {
+      _paintAnimals(canvas, size);
+      return;
+    }
+    if (themeId.startsWith('wedding_')) {
+      _paintMinimalEditorial(canvas, size);
+      return;
+    }
     switch (themeId) {
       case 'soft_romance':
         _paintSoftRomance(canvas, size);

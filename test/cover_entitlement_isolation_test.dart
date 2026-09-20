@@ -79,7 +79,7 @@ void main() {
       findsNothing,
     );
     expect(
-      find.textContaining(CoverEntitlements.coverPriceLabel),
+      find.textContaining(themeById('dark_leather').price.label!),
       findsNothing,
     );
     expect(tester.takeException(), isNull);
