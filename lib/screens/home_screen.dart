@@ -124,6 +124,9 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
     if (album == null || !mounted) return;
+    // A new album belongs to the library, so that is where closing the editor
+    // leaves the user, not back on the shelf the cover was picked from.
+    if (_section != 0) setState(() => _section = 0);
     await _openAlbum(album);
   }
 
@@ -1161,7 +1164,6 @@ class _AlbumGridItem extends StatelessWidget {
                                 album: album,
                                 compact: true,
                                 perspective: false,
-                                showTitle: false,
                               ),
                       ),
                     ),

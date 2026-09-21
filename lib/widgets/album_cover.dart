@@ -199,100 +199,119 @@ class _OrnateAssetCover extends StatelessWidget {
                 ),
                 const _CoverMaterialLighting(),
                 if (title.isNotEmpty)
-                  Positioned(
-                    left: 46,
-                    right: 26,
-                    bottom: 38,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Color.lerp(
-                          theme.coverEnd,
-                          Colors.black,
-                          0.48,
-                        )!.withValues(alpha: 0.90),
-                        borderRadius: BorderRadius.circular(7),
-                        border: Border.all(
-                          color: gold.withValues(alpha: 0.85),
-                          width: 1.1,
-                        ),
-                        boxShadow: [
-                          const BoxShadow(
-                            color: Color(0x88000000),
-                            blurRadius: 14,
-                            offset: Offset(0, 6),
-                          ),
-                          BoxShadow(
-                            color: gold.withValues(alpha: 0.20),
-                            blurRadius: 10,
-                          ),
-                        ],
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 11,
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'ALBUMIUM',
-                              style: TextStyle(
-                                color: gold.withValues(alpha: 0.84),
-                                fontSize: 7.5,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 2.7,
+                  Positioned.fill(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        // The plate is drawn for the 300 px wide cover above,
+                        // so it has to shrink along with it. At library
+                        // thumbnail size a fixed plate swallows the artwork.
+                        final scale = (constraints.maxWidth / 300)
+                            .clamp(0.5, 1.25)
+                            .toDouble();
+                        return Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                              left: 46 * scale,
+                              right: 26 * scale,
+                              bottom: 38 * scale,
+                            ),
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: Color.lerp(
+                                  theme.coverEnd,
+                                  Colors.black,
+                                  0.48,
+                                )!.withValues(alpha: 0.90),
+                                borderRadius: BorderRadius.circular(7 * scale),
+                                border: Border.all(
+                                  color: gold.withValues(alpha: 0.85),
+                                  width: 1.1 * scale,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0x88000000),
+                                    blurRadius: 14 * scale,
+                                    offset: Offset(0, 6 * scale),
+                                  ),
+                                  BoxShadow(
+                                    color: gold.withValues(alpha: 0.20),
+                                    blurRadius: 10 * scale,
+                                  ),
+                                ],
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            Container(
-                              height: 0.7,
-                              color: gold.withValues(alpha: 0.5),
-                            ),
-                            const SizedBox(height: 6),
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                title,
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: const Color(0xFFFFF4DD),
-                                  fontFamily: 'serif',
-                                  fontSize: title.length > 18 ? 16 : 21,
-                                  height: 1.05,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.2,
-                                  shadows: const [
-                                    Shadow(
-                                      color: Color(0xCC000000),
-                                      blurRadius: 3,
-                                      offset: Offset(0, 2),
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 14 * scale,
+                                  vertical: 11 * scale,
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'ALBUMIUM',
+                                      style: TextStyle(
+                                        color: gold.withValues(alpha: 0.84),
+                                        fontSize: 7.5 * scale,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 2.7 * scale,
+                                      ),
+                                    ),
+                                    SizedBox(height: 6 * scale),
+                                    Container(
+                                      height: 0.7 * scale,
+                                      color: gold.withValues(alpha: 0.5),
+                                    ),
+                                    SizedBox(height: 6 * scale),
+                                    FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        title,
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: const Color(0xFFFFF4DD),
+                                          fontFamily: 'serif',
+                                          fontSize:
+                                              (title.length > 18 ? 16 : 21) *
+                                              scale,
+                                          height: 1.05,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.2,
+                                          shadows: const [
+                                            Shadow(
+                                              color: Color(0xCC000000),
+                                              blurRadius: 3,
+                                              offset: Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(height: 6 * scale),
+                                    Container(
+                                      height: 0.7 * scale,
+                                      color: gold.withValues(alpha: 0.5),
+                                    ),
+                                    SizedBox(height: 5 * scale),
+                                    Text(
+                                      theme.name.toUpperCase(),
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: gold.withValues(alpha: 0.78),
+                                        fontSize: 6.8 * scale,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 1.8 * scale,
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 6),
-                            Container(
-                              height: 0.7,
-                              color: gold.withValues(alpha: 0.5),
-                            ),
-                            const SizedBox(height: 5),
-                            Text(
-                              theme.name.toUpperCase(),
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: gold.withValues(alpha: 0.78),
-                                fontSize: 6.8,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 1.8,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 Positioned.fill(

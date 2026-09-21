@@ -176,7 +176,9 @@ void main() {
           for (final cover in tester.widgetList<AlbumCover3D>(
             find.byType(AlbumCover3D),
           )) {
-            expect(cover.showTitle, isFalse);
+            // The name belongs on the cover, the way it shows when the album
+            // opens; the caption underneath repeats it for long titles.
+            expect(cover.showTitle, isTrue);
           }
           expect(tester.takeException(), isNull);
 
