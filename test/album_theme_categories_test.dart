@@ -95,8 +95,8 @@ void main() {
         reason: '${theme.id} disagrees about whether it costs anything.',
       );
     }
-    expect(CoverPrice.standard.label, '₺14,99');
-    expect(CoverPrice.premium.label, '₺49,99');
+    expect(CoverPrice.standard.label, '₺4,99');
+    expect(CoverPrice.premium.label, '₺14,99');
   });
 
   test('every cover ships artwork', () {

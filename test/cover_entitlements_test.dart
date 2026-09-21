@@ -12,7 +12,7 @@ class _FakeSource implements CoverPurchaseSource {
   final List<String> attempted = [];
 
   @override
-  String priceLabelFor(String themeId) => '₺49,99';
+  String priceLabelFor(String themeId) => '₺14,99';
 
   @override
   Future<bool> purchase(String themeId) async {

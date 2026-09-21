@@ -72,8 +72,8 @@ enum AlbumThemeCategory {
 /// once billing is wired up; these labels are what the app shows meanwhile.
 enum CoverPrice {
   free(null),
-  standard('₺14,99'),
-  premium('₺49,99');
+  standard('₺4,99'),
+  premium('₺14,99');
 
   const CoverPrice(this.label);
 
