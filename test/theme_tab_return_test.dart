@@ -58,5 +58,13 @@ void main() {
       0,
       reason: 'closing the new album should reveal the library, not the shelf',
     );
+    // The cover page that started the album must not be waiting underneath.
+    expect(
+      find.byKey(
+        const ValueKey('cover-detail-travel_istanbul'),
+        skipOffstage: false,
+      ),
+      findsNothing,
+    );
   });
 }

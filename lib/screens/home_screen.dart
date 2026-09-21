@@ -114,6 +114,10 @@ class _HomeScreenState extends State<HomeScreen> {
     String? themeId,
   }) async {
     HapticFeedback.selectionClick();
+    // The cover detail page is still on the stack when the album starts from
+    // the catalogue, and it has to go: otherwise leaving the editor uncovers
+    // the shelf the cover came from instead of the library.
+    final homeRoute = ModalRoute.of(context);
     final album = await Navigator.of(context).push<AlbumModel>(
       MaterialPageRoute(
         builder: (_) => ThemeScreen(
@@ -125,8 +129,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
     if (album == null || !mounted) return;
     // A new album belongs to the library, so that is where closing the editor
-    // leaves the user, not back on the shelf the cover was picked from.
+    // leaves the user.
     if (_section != 0) setState(() => _section = 0);
+    if (homeRoute != null && homeRoute.isActive) {
+      Navigator.of(context).popUntil((route) => route == homeRoute);
+    }
     await _openAlbum(album);
   }
 
