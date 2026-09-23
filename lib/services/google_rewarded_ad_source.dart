@@ -79,9 +79,59 @@ class _NoAdAvailable implements Exception {
 /// available.
 Future<void> initializeAds() async {
   try {
+    // Consent comes first. In the EU an ad may not be requested before the
+    // user has answered, and the answer decides whether ads can be asked for
+    // at all — so the SDK is started only once Google says it may be.
+    await gatherAdConsent();
+    if (!await ConsentInformation.instance.canRequestAds()) return;
     await MobileAds.instance.initialize();
     RewardedAds.configure(const GoogleRewardedAdSource());
   } catch (error, stack) {
     ErrorReporter.report(error, stack, context: 'MobileAds.initialize');
   }
+}
+
+/// Shows Google's consent form where the law requires one.
+///
+/// Outside those regions the form never appears and this returns straight
+/// away. Google decides which users see it, from the message configured in
+/// the AdMob console.
+Future<void> gatherAdConsent() {
+  final gathered = Completer<void>();
+  void finish() {
+    if (!gathered.isCompleted) gathered.complete();
+  }
+
+  try {
+    ConsentInformation.instance.requestConsentInfoUpdate(
+      ConsentRequestParameters(),
+      () async {
+        try {
+          await ConsentForm.loadAndShowConsentFormIfRequired((error) {
+            if (error != null) {
+              ErrorReporter.report(
+                error,
+                null,
+                context: 'consent form dismissed',
+              );
+            }
+            finish();
+          });
+        } catch (error, stack) {
+          ErrorReporter.report(error, stack, context: 'consent form');
+          finish();
+        }
+      },
+      (error) {
+        // Not reaching Google is not consent; canRequestAds then decides, and
+        // in the EU it says no, which is the safe answer.
+        ErrorReporter.report(error, null, context: 'consent info update');
+        finish();
+      },
+    );
+  } catch (error, stack) {
+    ErrorReporter.report(error, stack, context: 'gatherAdConsent');
+    finish();
+  }
+  return gathered.future;
 }
