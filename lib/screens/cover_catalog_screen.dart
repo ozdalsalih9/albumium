@@ -20,6 +20,20 @@ String _sortLabel(CoverCatalogSort sort) => switch (sort) {
   CoverCatalogSort.alphabetical => 'Alfabetik',
 };
 
+/// What the shelf says about a cover: its price, or how it came to be open.
+///
+/// A cover that was paid for must not read "Ücretsiz" after a reinstall — the
+/// user would think their purchase had been handed to everyone.
+String coverStatusLabel(
+  BuildContext context, {
+  required AlbumThemePreset theme,
+  required bool locked,
+  String? priceLabel,
+}) {
+  if (locked) return priceLabel ?? theme.price.label ?? '';
+  return context.tr(theme.isPremium ? 'Satın alındı' : 'Ücretsiz');
+}
+
 /// A preview album so a cover can be drawn on its own, outside any album.
 AlbumModel coverPreviewAlbum(AlbumThemePreset theme) {
   final date = DateTime(2026);
@@ -338,7 +352,7 @@ class _CoverTile extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                locked ? priceLabel : context.tr('Ücretsiz'),
+                coverStatusLabel(context, theme: theme, locked: locked),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -544,9 +558,14 @@ class _CoverDetailScreenState extends State<CoverDetailScreen> {
                             ),
                           ),
                           Text(
-                            locked
-                                ? widget.entitlements.priceLabelFor(_theme.id)
-                                : context.tr('Ücretsiz'),
+                            coverStatusLabel(
+                              context,
+                              theme: _theme,
+                              locked: locked,
+                              priceLabel: widget.entitlements.priceLabelFor(
+                                _theme.id,
+                              ),
+                            ),
                             style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w700,

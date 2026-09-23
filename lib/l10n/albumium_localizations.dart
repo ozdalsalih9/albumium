@@ -703,6 +703,7 @@ class AlbumiumLocalizations {
     'Önce ücretsiz': 'Free first',
     'Önce ücretli': 'Paid first',
     'Ücretsiz': 'Free',
+    'Satın alındı': 'Purchased',
     'Aramanla eşleşen kapak yok': 'No cover matches your search',
     'Hikâyeni Başlat': 'Start your story',
     // Şehir kapakları
