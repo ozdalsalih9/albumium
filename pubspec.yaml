@@ -2,7 +2,7 @@ name: albumium
 description: "Anılarını etkileşimli dijital albümlere dönüştür."
 publish_to: 'none'
 
-version: 1.28.0+47
+version: 1.29.0+50
 
 environment:
   sdk: ^3.11.5
@@ -28,6 +28,7 @@ dependencies:
   image: ^4.9.2
   gal: ^2.3.3
   google_mobile_ads: ^9.1.0
+  in_app_purchase: ^3.3.1
 
 dev_dependencies:
   flutter_test:

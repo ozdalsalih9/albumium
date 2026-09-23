@@ -12,6 +12,7 @@ import 'screens/home_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'services/album_incoming_intent_service.dart';
 import 'services/albumium_entitlements.dart';
+import 'services/billing_startup.dart';
 import 'services/cover_entitlements.dart';
 import 'services/google_rewarded_ad_source.dart';
 import 'services/error_reporter.dart';
@@ -50,6 +51,10 @@ Future<void> main() async {
   // screen; see AlbumiumEntitlements.
   final entitlements = AlbumiumEntitlements();
   AlbumiumEntitlements.configure(entitlements);
+  // Same reasoning as the ad SDK: the store is reached in the background, and
+  // until it answers the app shows the catalogue's prices and what this device
+  // already owns.
+  unawaited(startBilling(entitlements));
   await Future.wait([
     themeController.initialize(),
     languageController.initialize(),

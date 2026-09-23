@@ -60,12 +60,18 @@ class FeatureEntitlements extends ChangeNotifier {
   static const purchasedFeaturesPreferenceKey =
       'albumium.purchased_features.v1';
 
-  final FeaturePurchaseSource _source;
+  FeaturePurchaseSource _source;
   SharedPreferences? _preferences;
   Future<void>? _initialization;
   bool _isInitialized = false;
   Set<String> _purchased = <String>{};
   final Set<String> _granted = <String>{};
+
+  /// Swaps in the real store once it answers; see CoverEntitlements.
+  void useSource(FeaturePurchaseSource source) {
+    _source = source;
+    notifyListeners();
+  }
 
   bool get isInitialized => _isInitialized;
   Set<String> get purchasedFeatureIds => Set.unmodifiable(_purchased);
@@ -147,6 +153,27 @@ class FeatureEntitlements extends ChangeNotifier {
     final merged = {..._purchased, ...owned};
     if (merged.length == _purchased.length) return;
     _purchased = merged;
+    notifyListeners();
+    await preferences?.setStringList(
+      purchasedFeaturesPreferenceKey,
+      _purchased.toList()..sort(),
+    );
+  }
+
+  /// Makes the store's list the whole truth.
+  ///
+  /// Unlike [restore], which only adds, this also closes a feature the store
+  /// no longer reports — a refund, a chargeback, a purchase made on another
+  /// account. Only call it with a real store's answer: an empty set from a
+  /// store that could not be reached would wipe what the user paid for.
+  Future<void> applyStoreOwnership(Set<String> owned) async {
+    final preferences = await _getPreferences();
+    final ids = {
+      for (final feature in AlbumiumFeature.values)
+        if (owned.contains(feature.id)) feature.id,
+    };
+    if (ids.length == _purchased.length && ids.containsAll(_purchased)) return;
+    _purchased = ids;
     notifyListeners();
     await preferences?.setStringList(
       purchasedFeaturesPreferenceKey,

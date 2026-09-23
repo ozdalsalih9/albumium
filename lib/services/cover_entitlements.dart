@@ -54,7 +54,16 @@ class CoverEntitlements extends ChangeNotifier {
   /// without a second mapping table.
   static String productIdFor(String themeId) => 'albumium.cover.$themeId';
 
-  final CoverPurchaseSource _source;
+  /// Swaps in the real store once it answers.
+  ///
+  /// The app starts with the local stand-in so the first frame never waits on
+  /// a network round trip, and moves over when Play is reachable.
+  void useSource(CoverPurchaseSource source) {
+    _source = source;
+    notifyListeners();
+  }
+
+  CoverPurchaseSource _source;
   SharedPreferences? _preferences;
   Future<void>? _initialization;
   bool _isInitialized = false;
@@ -109,6 +118,30 @@ class CoverEntitlements extends ChangeNotifier {
     final merged = {..._purchased, ...owned};
     if (merged.length == _purchased.length) return;
     _purchased = merged;
+    notifyListeners();
+    await preferences.setStringList(
+      purchasedCoversPreferenceKey,
+      _purchased.toList()..sort(),
+    );
+  }
+
+  /// Makes the store's list the whole truth.
+  ///
+  /// Unlike [restore], which only adds, this also re-locks a cover the store
+  /// no longer reports — a refund, a chargeback, a purchase made on another
+  /// account. Only call it with a real store's answer: an empty set from a
+  /// store that could not be reached would wipe what the user paid for.
+  ///
+  /// Albums already made keep their cover either way; this gates only what a
+  /// new album may be started with.
+  Future<void> applyStoreOwnership(Set<String> owned) async {
+    final preferences = await _getPreferences();
+    final ids = {
+      for (final theme in albumThemes)
+        if (owned.contains(theme.id)) theme.id,
+    };
+    if (ids.length == _purchased.length && ids.containsAll(_purchased)) return;
+    _purchased = ids;
     notifyListeners();
     await preferences.setStringList(
       purchasedCoversPreferenceKey,
