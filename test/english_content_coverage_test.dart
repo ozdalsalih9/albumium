@@ -47,6 +47,9 @@ void main() {
           'dönüştür.',
       'İstediğin kadar sticker oluştur.',
       'Tüm albümlerinde kullan.',
+      'Satın alındı',
+      'Reklam izinleri',
+      'Reklam izinleri şu anda açılamadı.',
     };
 
     final missing = keys

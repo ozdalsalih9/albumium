@@ -704,6 +704,9 @@ class AlbumiumLocalizations {
     'Önce ücretli': 'Paid first',
     'Ücretsiz': 'Free',
     'Satın alındı': 'Purchased',
+    'Reklam izinleri': 'Ad choices',
+    'Reklam izinleri şu anda açılamadı.':
+        'Ad choices could not be opened right now.',
     'Aramanla eşleşen kapak yok': 'No cover matches your search',
     'Hikâyeni Başlat': 'Start your story',
     // Şehir kapakları

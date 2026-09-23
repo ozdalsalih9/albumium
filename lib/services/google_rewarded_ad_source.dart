@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
+import 'ad_consent.dart';
 import 'ad_ids.dart';
 import 'error_reporter.dart';
 import 'feature_entitlements.dart';
@@ -82,6 +83,7 @@ Future<void> initializeAds() async {
     // Consent comes first. In the EU an ad may not be requested before the
     // user has answered, and the answer decides whether ads can be asked for
     // at all — so the SDK is started only once Google says it may be.
+    AdConsent.configure(const GoogleAdConsentController());
     await gatherAdConsent();
     if (!await ConsentInformation.instance.canRequestAds()) return;
     await MobileAds.instance.initialize();
@@ -134,4 +136,35 @@ Future<void> gatherAdConsent() {
     finish();
   }
   return gathered.future;
+}
+
+/// Reopens Google's consent form so a choice can be changed or withdrawn.
+class GoogleAdConsentController implements AdConsentController {
+  const GoogleAdConsentController();
+
+  @override
+  Future<bool> canChangeChoice() async {
+    try {
+      final status = await ConsentInformation.instance
+          .getPrivacyOptionsRequirementStatus();
+      return status == PrivacyOptionsRequirementStatus.required;
+    } catch (error, stack) {
+      ErrorReporter.report(error, stack, context: 'privacyOptionsStatus');
+      return false;
+    }
+  }
+
+  @override
+  Future<String?> showChoiceForm() async {
+    final failure = Completer<String?>();
+    try {
+      await ConsentForm.showPrivacyOptionsForm((error) {
+        if (!failure.isCompleted) failure.complete(error?.message);
+      });
+    } catch (error, stack) {
+      ErrorReporter.report(error, stack, context: 'showPrivacyOptionsForm');
+      if (!failure.isCompleted) failure.complete(error.toString());
+    }
+    return failure.future;
+  }
 }

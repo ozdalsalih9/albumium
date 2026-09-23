@@ -14,6 +14,7 @@ import '../widgets/app_theme_picker.dart';
 import '../widgets/cinematic_album_opening.dart';
 import '../widgets/handmade_craft.dart';
 import '../widgets/occasion_cards.dart';
+import '../widgets/ad_consent_button.dart';
 import '../widgets/privacy_policy_button.dart';
 import 'editor_screen.dart';
 import 'cards_hub.dart';
@@ -516,7 +517,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         alignment: Alignment.centerRight,
                         child: Padding(
                           padding: EdgeInsets.symmetric(horizontal: 22),
-                          child: PrivacyPolicyButton(),
+                          // The consent button draws nothing where no consent
+                          // was asked for, so this stays a single line there.
+                          child: Wrap(
+                            alignment: WrapAlignment.end,
+                            children: [
+                              AdConsentButton(),
+                              PrivacyPolicyButton(),
+                            ],
+                          ),
                         ),
                       ),
                     ),
