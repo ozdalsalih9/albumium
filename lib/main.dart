@@ -13,6 +13,7 @@ import 'screens/onboarding_screen.dart';
 import 'services/album_incoming_intent_service.dart';
 import 'services/albumium_entitlements.dart';
 import 'services/cover_entitlements.dart';
+import 'services/google_rewarded_ad_source.dart';
 import 'services/error_reporter.dart';
 import 'services/language_controller.dart';
 import 'services/photo_selection_service.dart';
@@ -28,6 +29,10 @@ Future<void> main() async {
   // a runtime font request.
   GoogleFonts.config.allowRuntimeFetching = false;
   PhotoSelectionService.configure();
+  // Not awaited: the ad SDK reaches the network, and the first frame must not
+  // wait for it. Until it is ready the unlock sheet reports that no ad is
+  // available, which is the truth.
+  unawaited(initializeAds());
   // Kancalar her şeyden önce kurulur; başlangıç sırasında oluşan bir hata da
   // yakalansın.
   ErrorReporter.install();

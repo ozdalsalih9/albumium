@@ -1,6 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Albums and exports stay on the device. The network is reached only to
+         fetch a rewarded ad, which is how Full HD export can be unlocked
+         without paying, and later for Play billing. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
     <!-- Saving exports to the gallery needs this only up to Android 10. -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
@@ -19,6 +24,17 @@
             </intent-filter>
         </receiver>
         <meta-data android:name="com.google.mlkit.vision.DEPENDENCIES" android:value="subject_segment" />
+        <!-- Keep in sync with AdIds.androidApplicationId; a wrong value here
+             crashes the app as the ad SDK starts. A test compares the two. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3816017115155014~2314787625" />
+        <meta-data
+            android:name="com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION"
+            android:value="true" />
+        <meta-data
+            android:name="com.google.android.gms.ads.flag.OPTIMIZE_AD_LOADING"
+            android:value="true" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

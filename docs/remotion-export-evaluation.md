@@ -5,8 +5,10 @@ Tarih: 1 Eylül 2026
 ## Karar
 
 Remotion, Albumium'un Android APK'sına doğrudan gömülü bir MP4 renderer olarak
-eklenmemelidir. Albumium Flutter ile yazılmış, cihaz içinde çalışan ve Android
-manifestinde internet izni bulunmayan offline-first bir uygulamadır. Remotion'ın
+eklenmemelidir. Albumium Flutter ile yazılmış, albüm verisi ve dışa aktarma
+işlemleri tamamen cihaz içinde çalışan bir uygulamadır; ağa yalnızca ödüllü
+reklam ve Play ödemesi için çıkar (bu değerlendirme yazıldığında manifestte
+internet izni de yoktu). Remotion'ın
 üretim renderer'ı ise React kompozisyonlarını Node.js/Bun üzerinde Chromium ve
 FFmpeg kullanarak işler.
 

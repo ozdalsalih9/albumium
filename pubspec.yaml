@@ -27,6 +27,7 @@ dependencies:
   crypto: ^3.0.7
   image: ^4.9.2
   gal: ^2.3.3
+  google_mobile_ads: ^9.1.0
 
 dev_dependencies:
   flutter_test:

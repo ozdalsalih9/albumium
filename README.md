@@ -30,4 +30,4 @@ flutter build apk --release
 
 ## Kapsam notu
 
-Bu sürüm offline-first çalışır. Uygulama yüklemeden tarayıcıda albüm görüntüleme, kullanıcı hesabı, bulut senkronizasyonu ve özel paylaşım bağlantıları backend/web görüntüleyici fazına ayrılmıştır.
+Albüm verisi ve dışa aktarma cihazda kalır; ağa yalnızca ödüllü reklam ve Play ödemesi için çıkılır. Uygulama yüklemeden tarayıcıda albüm görüntüleme, kullanıcı hesabı, bulut senkronizasyonu ve özel paylaşım bağlantıları backend/web görüntüleyici fazına ayrılmıştır.
