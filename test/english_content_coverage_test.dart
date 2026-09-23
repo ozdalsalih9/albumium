@@ -31,6 +31,22 @@ void main() {
       '{theme} kapağı açıldı.',
       'Satın alma tamamlanamadı. Tekrar deneyebilirsin.',
       'Geri yüklenecek satın alma bulunamadı.',
+      // Ücretli özellikler: reklam ve satın alma metinleri
+      'Önce ücretsiz',
+      'Reklam izle, bir kez kullan',
+      '{price} · Kalıcı aç',
+      'Ödülü kazanmak için reklamı sonuna kadar izlemelisin.',
+      'Şu anda gösterilecek reklam yok. Satın alarak hemen açabilirsin.',
+      'Reklam açılamadı. Tekrar deneyebilirsin.',
+      'Full HD videoyu aç',
+      'Albümünü 1080p paylaş; yazılar ve fotoğraflar çok daha net görünür.',
+      'Bir reklam izle, bu videoyu 1080p dışa aktar.',
+      'Satın alırsan her videoda 1080p açık kalır.',
+      'İstediğin stickerları yap',
+      'Kendi fotoğraflarını kesip albümlerinde kullanacağın stickerlara '
+          'dönüştür.',
+      'İstediğin kadar sticker oluştur.',
+      'Tüm albümlerinde kullan.',
     };
 
     final missing = keys

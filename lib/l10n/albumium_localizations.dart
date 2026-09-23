@@ -679,7 +679,28 @@ class AlbumiumLocalizations {
     'Kapak ara': 'Search covers',
     'Sırala': 'Sort',
     'Alfabetik': 'Alphabetical',
-    'Kategoriye göre': 'By category',
+    // Ücretli özellikler
+    'Reklam izle, bir kez kullan': 'Watch an ad, use it once',
+    '{price} · Kalıcı aç': '{price} · Unlock for good',
+    'Ödülü kazanmak için reklamı sonuna kadar izlemelisin.':
+        'You have to watch the ad to the end to earn the reward.',
+    'Şu anda gösterilecek reklam yok. Satın alarak hemen açabilirsin.':
+        'No ad is available right now. Buying unlocks it straight away.',
+    'Reklam açılamadı. Tekrar deneyebilirsin.':
+        'The ad could not be opened. You can try again.',
+    'Full HD videoyu aç': 'Unlock Full HD video',
+    'Albümünü 1080p paylaş; yazılar ve fotoğraflar çok daha net görünür.':
+        'Share your album in 1080p, where text and photos stay far sharper.',
+    'Bir reklam izle, bu videoyu 1080p dışa aktar.':
+        'Watch one ad and export this video in 1080p.',
+    'Satın alırsan her videoda 1080p açık kalır.':
+        'Buy it once and 1080p stays on for every video.',
+    'İstediğin stickerları yap': 'Make the stickers you want',
+    'Kendi fotoğraflarını kesip albümlerinde kullanacağın stickerlara dönüştür.':
+        'Cut out your own photos and turn them into stickers for your albums.',
+    'İstediğin kadar sticker oluştur.': 'Create as many stickers as you like.',
+    'Tüm albümlerinde kullan.': 'Use them in every album.',
+    'Önce ücretsiz': 'Free first',
     'Önce ücretli': 'Paid first',
     'Ücretsiz': 'Free',
     'Aramanla eşleşen kapak yok': 'No cover matches your search',

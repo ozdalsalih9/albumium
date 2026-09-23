@@ -1,10 +1,12 @@
 import 'package:albumium/models/album_models.dart';
 import 'package:albumium/screens/preview_screen.dart';
+import 'package:albumium/services/feature_entitlements.dart';
 import 'package:albumium/services/video_export_support.dart';
 import 'package:albumium/widgets/page_curl.dart';
 import 'package:albumium/widgets/physical_book_spread.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   testWidgets('preview keeps one book while its pages turn', (tester) async {
@@ -217,6 +219,13 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
+    // 1080p is a paid feature; this test is about the share menu, so it runs
+    // as someone who already owns it. The gate itself is covered by
+    // video_quality_gate_test.dart.
+    SharedPreferences.setMockInitialValues({});
+    final features = FeatureEntitlements();
+    await features.purchase(AlbumiumFeature.fullHdExport);
+
     final now = DateTime(2026);
     final album = AlbumModel(
       id: 'share-preview',
@@ -227,7 +236,11 @@ void main() {
       pages: [AlbumPageModel(id: 'share-page', backgroundColor: 0xFFF2E8D3)],
     );
 
-    await tester.pumpWidget(MaterialApp(home: PreviewScreen(album: album)));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PreviewScreen(album: album, entitlements: features),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('preview_share_button')), findsOneWidget);

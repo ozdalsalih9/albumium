@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/album_models.dart';
 import '../l10n/albumium_localizations.dart';
+import '../services/personal_sticker_storage.dart';
 import 'sticker_packs.dart';
 
 Rect albumElementBounds(AlbumElementModel e, Size page) {
@@ -343,7 +344,12 @@ class _ElementEditPanelState extends State<ElementEditPanel> {
         ],
       ),
     _layerButton(),
-    _tool('Düzenle', Icons.tune_rounded, widget.onStyle),
+    // A sticker cut from the user's own photo keeps its file reference in
+    // `content`, the same field an ornament id uses. "Düzenle" opens the
+    // ornament catalogue, which would overwrite the photo, so it is not
+    // offered for one.
+    if (!isPersonalStickerElement(e))
+      _tool('Düzenle', Icons.tune_rounded, widget.onStyle),
     _tool('Kopyala', Icons.content_copy_rounded, widget.onDuplicate),
     _tool(
       'Sil',

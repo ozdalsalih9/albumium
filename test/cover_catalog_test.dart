@@ -22,7 +22,7 @@ Future<List<String>> _pumpCatalog(
   WidgetTester tester, {
   required CoverEntitlements entitlements,
   // Tall enough that the whole shelf is laid out: the grid builds lazily,
-  // and the free covers now sit below the paid ones.
+  // and the paid covers now sit below the free ones.
   Size size = const Size(1200, 4200),
 }) async {
   tester.view.physicalSize = size;
@@ -158,7 +158,7 @@ void main() {
     expect(started, isEmpty);
   });
 
-  testWidgets('paid covers lead and names follow the Turkish alphabet', (
+  testWidgets('free covers lead and names follow the Turkish alphabet', (
     tester,
   ) async {
     await _pumpCatalog(tester, entitlements: await _emptyStore());
@@ -176,24 +176,24 @@ void main() {
     });
     final shown = placed.map((entry) => entry.$2).toList();
 
-    final firstFree = shown.indexWhere((theme) => !theme.isPremium);
-    final lastPaid = shown.lastIndexWhere((theme) => theme.isPremium);
-    expect(firstFree, isNonNegative);
-    expect(lastPaid, lessThan(firstFree), reason: 'paid covers come first');
+    final firstPaid = shown.indexWhere((theme) => theme.isPremium);
+    final lastFree = shown.lastIndexWhere((theme) => !theme.isPremium);
+    expect(firstPaid, isNonNegative);
+    expect(lastFree, lessThan(firstPaid), reason: 'free covers come first');
 
-    // Within the paid ones the dearer tier leads.
-    final lastPremium = shown.lastIndexWhere(
-      (theme) => theme.price == CoverPrice.premium,
-    );
-    final firstStandard = shown.indexWhere(
+    // Within the paid ones the cheaper tier leads.
+    final lastStandard = shown.lastIndexWhere(
       (theme) => theme.price == CoverPrice.standard,
     );
-    expect(firstStandard, isNonNegative);
-    expect(lastPremium, lessThan(firstStandard));
+    final firstPremium = shown.indexWhere(
+      (theme) => theme.price == CoverPrice.premium,
+    );
+    expect(lastStandard, isNonNegative);
+    expect(lastStandard, lessThan(firstPremium));
 
     // İstanbul sorts by "i", so it belongs before Kapadokya rather than after
     // Trabzon where a code-unit sort puts it.
-    final freeNames = shown.skip(firstFree).map((theme) => theme.name).toList();
+    final freeNames = shown.take(firstPaid).map((theme) => theme.name).toList();
     expect(
       freeNames.indexOf('İstanbul'),
       lessThan(freeNames.indexOf('Kapadokya')),

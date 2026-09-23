@@ -16,9 +16,11 @@ import 'package:share_plus/share_plus.dart';
 import '../l10n/albumium_localizations.dart';
 import '../models/album_models.dart';
 import '../services/album_storage.dart';
+import '../services/personal_sticker_storage.dart';
 import '../theme/albumium_app_theme.dart';
 import '../widgets/album_page_canvas.dart';
 import '../widgets/export_delivery.dart';
+import '../widgets/feature_unlock_sheet.dart';
 import '../widgets/element_edit_panel.dart';
 import '../widgets/font_selector_dialog.dart';
 import '../widgets/handmade_craft.dart';
@@ -460,6 +462,9 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
       return;
     }
     if (element.type == AlbumElementType.sticker) {
+      // Replacing the content would discard a sticker the user cut from their
+      // own photo; see the same guard in the album editor.
+      if (isPersonalStickerElement(element)) return;
       final replacement = await showModalBottomSheet<String>(
         context: context,
         isScrollControlled: true,
@@ -513,6 +518,9 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
   Future<void> _addSticker({bool personal = false}) async {
     final String? sticker;
     if (personal) {
+      // Making your own stickers is the paid part; see the album editor.
+      if (!await ensureCustomStickers(context)) return;
+      if (!mounted) return;
       sticker = await Navigator.push<String>(
         context,
         MaterialPageRoute(builder: (_) => const PersonalStickersScreen()),

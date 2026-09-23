@@ -10,19 +10,25 @@ import 'package:share_plus/share_plus.dart';
 import '../l10n/albumium_localizations.dart';
 import '../models/album_models.dart';
 import '../models/social_video_draft.dart';
+import '../services/albumium_entitlements.dart';
 import '../services/cinematic_soundtrack.dart';
+import '../services/feature_entitlements.dart';
 import '../services/platform_album_services.dart';
 import '../services/personal_sticker_storage.dart';
 import '../services/video_export_support.dart';
 import '../themes/theme_image_helper.dart';
 import '../widgets/album_cover.dart';
 import '../widgets/export_delivery.dart';
+import '../widgets/feature_unlock_sheet.dart';
 import '../widgets/album_page_canvas.dart';
 import '../widgets/sticker_packs.dart';
 
 class SocialVideoScreen extends StatefulWidget {
-  const SocialVideoScreen({super.key, required this.album});
+  const SocialVideoScreen({super.key, required this.album, this.entitlements});
   final AlbumModel album;
+
+  /// Left null outside tests: the screen then reads the app-wide ledger.
+  final FeatureEntitlements? entitlements;
   @override
   State<SocialVideoScreen> createState() => _SocialVideoScreenState();
 }
@@ -43,9 +49,50 @@ class _SocialVideoScreenState extends State<SocialVideoScreen>
       });
   final _captureKey = GlobalKey();
   final _note = TextEditingController();
-  VideoExportQuality _quality = VideoExportQuality.fullHd;
+  late final FeatureEntitlements _features =
+      widget.entitlements ?? AlbumiumEntitlements.instance.features;
+  // Full HD is paid for, so the screen opens on the quality everyone has —
+  // unless it was already bought, in which case starting lower would punish
+  // the person who paid.
+  late VideoExportQuality _quality =
+      _features.isUnlocked(AlbumiumFeature.fullHdExport)
+      ? VideoExportQuality.fullHd
+      : VideoExportQuality.balanced;
   bool _sound = true, _exporting = false, _cancelled = false;
   int _frame = 0;
+
+  bool get _fullHdLocked => !_features.isUnlocked(AlbumiumFeature.fullHdExport);
+
+  /// Offers the unlock when Full HD is picked and not yet available.
+  Future<void> _selectQuality(VideoExportQuality quality) async {
+    if (quality != VideoExportQuality.fullHd || !_fullHdLocked) {
+      _change(() => _quality = quality);
+      return;
+    }
+    final unlocked = await showFeatureUnlockSheet(
+      context,
+      feature: AlbumiumFeature.fullHdExport,
+      entitlements: _features,
+      offerAd: true,
+      title: 'Full HD videoyu aç',
+      description:
+          'Albümünü 1080p paylaş; yazılar ve fotoğraflar çok daha net görünür.',
+      bullets: const [
+        (
+          Icons.play_circle_outline_rounded,
+          'Bir reklam izle, bu videoyu 1080p dışa aktar.',
+        ),
+        (
+          Icons.lock_open_rounded,
+          'Satın alırsan her videoda 1080p açık kalır.',
+        ),
+        (Icons.hd_outlined, 'Tek seferlik satın alma.'),
+      ],
+    );
+    if (!unlocked || !mounted) return;
+    _change(() => _quality = VideoExportQuality.fullHd);
+  }
+
   @override
   void dispose() {
     _play.dispose();
@@ -195,6 +242,11 @@ class _SocialVideoScreenState extends State<SocialVideoScreen>
       if (!mounted || _cancelled) throw const _SocialExportCancelled();
       if (!await output.exists() || await output.length() == 0) {
         throw StateError('Empty video');
+      }
+      // A watched ad buys exactly this one export; a purchase has nothing to
+      // spend, so this is a no-op for someone who paid.
+      if (_quality == VideoExportQuality.fullHd) {
+        _features.consumeGrant(AlbumiumFeature.fullHdExport);
       }
       if (!mounted) return;
     } catch (error) {
@@ -518,9 +570,15 @@ class _SocialVideoScreenState extends State<SocialVideoScreen>
                     children: [
                       for (final quality in VideoExportQuality.values)
                         ChoiceChip(
+                          key: ValueKey('social-quality-${quality.width}'),
+                          avatar:
+                              quality == VideoExportQuality.fullHd &&
+                                  _fullHdLocked
+                              ? const Icon(Icons.lock_outline_rounded, size: 15)
+                              : null,
                           label: Text('${quality.width}p'),
                           selected: _quality == quality,
-                          onSelected: (_) => _change(() => _quality = quality),
+                          onSelected: (_) => _selectQuality(quality),
                         ),
                     ],
                   ),

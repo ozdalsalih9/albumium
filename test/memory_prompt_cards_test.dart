@@ -9,6 +9,8 @@ import 'package:albumium/widgets/sticker_packs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
+import 'package:albumium/services/albumium_entitlements.dart';
+import 'package:albumium/services/feature_entitlements.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -80,6 +82,14 @@ void main() {
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
+    // Making a sticker is paid for now; this test is about where the button
+    // sits, so it runs as someone who owns the feature. The paywall itself is
+    // covered by custom_sticker_paywall_test.dart.
+    final features = FeatureEntitlements();
+    await features.purchase(AlbumiumFeature.customStickers);
+    AlbumiumEntitlements.configure(AlbumiumEntitlements(features: features));
+    addTearDown(AlbumiumEntitlements.resetForTesting);
+
     final album = AlbumModel(
       id: 'test',
       title: 'Test',

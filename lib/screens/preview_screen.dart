@@ -17,7 +17,9 @@ import 'package:share_plus/share_plus.dart';
 import '../l10n/albumium_localizations.dart';
 import '../models/album_models.dart';
 import '../models/social_video_draft.dart';
+import '../services/albumium_entitlements.dart';
 import '../services/album_storage.dart';
+import '../services/feature_entitlements.dart';
 import 'social_video_screen.dart';
 import '../models/cinematic_storyboard.dart';
 import '../models/single_page_export_storyboard.dart';
@@ -27,6 +29,7 @@ import '../services/video_export_support.dart';
 import '../theme/albumium_app_theme.dart';
 import '../themes/theme_image_helper.dart';
 import '../widgets/export_delivery.dart';
+import '../widgets/feature_unlock_sheet.dart';
 import '../widgets/handmade_craft.dart';
 import '../widgets/photo_crop_editor.dart';
 import '../widgets/physical_book_spread.dart';
@@ -51,10 +54,14 @@ class PreviewScreen extends StatefulWidget {
     super.key,
     required this.album,
     this.openShareOnReady = false,
+    this.entitlements,
   });
 
   final AlbumModel album;
   final bool openShareOnReady;
+
+  /// Left null outside tests: the screen then reads the app-wide ledger.
+  final FeatureEntitlements? entitlements;
 
   @override
   State<PreviewScreen> createState() => _PreviewScreenState();
@@ -63,6 +70,30 @@ class PreviewScreen extends StatefulWidget {
 class _PreviewScreenState extends State<PreviewScreen>
     with SingleTickerProviderStateMixin {
   static const double _defaultGrabY = 0.62;
+
+  late final FeatureEntitlements _features =
+      widget.entitlements ?? AlbumiumEntitlements.instance.features;
+
+  bool get _fullHdLocked => !_features.isUnlocked(AlbumiumFeature.fullHdExport);
+
+  /// Offers Full HD by ad or purchase. Returns true once it is available.
+  Future<bool> _offerFullHd(BuildContext context) => showFeatureUnlockSheet(
+    context,
+    feature: AlbumiumFeature.fullHdExport,
+    entitlements: _features,
+    offerAd: true,
+    title: 'Full HD videoyu aç',
+    description:
+        'Albümünü 1080p paylaş; yazılar ve fotoğraflar çok daha net görünür.',
+    bullets: const [
+      (
+        Icons.play_circle_outline_rounded,
+        'Bir reklam izle, bu videoyu 1080p dışa aktar.',
+      ),
+      (Icons.lock_open_rounded, 'Satın alırsan her videoda 1080p açık kalır.'),
+      (Icons.hd_outlined, 'Tek seferlik satın alma.'),
+    ],
+  );
 
   final _exportBoundary = GlobalKey();
   late final AnimationController _turnController;
@@ -1056,12 +1087,23 @@ class _PreviewScreenState extends State<PreviewScreen>
                     ),
                     ButtonSegment(
                       value: VideoExportQuality.fullHd,
+                      icon: _fullHdLocked
+                          ? const Icon(Icons.lock_outline_rounded, size: 16)
+                          : null,
                       label: Text(context.tr('Yüksek · 1080p')),
                     ),
                   ],
                   selected: {quality},
-                  onSelectionChanged: (selection) =>
-                      setSheetState(() => quality = selection.single),
+                  onSelectionChanged: (selection) async {
+                    final wanted = selection.single;
+                    if (wanted == VideoExportQuality.fullHd && _fullHdLocked) {
+                      // Leave the selection where it is until the unlock is
+                      // actually granted, so the sheet never promises 1080p.
+                      final unlocked = await _offerFullHd(sheetContext);
+                      if (!unlocked || !sheetContext.mounted) return;
+                    }
+                    setSheetState(() => quality = wanted);
+                  },
                 ),
                 const SizedBox(height: 8),
                 ListTile(
@@ -1450,6 +1492,11 @@ class _PreviewScreenState extends State<PreviewScreen>
       _throwIfExportCancelled();
       final videoFile = await requireNonEmptyVideoExport(path);
       _throwIfExportCancelled();
+      // A watched ad buys exactly this one export; a purchase has nothing to
+      // spend, so this is a no-op for someone who paid.
+      if (settings.quality == VideoExportQuality.fullHd) {
+        _features.consumeGrant(AlbumiumFeature.fullHdExport);
+      }
       if (!mounted) return;
       setState(() {
         _exportProgress = 1;

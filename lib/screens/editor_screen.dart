@@ -13,6 +13,8 @@ import '../l10n/albumium_localizations.dart';
 import '../models/album_models.dart';
 import '../services/album_storage.dart';
 import '../services/error_reporter.dart';
+import '../services/personal_sticker_storage.dart';
+import '../widgets/feature_unlock_sheet.dart';
 import '../theme/albumium_app_theme.dart';
 import '../widgets/element_edit_panel.dart';
 import '../widgets/font_selector_dialog.dart';
@@ -676,6 +678,10 @@ class _EditorScreenState extends State<EditorScreen>
   Future<void> _addSticker({bool personal = false}) async {
     final String? sticker;
     if (personal) {
+      // Making your own stickers is the paid part; the ones already made keep
+      // working everywhere regardless.
+      if (!await ensureCustomStickers(context)) return;
+      if (!mounted) return;
       sticker = await Navigator.push<String>(
         context,
         MaterialPageRoute(builder: (_) => const PersonalStickersScreen()),
@@ -1420,6 +1426,10 @@ class _EditorScreenState extends State<EditorScreen>
       return;
     }
     if (selected.type == AlbumElementType.sticker) {
+      // The ornament picker returns a new content string, which for a sticker
+      // cut from the user's own photo would throw that photo away. The toolbar
+      // hides this action for one; this guard keeps it true for every caller.
+      if (isPersonalStickerElement(selected)) return;
       final replacement = await showModalBottomSheet<String>(
         context: context,
         isScrollControlled: true,

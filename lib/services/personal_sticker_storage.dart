@@ -15,6 +15,15 @@ double personalStickerAspect(String content) =>
 String relocatePersonalSticker(String content, String path) =>
     personalSticker(path, personalStickerAspect(content));
 
+/// Whether the element is a sticker the user cut from their own photo.
+///
+/// Such a sticker keeps its file reference in [AlbumElementModel.content], the
+/// same field that holds an ornament id, so anything that would replace the
+/// content has to leave these alone.
+bool isPersonalStickerElement(AlbumElementModel element) =>
+    element.type == AlbumElementType.sticker &&
+    isPersonalSticker(element.content);
+
 class PersonalSticker {
   const PersonalSticker(this.id, this.name, this.content);
   final String id, name, content;

@@ -11,6 +11,7 @@ import 'screens/album_import_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'services/album_incoming_intent_service.dart';
+import 'services/albumium_entitlements.dart';
 import 'services/cover_entitlements.dart';
 import 'services/error_reporter.dart';
 import 'services/language_controller.dart';
@@ -40,11 +41,14 @@ Future<void> main() async {
 
   final themeController = ThemeController();
   final languageController = LanguageController();
-  final coverEntitlements = CoverEntitlements();
+  // One ledger for the whole process, so an unlock is the same fact on every
+  // screen; see AlbumiumEntitlements.
+  final entitlements = AlbumiumEntitlements();
+  AlbumiumEntitlements.configure(entitlements);
   await Future.wait([
     themeController.initialize(),
     languageController.initialize(),
-    coverEntitlements.initialize(),
+    entitlements.initialize(),
   ]);
   await ReminderService.initialize();
   await ReminderService.save(
@@ -63,7 +67,7 @@ Future<void> main() async {
     AlbumiumApp(
       themeController: themeController,
       languageController: languageController,
-      coverEntitlements: coverEntitlements,
+      coverEntitlements: entitlements.covers,
     ),
   );
 }

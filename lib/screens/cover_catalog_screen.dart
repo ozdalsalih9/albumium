@@ -9,14 +9,15 @@ import '../widgets/album_cover_3d.dart';
 import '../widgets/cover_purchase_sheet.dart';
 import '../widgets/handmade_craft.dart';
 
-/// How the catalogue orders its covers. Paid covers lead by default: they are
-/// the ones worth discovering, and the free ones are easy to find anyway.
-enum CoverCatalogSort { paidFirst, alphabetical, byCategory }
+/// How the catalogue orders its covers. The free ones lead by default, so a
+/// newcomer meets what they can use straight away; the enum order is also the
+/// order of the menu.
+enum CoverCatalogSort { freeFirst, paidFirst, alphabetical }
 
 String _sortLabel(CoverCatalogSort sort) => switch (sort) {
+  CoverCatalogSort.freeFirst => 'Önce ücretsiz',
   CoverCatalogSort.paidFirst => 'Önce ücretli',
   CoverCatalogSort.alphabetical => 'Alfabetik',
-  CoverCatalogSort.byCategory => 'Kategoriye göre',
 };
 
 /// A preview album so a cover can be drawn on its own, outside any album.
@@ -58,7 +59,7 @@ class CoverCatalogScreen extends StatefulWidget {
 
 class _CoverCatalogScreenState extends State<CoverCatalogScreen> {
   AlbumThemeCategory? _category;
-  CoverCatalogSort _sort = CoverCatalogSort.paidFirst;
+  CoverCatalogSort _sort = CoverCatalogSort.freeFirst;
   final _searchController = TextEditingController();
 
   late final CoverEntitlements _entitlements;
@@ -100,6 +101,13 @@ class _CoverCatalogScreenState extends State<CoverCatalogScreen> {
         compareTurkishTitles(a.name, b.name);
 
     switch (_sort) {
+      case CoverCatalogSort.freeFirst:
+        // CoverPrice is declared free, then cheap, then dear, so its index is
+        // already the order a shopper reads prices in.
+        covers.sort((a, b) {
+          final byPrice = a.price.index.compareTo(b.price.index);
+          return byPrice != 0 ? byPrice : byName(a, b);
+        });
       case CoverCatalogSort.paidFirst:
         // Dearest first, so the richest covers open the shelf.
         covers.sort((a, b) {
@@ -108,11 +116,6 @@ class _CoverCatalogScreenState extends State<CoverCatalogScreen> {
         });
       case CoverCatalogSort.alphabetical:
         covers.sort(byName);
-      case CoverCatalogSort.byCategory:
-        covers.sort((a, b) {
-          final byCategory = a.category.index.compareTo(b.category.index);
-          return byCategory != 0 ? byCategory : byName(a, b);
-        });
     }
     return covers;
   }
