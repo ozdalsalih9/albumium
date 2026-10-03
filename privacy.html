@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gizlilik Politikası - Albumium</title>
-  <meta name="description" content="Albumium mobil uygulaması Gizlilik Politikası. Kullanıcı verilerinin güvenliği ve offline-first gizlilik prensiplerimiz.">
+  <title>Gizlilik Politikası / Privacy Policy - Albumium</title>
+  <meta name="description" content="Albumium mobil uygulaması resmi Gizlilik Politikası. Offline-first mimari, veri güvenliği, AdMob ve uygulama içi satın alımlar hakkında detaylar.">
   <link rel="canonical" href="https://albumiumapp.com/privacy.html">
 
   <link rel="icon" type="image/png" sizes="32x32" href="assets/images/favicon.png">
@@ -14,7 +14,39 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Marcellus&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/style.css?v=2">
+  <style>
+    .lang-switcher {
+      display: inline-flex;
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-full);
+      padding: 4px;
+      margin-bottom: 24px;
+      gap: 4px;
+    }
+    .lang-btn {
+      padding: 6px 18px;
+      border-radius: var(--radius-full);
+      font-size: 0.9rem;
+      font-weight: 600;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .lang-btn.active {
+      background: var(--burgundy-primary);
+      color: #FFFFFF;
+    }
+    .privacy-pane {
+      display: none;
+    }
+    .privacy-pane.active {
+      display: block;
+    }
+  </style>
 </head>
 <body>
 
@@ -43,11 +75,6 @@
         <a href="https://play.google.com/store/apps/details?id=com.albumium.albumium&hl=tr" target="_blank" rel="noopener" class="btn btn-primary">
           Uygulamayı İndir
         </a>
-        <button class="menu-toggle" aria-label="Menüyü Aç" aria-expanded="false">
-          <span></span>
-          <span></span>
-          <span></span>
-        </button>
       </div>
     </div>
   </nav>
@@ -56,46 +83,126 @@
   <main class="legal-page">
     <div class="container">
       <div class="legal-header">
-        <h1>Gizlilik Politikası</h1>
-        <div class="legal-meta">Son Güncelleme: 3 Ekim 2026 | Yürürlük Tarihi: 3 Ekim 2026</div>
+        <h1>Gizlilik Politikası / Privacy Policy</h1>
+        <div class="legal-meta">Son Güncelleme / Last Updated: 4 Ekim 2026 | Geliştirici / Developer: Mustafa Salih Özdal</div>
       </div>
 
-      <article class="legal-content">
+      <!-- Dil Seçimi -->
+      <div class="lang-switcher" role="tablist">
+        <button class="lang-btn active" id="btn-tr" onclick="setLanguage('tr')" role="tab">Türkçe (TR)</button>
+        <button class="lang-btn" id="btn-en" onclick="setLanguage('en')" role="tab">English (EN)</button>
+      </div>
+
+      <!-- TÜRKÇE METİN -->
+      <article class="legal-content privacy-pane active" id="pane-tr">
         <div class="legal-highlight-box">
-          <strong>Özetle Gizlilik Taahhüdümüz:</strong> Albumium, "Çevrimdışı Öncelikli" (Offline-First) bir mimari ile geliştirilmiştir. Fotoğraflarınız, oluşturduğunuz albümler ve kişisel verileriniz hiçbir harici sunucuya veya üçüncü tarafa yüklenmez; tamamen cihazınızda kalır.
+          <strong>Özetle Gizlilik Taahhüdümüz:</strong> Albumium, "Çevrimdışı Öncelikli" (Offline-First) bir mimari ile geliştirilmiştir. Fotoğraflarınız, oluşturduğunuz albümler ve kişisel verileriniz geliştiriciye ait hiçbir harici sunucuya yüklenmez; tamamen kendi cihazınızda kalır.
         </div>
 
-        <h2>1. Genel Bilgilendirme</h2>
-        <p>Albumium ("biz", "bizim" veya "uygulama"), kullanıcılarının gizliliğine en üst düzeyde saygı duyar. Bu Gizlilik Politikası, Albumium iOS ve Android uygulamalarımızı ve web sitemizi (albumiumapp.com) kullandığınızda verilerinizin nasıl işlendiğini açıklar.</p>
+        <h2>1. Genel Bilgilendirme ve Kimlik</h2>
+        <p>Albumium - Fotoğraf & Anı ("Albumium", "biz" veya "uygulama"), kullanıcılarının gizliliğine en üst düzeyde saygı duyar. Bu Gizlilik Politikası, Albumium mobil uygulaması ve web sitemizi (albumiumapp.com) kullandığınızda verilerinizin nasıl işlendiğini, saklandığını ve korunduğunu açıklar.</p>
+        <p>
+          <strong>Geliştirici:</strong> Mustafa Salih Özdal<br>
+          <strong>İletişim:</strong> <a href="mailto:ozdalsalih9@gmail.com">ozdalsalih9@gmail.com</a>
+        </p>
 
-        <h2>2. Toplanan ve İşlenen Veriler</h2>
-        <h3>a) Fotoğraf ve Medya Erişimi</h3>
-        <p>Uygulama içinde dijital albümler ve kartlar oluşturabilmeniz için cihazınızın fotoğraf galerisine erişim izni talep edilir. Bu erişim:</p>
-        <ul>
-          <li>Yalnızca sizin manuel olarak seçtiğiniz fotoğraflarla sınırlıdır.</li>
-          <li>Fotoğraflar hiçbir harici sunucuya, bulut depolamaya ya da yapay zeka eğitim veri tabanına iletilmez.</li>
-          <li>Tüm düzenleme, filtreleme ve video üretim işlemleri doğrudan cihazınızın işlemcisinde yerel olarak gerçekleştirilir.</li>
-        </ul>
+        <h2>2. İşlenen Veriler ve Hesap Zorunluluğu</h2>
+        <p>Albumium fotoğraf albümleri ve özel gün kartları oluşturmanızı sağlar. Uygulamayı kullanmak için herhangi bir hesap açmanız, e-posta veya parola girmeniz <strong>gerekmez</strong>.</p>
+        <p>Uygulama; seçtiğiniz fotoğrafları, içe aktardığınız albüm dosyalarını, oluşturduğunuz metin ve çizimleri, tasarım değişikliklerini ve dil/tema gibi tercihleri doğrudan <strong>kendi cihazınızda</strong> işler ve saklar. Bu veriler yalnızca tasarımlarınızı oluşturmak, düzenlemek ve dışa aktarmak için kullanılır ve hiçbir zaman geliştirici sunucularına aktarılmaz.</p>
 
-        <h3>b) Kişisel Bilgiler ve Hesap Oluşturma</h3>
-        <p>Albumium'un temel sürümü herhangi bir kullanıcı kaydı, e-posta adresi, telefon numarası veya parola talep etmez. Uygulamayı anonim olarak ve hesap oluşturmadan hemen kullanabilirsiniz.</p>
+        <h2>3. Fotoğraf ve Dosya Erişimi</h2>
+        <p>Albumium yalnızca sizin albüme eklemek için elle seçtiğiniz fotoğraflara veya içe aktardığınız albüm dosyalarına erişir. Seçilen fotoğrafların yerel bir kopyası tasarımlarınızda kullanılmak üzere uygulamanın yerel depolama alanına kaydedilebilir. Dosya seçimi ve erişim izinleri cihazınızın işletim sistemi (Android / iOS) tarafından yönetilir.</p>
 
-        <h3>c) Analitik ve Kullanım Verileri</h3>
-        <p>Uygulamamız kullanıcı hareketlerini izleyen üçüncü taraf reklam takipçileri (ad trackers) içermez. Çökme raporları (Crashlytics vb.) yalnızca uygulamanın kararlılığını artırmak amacıyla anonim teknik verileri içerir.</p>
+        <h2>4. İçeriklerin Paylaşılması (.albumium Dosyaları)</h2>
+        <p>Albumium içeriklerinizi otomatik olarak üçüncü şahıslara iletmez ve kullanıcı verilerini asla satmaz.</p>
+        <p>Paylaşım özelliğini kullandığınızda, seçilen albüm veya dışa aktarılan MP4 video sizin tercih ettiğiniz bir uygulamaya (WhatsApp, Telegram, AirDrop, e-posta vb.) aktarılır. Bu paylaşım işlemi, ilgili üçüncü taraf uygulamanın kendi gizlilik politikalarına ve güvenlik standartlarına tabidir.</p>
+        <p><strong>Önemli:</strong> Paylaşılan <code>.albumium</code> dosyaları parola korumalı veya şifrelenmiş değildir. Dosyayı alan herkes içeriğe erişebilir. Hassas anılarınızı yalnızca güvendiğiniz kişilerle paylaşmanızı öneririz.</p>
 
-        <h2>3. Cihaz Depolaması ve Veri Güvenliği</h2>
-        <p>Tasarladığınız albümler ve dışa aktarılan MP4 video dosyaları cihazınızın yerel depolama alanında saklanır. Uygulamayı cihazınızdan sildiğinizde, cihaz işletim sisteminin çalışma prensiplerine uygun olarak uygulamanın yerel verileri de silinir. Dışa aktararak galerinize kaydettiğiniz nihai albüm ve videolar galerinizde kalmaya devam eder.</p>
+        <h2>5. Verilerin Saklanması ve Silinmesi</h2>
+        <p>Tasarımlarınız ve tercihleriniz cihazınızın yerel depolama alanında saklanır. Albümleri uygulama içerisinden silebilirsiniz. Uygulamanın cihazınızdaki tüm verilerini tamamen temizlemek için cihaz ayarlarından uygulamanın depolama alanını temizleyebilir veya uygulamayı silebilirsiniz.</p>
+        <p>Bu işlem daha önce galerinize dışa aktardığınız fotoğrafları veya arkadaşlarınıza gönderdiğiniz kopyaları etkilemez; bu kopyaların ayrı olarak yönetilmesi gerekir.</p>
 
-        <h2>4. Çocukların Gizliliği</h2>
+        <h2>6. Cihaz Yedeklemeleri</h2>
+        <p>Cihaz ayarlarınıza bağlı olarak uygulama verileri işletim sistemi yedeklemelerine (Google Drive veya iCloud) dahil edilebilir. Bu süreçler Albumium'dan bağımsız olarak işletim sistemi sağlayıcısının gizlilik politikalarına göre yürütülür.</p>
+
+        <h2>7. Veri Güvenliği</h2>
+        <p>Albumium, verilerin güvenliği için işletim sisteminin sunduğu uygulama yalıtımından (sandbox) yararlanır. Cihazınızı ekran kilidiyle korumanızı ve paylaştığınız dosyaları özenle seçmenizi öneririz.</p>
+
+        <h2>8. Reklamlar (Google AdMob)</h2>
+        <p>Albumium yalnızca siz isteyerek dokunduğunuzda ödüllü reklam (rewarded ad) gösterir. Reklamlar <strong>Google AdMob</strong> altyapısı ile sunulur. Bir reklam gösterildiğinde Google; reklamı sunmak, ölçümlemek ve kötüye kullanımı engellemek amacıyla cihazınızın reklam kimliğini (Advertising ID), IP adresini ve teknik işletim sistemi bilgilerini işleyebilir. Albumium bu verileri toplamaz ve saklamaz.</p>
+        <p>Google'ın bu verileri nasıl kullandığı hakkında ayrıntılı bilgi için: <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">Google Ortak Siteler Gizlilik Politikası</a>.</p>
+        <p>Cihazınızın ayarlarından reklam kimliğinizi sıfırlayabilir veya kişiselleştirilmiş reklamları kapatabilirsiniz.</p>
+
+        <h2>9. Uygulama İçi Satın Alımlar</h2>
+        <p>Uygulama içi satın alımlar Google Play ve Apple App Store tarafından yürütülür. Ödeme bilgileriniz tamamen Google ve Apple tarafından işlenir; Albumium kredi kartı veya ödeme bilgilerinizi asla görmez ve saklamaz. Satın aldığınız ürünler, cihaz değiştirdiğinizde geri yüklenebilmesi için mağaza hesabınızla eşleştirilir.</p>
+
+        <h2>10. Çocukların Gizliliği</h2>
         <p>Albumium her yaştan kullanıcı için güvenlidir. Bilerek 13 yaşın altındaki çocuklardan kişisel olarak tanımlanabilir bilgi toplamayız.</p>
 
-        <h2>5. Değişiklikler</h2>
-        <p>Gizlilik Politikamızda zaman zaman güncellemeler yapabiliriz. Herhangi bir değişiklik bu sayfada yeni yürürlük tarihi ile birlikte yayınlanacaktır.</p>
-
-        <h2>6. İletişim</h2>
-        <p>Gizlilik uygulamalarımızla ilgili herhangi bir sorunuz veya talebiniz olursa bizimle iletişime geçebilirsiniz:</p>
+        <h2>11. İletişim ve Değişiklikler</h2>
+        <p>Gizlilik Politikası güncellendiğinde bu sayfada yeni tarih ile birlikte yayınlanır. Sorularınız için bizimle iletişime geçebilirsiniz:</p>
         <p>
+          <strong>Mustafa Salih Özdal</strong><br>
           <strong>E-posta:</strong> <a href="mailto:ozdalsalih9@gmail.com">ozdalsalih9@gmail.com</a><br>
+          <strong>Web:</strong> <a href="https://albumiumapp.com">https://albumiumapp.com</a>
+        </p>
+      </article>
+
+      <!-- ENGLISH TEXT (Official version submitted for stores) -->
+      <article class="legal-content privacy-pane" id="pane-en">
+        <div class="legal-highlight-box">
+          <strong>Privacy Summary:</strong> Albumium is built with an offline-first architecture. Your photos, albums, and creations are processed and stored locally on your device and are never uploaded to developer-operated servers.
+        </div>
+
+        <h2>1. Information We Process</h2>
+        <p>Albumium - Fotoğraf & Anı ("Albumium", "we", "our") lets you create photo albums and occasion cards. You do not need to create an account to use the application.</p>
+        <p>The application processes and stores the photos you select, album files you import, text and drawings you create, design changes, and preferences such as language and theme on your device.</p>
+        <p>This information is used to create, edit, display, and export your designs. Albumium does not upload this content to developer-operated servers.</p>
+        <p>
+          <strong>Developer:</strong> Mustafa Salih Özdal<br>
+          <strong>Contact:</strong> <a href="mailto:ozdalsalih9@gmail.com">ozdalsalih9@gmail.com</a>
+        </p>
+
+        <h2>2. Access to Photos and Files</h2>
+        <p>Albumium accesses the content you select when adding photos or importing albums. A copy of a selected photo may be saved in the application's local storage for use in your designs.</p>
+        <p>File selection and any required access permissions are managed by your device's operating system.</p>
+
+        <h2>3. Sharing Your Content</h2>
+        <p>Albumium does not automatically send your content to other people and does not sell user data.</p>
+        <p>When you use the sharing feature, the selected album or exported content is transferred to an application you choose. Sharing through WhatsApp, email, or another service is subject to that service's privacy policy and security practices.</p>
+        <p>Shared <code>.albumium</code> files are not password-protected or encrypted by Albumium. Anyone who obtains the file may be able to access its contents. Share sensitive content only with people you trust.</p>
+
+        <h2>4. Data Retention and Deletion</h2>
+        <p>Your designs and application preferences are stored on your device. You can delete albums within the application. However, deleting an album entry may not immediately remove all associated photo copies or temporary files.</p>
+        <p>To remove the application's local data, you can clear its storage through device settings or uninstall the application. These actions do not delete exported files, copies sent to other applications, or content held by recipients.</p>
+
+        <h2>5. Device Backups</h2>
+        <p>Depending on your device settings, application data may be included in operating-system backups or device-to-device transfers. These processes operate independently of Albumium's developer and are subject to the relevant service provider's terms and privacy policy. You can manage backups through your device or backup service settings.</p>
+
+        <h2>6. Data Security</h2>
+        <p>Albumium relies on the operating system's application isolation and device security mechanisms to help protect locally stored data. The application does not apply additional application-level encryption to photos or album files.</p>
+        <p>We recommend protecting your device with a screen lock, keeping your operating system updated, and carefully choosing who receives your shared files.</p>
+
+        <h2>7. Advertising (Google AdMob)</h2>
+        <p>Albumium shows rewarded ads only when you choose to watch one. Ads are served by Google AdMob. When an ad is shown, Google may process your device's advertising ID, IP address, and device and operating system information in order to serve and measure the ad and to prevent abuse. Albumium does not collect or store this data.</p>
+        <p>You can read how Google uses it at: <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">Google Partner Sites Policy</a>.</p>
+        <p>You can reset your advertising ID or turn off personalised ads in your device settings.</p>
+
+        <h2>8. Purchases</h2>
+        <p>In-app purchases are handled by Google Play and Apple App Store. Your payment details are processed by Google / Apple; Albumium never sees or stores your card information. What you have purchased is kept with your store account so it can be restored when you change devices.</p>
+
+        <h2>9. Your Albums and Media</h2>
+        <p>The albums, photos and stickers you create are stored only on your device. We do not send them to a server and we cannot see them. Deleting the app deletes them too.</p>
+
+        <h2>10. Children's Privacy</h2>
+        <p>Albumium is safe for general audiences and does not knowingly collect personally identifiable information from children under 13.</p>
+
+        <h2>11. Contact Us & Changes</h2>
+        <p>We may update this Privacy Policy when application features or data-handling practices change. The updated policy will be published on this page with a revised date.</p>
+        <p>For privacy questions or requests, contact us at:</p>
+        <p>
+          <strong>Mustafa Salih Özdal</strong><br>
+          <strong>Email:</strong> <a href="mailto:ozdalsalih9@gmail.com">ozdalsalih9@gmail.com</a><br>
           <strong>Web:</strong> <a href="https://albumiumapp.com">https://albumiumapp.com</a>
         </p>
       </article>
@@ -112,5 +219,20 @@
     </div>
   </footer>
 
+  <script>
+    function setLanguage(lang) {
+      document.getElementById('pane-tr').classList.toggle('active', lang === 'tr');
+      document.getElementById('pane-en').classList.toggle('active', lang === 'en');
+      document.getElementById('btn-tr').classList.toggle('active', lang === 'tr');
+      document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+      if (history.replaceState) {
+        history.replaceState(null, null, lang === 'en' ? '#en' : '#tr');
+      }
+    }
+    // Check URL hash on load
+    if (window.location.hash === '#en') {
+      setLanguage('en');
+    }
+  </script>
 </body>
 </html>
