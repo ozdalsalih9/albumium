@@ -94,7 +94,7 @@ class MainActivity : FlutterActivity() {
             if (call.method == "openPrivacyPolicy") {
                 try {
                     startActivity(Intent(Intent.ACTION_VIEW,
-                        Uri.parse("https://sites.google.com/view/albumium-privacy/ana-sayfa")))
+                        Uri.parse("https://albumiumapp.com/privacy.html")))
                     result.success(null)
                 } catch (error: Exception) {
                     result.error("browser_unavailable", "No browser available", null)

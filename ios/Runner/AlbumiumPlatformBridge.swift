@@ -102,7 +102,7 @@ final class AlbumiumPlatformBridge {
     }
     support?.setMethodCallHandler { call, result in
       guard call.method == "openPrivacyPolicy" else { result(FlutterMethodNotImplemented); return }
-      UIApplication.shared.open(URL(string: "https://sites.google.com/view/albumium-privacy/ana-sayfa")!, options: [:]) { success in
+      UIApplication.shared.open(URL(string: "https://albumiumapp.com/privacy.html")!, options: [:]) { success in
         if success { result(nil) }
         else { result(FlutterError(code: "browser_unavailable", message: "Cannot open privacy policy", details: nil)) }
       }

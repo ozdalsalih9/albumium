@@ -41,7 +41,7 @@ Android → iOS → Android aktarımını fotoğraf, kırpma, yazı, kişisel st
 
 - `PrivacyInfo.xcprivacy` uygulamanın UserDefaults ve kendi dosyalarının tarih bilgisi kullanımını beyan eder. Kaynak kodda hesap, reklam takibi veya sunucuya albüm yükleme eklenmedi.
 - macOS arşivinde Flutter ve tüm eklentilerin privacy manifestlerini, App Store gizlilik raporunu ve üçüncü taraf SDK bildirimlerini ayrıca kontrol et. App Store “App Privacy” formu final arşive göre doldurulmalı; dosyanın bulunması tek başına mağaza uygunluğu kanıtı değildir.
-- Mevcut gizlilik bağlantısının iOS özelliklerini de kapsadığını doğrula: https://sites.google.com/view/albumium-privacy/ana-sayfa
+- Mevcut gizlilik bağlantısının iOS özelliklerini de kapsadığını doğrula: https://albumiumapp.com/privacy.html
 - Kamuya açık destek URL'si, telif/iletişim bilgileri, yaş derecelendirmesi, ihracat beyanı ve iPhone/iPad ekran görüntüleri mağaza kaydında tamamlanmalı. Destek adresi sağlanmadığı için uydurulmadı.
 - Mağaza metin taslakları `app-store-copy.md` dosyasında. Gerçek iOS ekran görüntüleri TestFlight/simülatör doğrulamasından sonra alınmalı.
 
