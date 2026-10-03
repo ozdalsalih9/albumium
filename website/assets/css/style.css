@@ -499,17 +499,34 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+.pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--accent-rose);
+  display: inline-block;
 }
 
-.highlight-icon {
-  font-size: 1.8rem;
-  margin-bottom: 2px;
+.guarantee-bullet {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--accent-gold);
+  display: inline-block;
+}
+
+.highlight-stat {
+  font-family: var(--font-display);
+  font-size: 2.1rem;
+  font-weight: 600;
+  color: var(--accent-rose);
+  line-height: 1;
+  margin-bottom: 4px;
 }
 
 .highlight-title {
   font-family: var(--font-display);
-  font-size: 1.35rem;
+  font-size: 1.25rem;
   font-weight: 600;
   color: var(--text-primary);
 }
