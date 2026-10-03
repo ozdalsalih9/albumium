@@ -4,7 +4,7 @@ import '../services/platform_album_services.dart';
 import '../l10n/albumium_localizations.dart';
 
 const albumiumPrivacyUrl =
-    'https://sites.google.com/view/albumium-privacy/ana-sayfa';
+    'https://albumiumapp.com/privacy.html';
 
 class PrivacyPolicyButton extends StatelessWidget {
   const PrivacyPolicyButton({super.key});
