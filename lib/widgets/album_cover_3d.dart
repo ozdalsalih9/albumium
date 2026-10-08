@@ -29,6 +29,8 @@ class AlbumCover3D extends StatelessWidget {
         builder: (context, constraints) {
           final width = constraints.maxWidth;
           final height = constraints.maxHeight;
+          final spineWidth = width * 0.085;
+          final theme = themeById(album.themeId);
 
           // 3D Perspective Book container
           return Center(
@@ -101,11 +103,18 @@ class AlbumCover3D extends StatelessWidget {
                             borderRadius: BorderRadius.circular(
                               compact ? 10 : 16,
                             ),
-                            child: AlbumCover(
-                              album: album,
-                              compact: compact,
-                              showTitle: showTitle,
-                              onTap: onTap,
+                            child: ColoredBox(
+                              color: theme.coverStart,
+                              child: Padding(
+                                padding: EdgeInsets.only(left: spineWidth),
+                                child: AlbumCover(
+                                  album: album,
+                                  compact: compact,
+                                  showTitle: showTitle,
+                                  onTap: onTap,
+                                  roundLeftEdge: false,
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -113,9 +122,9 @@ class AlbumCover3D extends StatelessWidget {
                         // C. Sol 3D Cilt Sırtı Kalınlığı & Kıvrımı (3D Spine Crease & Shimmer)
                         Positioned(
                           left: 0,
-                          top: compact ? 2 : 4,
-                          bottom: compact ? 2 : 4,
-                          width: compact ? 16 : 26,
+                          top: compact ? 0 : 4,
+                          bottom: compact ? 0 : 4,
+                          width: spineWidth,
                           child: IgnorePointer(
                             child: Container(
                               decoration: BoxDecoration(
@@ -144,7 +153,7 @@ class AlbumCover3D extends StatelessWidget {
                         // D. Cilt Tipi Rozeti / Detayı (Binding Type Badge/Stitch on Spine)
                         if (!compact)
                           Positioned(
-                            left: 10,
+                            left: spineWidth * 0.4,
                             top: 20,
                             bottom: 20,
                             width: 3,

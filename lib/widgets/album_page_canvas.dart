@@ -293,7 +293,8 @@ class _AlbumElementsLayerState extends State<_AlbumElementsLayer> {
             theme: widget.theme,
             pageSize: widget.pageSize,
             interactive: widget.interactive,
-            onSelect: () => _handleTap(element.id),
+            onTap: () => _handleTap(element.id),
+            onSelect: () => widget.onSelect?.call(element.id),
             onGeometryChanged: _geometryChanged,
             onChanged: widget.onChanged,
             onLongPress: widget.onLongPressElement == null
@@ -330,6 +331,7 @@ class _AlbumElementView extends StatefulWidget {
     required this.theme,
     required this.pageSize,
     required this.interactive,
+    required this.onTap,
     required this.onSelect,
     required this.onGeometryChanged,
     required this.onChanged,
@@ -340,6 +342,7 @@ class _AlbumElementView extends StatefulWidget {
   final AlbumThemePreset theme;
   final Size pageSize;
   final bool interactive;
+  final VoidCallback onTap;
   final VoidCallback onSelect;
   final VoidCallback onGeometryChanged;
   final VoidCallback? onChanged;
@@ -389,6 +392,8 @@ class _AlbumElementViewState extends State<_AlbumElementView> {
 
   void _handleScaleStart(ScaleStartDetails details) {
     final element = widget.element;
+    _longPressTimer?.cancel();
+    // Selecting for a transform must never activate the content editor.
     widget.onSelect();
     _startScale = element.scale.isFinite
         ? element.scale.clamp(albumElementMinScale, albumElementMaxScale)
@@ -549,7 +554,7 @@ class _AlbumElementViewState extends State<_AlbumElementView> {
               onPointerCancel: (_) => _longPressTimer?.cancel(),
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: widget.interactive ? widget.onSelect : null,
+                onTap: widget.interactive ? widget.onTap : null,
                 onLongPressStart:
                     widget.interactive && widget.onLongPress != null
                     ? (details) => widget.onLongPress!(details.globalPosition)

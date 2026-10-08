@@ -17,7 +17,7 @@ Bu depo artık iPhone/iPad projesi ve yerel platform uygulamalarını içeriyor.
 1. Bu depoyu Codemagic'e bağla ve kökteki `codemagic.yaml` dosyasını kullan.
 2. Önce **ios-validation** çalıştır: Flutter 3.41.7, analiz, Flutter testleri, simülatör derlemesi ve `RunnerTests` takvim testleri. Çıktıyı ve Xcode hatalarını incele. Swift kodunun ilk başarılı derlemesi aşağıda kayıtlıdır.
 3. Apple Developer üyeliğini ve App Store Connect'te `com.albumium.albumium` uygulama kaydını hazırla.
-4. Codemagic takım ayarlarına **Albumium App Store Connect** adlı API entegrasyonunu ve bu kimliğe ait App Store imzalama sertifikası/profilini ekle. API özel anahtarı, sertifika ve parolalar depoya yazılmaz.
+4. Codemagic takım ayarlarına **Albumium Codemagic** adlı API entegrasyonunu ve bu kimliğe ait App Store imzalama sertifikası/profilini ekle. API özel anahtarı, sertifika ve parolalar depoya yazılmaz.
 5. **ios-testflight** iş akışını çalıştır. Bu akış imzalı IPA oluşturur ve TestFlight'a gönderir; App Store incelemesine otomatik gönderim kapalıdır. Build numarası Codemagic proje sayacıdır; mevcut App Store kaydındaki numaralardan büyük olması sağlanmalıdır.
 6. TestFlight cihaz kontrolleri ve mağaza hazırlığı tamamlandıktan sonra App Store gönderimini ayrı yap.
 

@@ -34,6 +34,9 @@ Widget _canvas(
   double ancestorScale = 1,
   bool selected = false,
   VoidCallback? onChanged,
+  ValueChanged<String?>? onSelect,
+  ValueChanged<String>? onActivate,
+  TargetPlatform platform = TargetPlatform.android,
 }) {
   final page = AlbumPageModel(
     id: 'page',
@@ -42,6 +45,7 @@ Widget _canvas(
   );
 
   return MaterialApp(
+    theme: ThemeData(platform: platform),
     home: Scaffold(
       body: Center(
         child: Transform.scale(
@@ -55,6 +59,8 @@ Widget _canvas(
               interactive: true,
               selectedId: selected ? element.id : null,
               onChanged: onChanged,
+              onSelect: onSelect,
+              onActivate: onActivate,
             ),
           ),
         ),
@@ -74,6 +80,49 @@ Offset _rotate(Offset point, double angle) => Offset(
 );
 
 void main() {
+  for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+    testWidgets('selected text drags without opening editor on $platform', (
+      tester,
+    ) async {
+      final element = _element(type: AlbumElementType.text)
+        ..content = 'My text';
+      var activations = 0;
+      var changes = 0;
+      String? selection;
+      await tester.pumpWidget(
+        _canvas(
+          element,
+          selected: true,
+          platform: platform,
+          onSelect: (id) => selection = id,
+          onActivate: (_) => activations++,
+          onChanged: () => changes++,
+        ),
+      );
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.text('My text')),
+      );
+      await gesture.moveBy(const Offset(25, 0));
+      await tester.pump();
+      final before = Offset(element.x, element.y);
+      await gesture.moveBy(const Offset(30, 25));
+      await tester.pump();
+      await gesture.up();
+      await tester.pump();
+
+      expect(selection, element.id);
+      expect(element.x, greaterThan(before.dx));
+      expect(element.y, greaterThan(before.dy));
+      expect(activations, 0);
+      expect(changes, 1);
+
+      // A deliberate tap still opens the selected text for editing.
+      await tester.tap(find.text('My text'));
+      await tester.pump();
+      expect(activations, 1);
+    });
+  }
+
   testWidgets('single-finger drag uses page coordinates under a transform', (
     tester,
   ) async {

@@ -11,12 +11,14 @@ class AlbumCover extends StatelessWidget {
     required this.album,
     this.compact = false,
     this.showTitle = true,
+    this.roundLeftEdge = true,
     this.onTap,
   });
 
   final AlbumModel album;
   final bool compact;
   final bool showTitle;
+  final bool roundLeftEdge;
   final VoidCallback? onTap;
 
   @override
@@ -32,7 +34,10 @@ class AlbumCover extends StatelessWidget {
         ? GestureDetector(
             onTap: onTap,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.horizontal(
+                left: Radius.circular(roundLeftEdge ? 8 : 0),
+                right: const Radius.circular(8),
+              ),
               child: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -80,6 +85,7 @@ class AlbumCover extends StatelessWidget {
             semanticTitle: title,
             theme: theme,
             cacheWidth: compact ? 600 : themeImageCacheWidth,
+            roundLeftEdge: roundLeftEdge,
             onTap: onTap,
           )
         : switch (album.themeId) {
@@ -129,7 +135,10 @@ class AlbumCover extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         return ClipRRect(
-          borderRadius: BorderRadius.circular(compact ? 16 : 14),
+          borderRadius: BorderRadius.horizontal(
+            left: Radius.circular(roundLeftEdge ? (compact ? 16 : 14) : 0),
+            right: Radius.circular(compact ? 16 : 14),
+          ),
           child: SizedBox(
             width: constraints.maxWidth,
             height: constraints.maxHeight,
@@ -153,6 +162,7 @@ class _OrnateAssetCover extends StatelessWidget {
     required this.semanticTitle,
     required this.theme,
     required this.cacheWidth,
+    required this.roundLeftEdge,
     this.onTap,
   });
 
@@ -161,18 +171,23 @@ class _OrnateAssetCover extends StatelessWidget {
   final String semanticTitle;
   final AlbumThemePreset theme;
   final int cacheWidth;
+  final bool roundLeftEdge;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final gold = Color.lerp(theme.accent, const Color(0xFFFFE4A8), 0.38)!;
+    final borderRadius = BorderRadius.horizontal(
+      left: Radius.circular(roundLeftEdge ? 14 : 0),
+      right: const Radius.circular(14),
+    );
     return Semantics(
       button: onTap != null,
       label: context.tr('{title} albümü', values: {'title': semanticTitle}),
       child: GestureDetector(
         onTap: onTap,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: borderRadius,
           child: SizedBox(
             width: 300,
             height: 440,
@@ -212,8 +227,8 @@ class _OrnateAssetCover extends StatelessWidget {
                           alignment: Alignment.bottomCenter,
                           child: Padding(
                             padding: EdgeInsets.only(
-                              left: 46 * scale,
-                              right: 26 * scale,
+                              left: (roundLeftEdge ? 46 : 36) * scale,
+                              right: (roundLeftEdge ? 26 : 36) * scale,
                               bottom: 38 * scale,
                             ),
                             child: DecoratedBox(
@@ -318,7 +333,7 @@ class _OrnateAssetCover extends StatelessWidget {
                   child: IgnorePointer(
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: borderRadius,
                         border: Border.all(
                           color: Colors.white.withValues(alpha: 0.13),
                           width: 0.8,
