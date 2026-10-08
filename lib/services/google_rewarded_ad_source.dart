@@ -79,6 +79,10 @@ class _NoAdAvailable implements Exception {
 /// frame, and a failure here only means the ad button reports that no ad is
 /// available.
 Future<void> initializeAds() async {
+  // A platform whose AdMob app has not been created yet has no id to start the
+  // SDK with, and the SDK throws when started without one. No ads is a far
+  // smaller problem than an app that will not open.
+  if (!AdIds.configured) return;
   try {
     // Consent comes first. In the EU an ad may not be requested before the
     // user has answered, and the answer decides whether ads can be asked for
