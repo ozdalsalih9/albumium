@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import 'rewarded_ads.dart';
+
 /// AdMob identifiers.
 ///
 /// None of these are secret: they ship inside the app and are readable by
@@ -20,15 +22,30 @@ abstract final class AdIds {
   /// The rewarded unit that pays for one Full HD export on Android.
   static const androidRewardedUnitId = 'ca-app-pub-3816017115155014/8093727919';
 
+  /// Google's sample app, kept only so [configured] can refuse a live build
+  /// that still carries it.
+  static const iosTestApplicationId = 'ca-app-pub-3940256099942544~1458002511';
+
   /// The AdMob app id for iOS, also declared in ios/Runner/Info.plist.
   ///
-  /// Google's sample app for simulator/TestFlight validation. Replace it in
-  /// this file AND Info.plist before enabling live iOS ads.
-  static const iosTestApplicationId = 'ca-app-pub-3940256099942544~1458002511';
-  static const iosApplicationId = iosTestApplicationId;
+  /// The real id belongs here even in test builds: the app id names the app,
+  /// while the *unit* decides whether an impression is billable.
+  static const iosApplicationId = 'ca-app-pub-3816017115155014~2674915080';
 
-  /// The rewarded unit for iOS. Empty until it exists; see [iosApplicationId].
-  static const iosRewardedUnitId = '';
+  /// The rewarded units for iOS, one per place an ad can be watched.
+  ///
+  /// They could all be the same unit and the ads would work; separate ones
+  /// exist so AdMob reports which placement actually earns, which is the only
+  /// way to tell later whether a prompt is worth keeping.
+  static const iosRewardedCoverUnitId =
+      'ca-app-pub-3816017115155014/9325662920';
+  static const iosRewardedStickerUnitId =
+      'ca-app-pub-3816017115155014/7741118513';
+  static const iosRewardedExportUnitId =
+      'ca-app-pub-3816017115155014/1417584445';
+
+  /// The unit [configured] checks before letting a live build start the SDK.
+  static const iosRewardedUnitId = iosRewardedExportUnitId;
 
   /// Google's public test unit, which always fills and never earns revenue.
   static const testRewardedUnitId = 'ca-app-pub-3940256099942544/5224354917';
@@ -67,10 +84,19 @@ abstract final class AdIds {
     return iosApplicationId.isNotEmpty;
   }
 
-  static String get rewardedUnitId {
+  /// The unit to request for one place in the app.
+  ///
+  /// Android sells its covers and stickers instead of showing ads for them,
+  /// so it has the one unit; the placement only matters on iOS.
+  static String rewardedUnitIdFor(RewardedAdPlacement placement) {
     if (!liveAds || !kReleaseMode) {
       return _isIOS ? iosTestRewardedUnitId : testRewardedUnitId;
     }
-    return _isIOS ? iosRewardedUnitId : androidRewardedUnitId;
+    if (!_isIOS) return androidRewardedUnitId;
+    return switch (placement) {
+      RewardedAdPlacement.cover => iosRewardedCoverUnitId,
+      RewardedAdPlacement.customStickers => iosRewardedStickerUnitId,
+      RewardedAdPlacement.fullHdExport => iosRewardedExportUnitId,
+    };
   }
 }

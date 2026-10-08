@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:albumium/services/ad_ids.dart';
+import 'package:albumium/services/rewarded_ads.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -33,7 +34,7 @@ void main() {
     expect(AdIds.androidRewardedUnitId, startsWith('$account/'));
   });
 
-  test('iOS test ads have a matching native app id and attribution list', () {
+  test('the iOS app id in the plist is the one the code requests', () {
     // AdMob issues a separate app and separate units per platform. Until the
     // iOS ones are made, the SDK must not start there: it throws without an
     // app id, and a crash is worse than no ads.
@@ -58,8 +59,13 @@ void main() {
     expect(AdIds.iosApplicationId, contains('~'));
     expect(
       AdIds.iosRewardedUnitId,
-      isEmpty,
-      reason: 'a live iOS unit has not been supplied yet',
+      startsWith('${AdIds.iosApplicationId.split('~').first}/'),
+      reason: 'the unit has to belong to the app it is requested for',
+    );
+    expect(
+      AdIds.iosApplicationId,
+      isNot(AdIds.iosTestApplicationId),
+      reason: "Google's sample app earns nothing",
     );
     expect(
       infoPlist,
@@ -72,18 +78,44 @@ void main() {
     addTearDown(() => debugDefaultTargetPlatformOverride = null);
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     expect(AdIds.configured, isTrue);
-    expect(AdIds.rewardedUnitId, AdIds.iosTestRewardedUnitId);
-    expect(AdIds.rewardedUnitId, isNot(AdIds.testRewardedUnitId));
+    for (final placement in RewardedAdPlacement.values) {
+      expect(AdIds.rewardedUnitIdFor(placement), AdIds.iosTestRewardedUnitId);
+      expect(
+        AdIds.rewardedUnitIdFor(placement),
+        isNot(AdIds.testRewardedUnitId),
+      );
+    }
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     expect(AdIds.configured, isTrue);
     expect(AdIds.applicationId, AdIds.androidApplicationId);
-    expect(AdIds.rewardedUnitId, AdIds.testRewardedUnitId);
+    expect(
+      AdIds.rewardedUnitIdFor(RewardedAdPlacement.fullHdExport),
+      AdIds.testRewardedUnitId,
+    );
+  });
+
+  test('each iOS placement has its own unit under the same app', () {
+    // One unit would serve them all; separate ones are what make AdMob say
+    // which placement earned the money.
+    final units = {
+      AdIds.iosRewardedCoverUnitId,
+      AdIds.iosRewardedStickerUnitId,
+      AdIds.iosRewardedExportUnitId,
+    };
+    expect(units, hasLength(3), reason: 'a shared unit reports as one line');
+    final account = AdIds.iosApplicationId.split('~').first;
+    for (final unit in units) {
+      expect(unit, startsWith('$account/'));
+    }
   });
 
   test('live ads are off unless a build asks for them', () {
     // Watching your own live ads is invalid traffic, and Google suspends
     // accounts for it. Only a build passing ALBUMIUM_LIVE_ADS goes live.
     expect(AdIds.liveAds, isFalse);
-    expect(AdIds.rewardedUnitId, AdIds.testRewardedUnitId);
+    expect(
+      AdIds.rewardedUnitIdFor(RewardedAdPlacement.fullHdExport),
+      AdIds.testRewardedUnitId,
+    );
   });
 }

@@ -18,7 +18,7 @@ class GoogleRewardedAdSource implements RewardedAdSource {
   Future<RewardedAdOutcome> show(RewardedAdPlacement placement) async {
     final RewardedAd ad;
     try {
-      ad = await _load();
+      ad = await _load(placement);
     } on _NoAdAvailable {
       return RewardedAdOutcome.unavailable;
     } catch (error, stack) {
@@ -52,10 +52,10 @@ class GoogleRewardedAdSource implements RewardedAdSource {
     return earned ? RewardedAdOutcome.earned : RewardedAdOutcome.dismissed;
   }
 
-  Future<RewardedAd> _load() {
+  Future<RewardedAd> _load(RewardedAdPlacement placement) {
     final loaded = Completer<RewardedAd>();
     RewardedAd.load(
-      adUnitId: AdIds.rewardedUnitId,
+      adUnitId: AdIds.rewardedUnitIdFor(placement),
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: loaded.complete,
