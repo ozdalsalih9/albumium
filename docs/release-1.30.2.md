@@ -36,3 +36,18 @@ Build the signed bundle with `flutter build appbundle --release`. The version in
 
 Windows cannot run the native iOS build. Shared-widget tests with the iOS theme
 are not a substitute for a Codemagic build or real-device validation.
+
+## iOS Google Mobile Ads build compatibility
+
+Codemagic reported a non-modular-header compile error in
+`google_mobile_ads.FLTAd_Internal` and `google_mobile_ads.FLTAdPreloader`.
+The plugin version 9.1.0 imports `GoogleMobileAds_Beta.h`, shipped in the SDK's
+private headers rather than its public module map.
+
+The Podfile enables `CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES`
+for the `google_mobile_ads` pod in all configurations. Runner's Debug and
+Release/Profile xcconfigs also enable it because the plugin is imported by the
+generated registrant. Other pod targets keep their existing settings.
+
+Run `ios-validation` on the updated GitHub commit to verify the native fix, then
+`ios-testflight`. This configuration change does not alter the Android bundle.

@@ -38,5 +38,14 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+
+    # google_mobile_ads 9.1 imports GoogleMobileAds_Beta.h, a private SDK
+    # header outside the public module map. Allow it only for this plugin
+    # when CocoaPods builds the plugin as a framework.
+    if target.name == 'google_mobile_ads'
+      target.build_configurations.each do |config|
+        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+      end
+    end
   end
 end
