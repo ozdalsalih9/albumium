@@ -21,6 +21,18 @@ class AlbumCover3D extends StatelessWidget {
   final bool showTitle;
   final VoidCallback? onTap;
 
+  // These original cover assets already include their book spine in the art.
+  // Keep them full-width instead of adding a second, plain-colored spine.
+  static const _coversWithEmbeddedSpine = {
+    'animals',
+    'best_friends',
+    'soft_romance',
+    'dark_leather',
+    'vintage_diary',
+    'travel_postcard',
+    'minimal_editorial',
+  };
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -29,8 +41,20 @@ class AlbumCover3D extends StatelessWidget {
         builder: (context, constraints) {
           final width = constraints.maxWidth;
           final height = constraints.maxHeight;
-          final spineWidth = width * 0.085;
+          final useOriginalCoverLayout =
+              album.coverPhotoPath == null &&
+              _coversWithEmbeddedSpine.contains(album.themeId);
+          final spineWidth = useOriginalCoverLayout
+              ? (compact ? 16.0 : 26.0)
+              : width * 0.085;
           final theme = themeById(album.themeId);
+          final artwork = AlbumCover(
+            album: album,
+            compact: compact,
+            showTitle: showTitle,
+            onTap: onTap,
+            roundLeftEdge: useOriginalCoverLayout,
+          );
 
           // 3D Perspective Book container
           return Center(
@@ -103,27 +127,27 @@ class AlbumCover3D extends StatelessWidget {
                             borderRadius: BorderRadius.circular(
                               compact ? 10 : 16,
                             ),
-                            child: ColoredBox(
-                              color: theme.coverStart,
-                              child: Padding(
-                                padding: EdgeInsets.only(left: spineWidth),
-                                child: AlbumCover(
-                                  album: album,
-                                  compact: compact,
-                                  showTitle: showTitle,
-                                  onTap: onTap,
-                                  roundLeftEdge: false,
-                                ),
-                              ),
-                            ),
+                            child: useOriginalCoverLayout
+                                ? artwork
+                                : ColoredBox(
+                                    color: theme.coverStart,
+                                    child: Padding(
+                                      padding: EdgeInsets.only(
+                                        left: spineWidth,
+                                      ),
+                                      child: artwork,
+                                    ),
+                                  ),
                           ),
                         ),
 
                         // C. Sol 3D Cilt Sırtı Kalınlığı & Kıvrımı (3D Spine Crease & Shimmer)
                         Positioned(
                           left: 0,
-                          top: compact ? 0 : 4,
-                          bottom: compact ? 0 : 4,
+                          top: compact ? (useOriginalCoverLayout ? 2 : 0) : 4,
+                          bottom: compact
+                              ? (useOriginalCoverLayout ? 2 : 0)
+                              : 4,
                           width: spineWidth,
                           child: IgnorePointer(
                             child: Container(
@@ -153,7 +177,9 @@ class AlbumCover3D extends StatelessWidget {
                         // D. Cilt Tipi Rozeti / Detayı (Binding Type Badge/Stitch on Spine)
                         if (!compact)
                           Positioned(
-                            left: spineWidth * 0.4,
+                            left: useOriginalCoverLayout
+                                ? 10
+                                : spineWidth * 0.4,
                             top: 20,
                             bottom: 20,
                             width: 3,
