@@ -4,6 +4,7 @@ import '../l10n/albumium_localizations.dart';
 import '../services/albumium_entitlements.dart';
 import '../services/feature_entitlements.dart';
 import '../services/rewarded_ads.dart';
+import '../services/monetization_policy.dart';
 import '../theme/albumium_app_theme.dart';
 
 /// Offers a paid feature, by ad or by purchase. Returns true once the user may
@@ -31,8 +32,8 @@ Future<bool> showFeatureUnlockSheet(
       description: description,
       bullets: bullets,
       entitlements: entitlements ?? AlbumiumEntitlements.instance.features,
-      ads: ads ?? RewardedAds.source,
-      offerAd: offerAd,
+      ads: ads,
+      offerAd: offerAd || MonetizationPolicy.rewardedOnly,
     ),
   );
   return unlocked ?? false;
@@ -78,7 +79,7 @@ class _FeatureUnlockSheet extends StatefulWidget {
   final String description;
   final List<(IconData, String)> bullets;
   final FeatureEntitlements entitlements;
-  final RewardedAdSource ads;
+  final RewardedAdSource? ads;
   final bool offerAd;
 
   @override
@@ -116,7 +117,20 @@ class _FeatureUnlockSheetState extends State<_FeatureUnlockSheet> {
       _working = true;
       _error = null;
     });
-    final outcome = await widget.ads.show(widget.feature);
+    final RewardedAdOutcome outcome;
+    try {
+      outcome = await (widget.ads ?? RewardedAds.source).show(
+        RewardedAdPlacement.forFeature(widget.feature),
+      );
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _working = false;
+          _error = context.tr('Reklam açılamadı. Tekrar deneyebilirsin.');
+        });
+      }
+      return;
+    }
     if (!mounted) return;
     if (outcome == RewardedAdOutcome.earned) {
       widget.entitlements.grant(widget.feature);
@@ -127,12 +141,16 @@ class _FeatureUnlockSheetState extends State<_FeatureUnlockSheet> {
       _working = false;
       // No ad to show is not the user's mistake, so the button stops offering
       // something that will not arrive and the purchase stays open.
-      _adsExhausted = outcome == RewardedAdOutcome.unavailable;
+      _adsExhausted =
+          !MonetizationPolicy.rewardedOnly &&
+          outcome == RewardedAdOutcome.unavailable;
       _error = context.tr(switch (outcome) {
         RewardedAdOutcome.dismissed =>
           'Ödülü kazanmak için reklamı sonuna kadar izlemelisin.',
         RewardedAdOutcome.unavailable =>
-          'Şu anda gösterilecek reklam yok. Satın alarak hemen açabilirsin.',
+          MonetizationPolicy.rewardedOnly
+              ? 'Şu anda gösterilecek reklam yok. Daha sonra tekrar dene.'
+              : 'Şu anda gösterilecek reklam yok. Satın alarak hemen açabilirsin.',
         _ => 'Reklam açılamadı. Tekrar deneyebilirsin.',
       });
     });
@@ -141,7 +159,24 @@ class _FeatureUnlockSheetState extends State<_FeatureUnlockSheet> {
   @override
   Widget build(BuildContext context) {
     final colors = AlbumiumAppTheme.colorsOf(context);
-    final price = widget.entitlements.priceLabelFor(widget.feature);
+    final rewardedOnly = MonetizationPolicy.rewardedOnly;
+    final price = rewardedOnly
+        ? ''
+        : widget.entitlements.priceLabelFor(widget.feature);
+    final bullets = rewardedOnly
+        ? <(IconData, String)>[
+            (
+              Icons.play_circle_outline_rounded,
+              widget.feature == AlbumiumFeature.customStickers
+                  ? 'Bir reklam izle, bir sticker oluştur.'
+                  : 'Bir reklam izle, bir videoyu 1080p dışa aktar.',
+            ),
+            (
+              Icons.check_circle_outline,
+              'Her yeni kullanım için yeniden reklam izle.',
+            ),
+          ]
+        : widget.bullets;
 
     Widget bullet(IconData icon, String text) => Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -172,7 +207,7 @@ class _FeatureUnlockSheetState extends State<_FeatureUnlockSheet> {
               style: TextStyle(color: colors.mutedText, height: 1.4),
             ),
             const SizedBox(height: 18),
-            for (final (icon, text) in widget.bullets) bullet(icon, text),
+            for (final (icon, text) in bullets) bullet(icon, text),
             if (_error != null)
               Padding(
                 key: const ValueKey('feature-unlock-error'),
@@ -202,58 +237,62 @@ class _FeatureUnlockSheetState extends State<_FeatureUnlockSheet> {
                   label: Text(context.tr('Reklam izle, bir kez kullan')),
                 ),
               ),
-            if (widget.offerAd) const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: widget.offerAd
-                  ? OutlinedButton.icon(
-                      key: const ValueKey('feature-unlock-buy'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                      ),
-                      onPressed: _working ? null : _buy,
-                      icon: const Icon(Icons.lock_open_rounded),
-                      label: Text(
-                        context.tr(
-                          '{price} · Kalıcı aç',
-                          values: {'price': price},
+            if (widget.offerAd && !rewardedOnly) const SizedBox(height: 8),
+            if (!rewardedOnly)
+              SizedBox(
+                width: double.infinity,
+                child: widget.offerAd
+                    ? OutlinedButton.icon(
+                        key: const ValueKey('feature-unlock-buy'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                        ),
+                        onPressed: _working ? null : _buy,
+                        icon: const Icon(Icons.lock_open_rounded),
+                        label: Text(
+                          context.tr(
+                            '{price} · Kalıcı aç',
+                            values: {'price': price},
+                          ),
+                        ),
+                      )
+                    : FilledButton.icon(
+                        key: const ValueKey('feature-unlock-buy'),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                        ),
+                        onPressed: _working ? null : _buy,
+                        icon: _working
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.lock_open_rounded),
+                        label: Text(
+                          context.tr(
+                            '{price} · Satın al',
+                            values: {'price': price},
+                          ),
                         ),
                       ),
-                    )
-                  : FilledButton.icon(
-                      key: const ValueKey('feature-unlock-buy'),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                      ),
-                      onPressed: _working ? null : _buy,
-                      icon: _working
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.lock_open_rounded),
-                      label: Text(
-                        context.tr(
-                          '{price} · Satın al',
-                          values: {'price': price},
-                        ),
-                      ),
-                    ),
-            ),
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                key: const ValueKey('feature-unlock-restore'),
-                onPressed: _working
-                    ? null
-                    : () => _run(() async {
-                        await widget.entitlements.restore();
-                        return widget.entitlements.isUnlocked(widget.feature);
-                      }, 'Geri yüklenecek satın alma bulunamadı.'),
-                child: Text(context.tr('Satın alımları geri yükle')),
               ),
-            ),
+            if (!rewardedOnly)
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  key: const ValueKey('feature-unlock-restore'),
+                  onPressed: _working
+                      ? null
+                      : () => _run(() async {
+                          await widget.entitlements.restore();
+                          return widget.entitlements.isUnlocked(widget.feature);
+                        }, 'Geri yüklenecek satın alma bulunamadı.'),
+                  child: Text(context.tr('Satın alımları geri yükle')),
+                ),
+              ),
             SizedBox(
               width: double.infinity,
               child: TextButton(

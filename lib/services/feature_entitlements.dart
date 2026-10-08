@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'error_reporter.dart';
+import 'monetization_policy.dart';
 
 /// A one-time unlock that is not a cover.
 ///
@@ -104,10 +105,11 @@ class FeatureEntitlements extends ChangeNotifier {
 
   /// Whether the feature can be used right now, bought or earned.
   bool isUnlocked(AlbumiumFeature feature) =>
-      _purchased.contains(feature.id) || _granted.contains(feature.id);
+      isPurchased(feature) || _granted.contains(feature.id);
 
   /// Whether the feature was paid for, so it outlives this session.
-  bool isPurchased(AlbumiumFeature feature) => _purchased.contains(feature.id);
+  bool isPurchased(AlbumiumFeature feature) =>
+      !MonetizationPolicy.rewardedOnly && _purchased.contains(feature.id);
 
   String priceLabelFor(AlbumiumFeature feature) =>
       _source.priceLabelFor(feature);
@@ -134,6 +136,7 @@ class FeatureEntitlements extends ChangeNotifier {
 
   /// Returns true when the feature is owned afterwards.
   Future<bool> purchase(AlbumiumFeature feature) async {
+    if (MonetizationPolicy.rewardedOnly) return false;
     final preferences = await _getPreferences();
     if (_purchased.contains(feature.id)) return true;
     if (!await _source.purchase(feature)) return false;
@@ -148,6 +151,7 @@ class FeatureEntitlements extends ChangeNotifier {
 
   /// Adds anything the store already considers owned.
   Future<void> restore() async {
+    if (MonetizationPolicy.rewardedOnly) return;
     final preferences = await _getPreferences();
     final owned = await _source.restore();
     final merged = {..._purchased, ...owned};

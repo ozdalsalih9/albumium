@@ -15,6 +15,7 @@ import '../services/album_storage.dart';
 import '../services/error_reporter.dart';
 import '../services/personal_sticker_storage.dart';
 import '../widgets/feature_unlock_sheet.dart';
+import '../services/monetization_policy.dart';
 import '../theme/albumium_app_theme.dart';
 import '../widgets/element_edit_panel.dart';
 import '../widgets/font_selector_dialog.dart';
@@ -680,7 +681,10 @@ class _EditorScreenState extends State<EditorScreen>
     if (personal) {
       // Making your own stickers is the paid part; the ones already made keep
       // working everywhere regardless.
-      if (!await ensureCustomStickers(context)) return;
+      if (!MonetizationPolicy.rewardedOnly &&
+          !await ensureCustomStickers(context)) {
+        return;
+      }
       if (!mounted) return;
       sticker = await Navigator.push<String>(
         context,

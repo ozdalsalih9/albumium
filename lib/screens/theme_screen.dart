@@ -6,6 +6,7 @@ import '../l10n/albumium_localizations.dart';
 import '../models/album_models.dart';
 import '../services/album_storage.dart';
 import '../services/cover_entitlements.dart';
+import '../services/monetization_policy.dart';
 import '../theme/albumium_app_theme.dart';
 import '../widgets/album_cover_3d.dart';
 import '../widgets/cover_purchase_sheet.dart';
@@ -45,6 +46,7 @@ class _ThemeScreenState extends State<ThemeScreen> {
   AlbumThemeCategory? _category;
   AlbumBindingType _selectedBinding = AlbumBindingType.spiral;
   final _titleController = TextEditingController();
+  bool _creating = false;
   PageController? _pageController;
 
   List<AlbumThemePreset> get _visibleThemes => themesInCategory(_category);
@@ -170,7 +172,13 @@ class _ThemeScreenState extends State<ThemeScreen> {
   }
 
   Future<void> _continue() async {
+    if (_creating) return;
     final theme = _selectedTheme;
+    if (!_entitlements.isUnlockedTheme(theme)) {
+      await _openPurchaseSheet();
+      return;
+    }
+    _creating = true;
     final now = DateTime.now();
     final album = AlbumModel(
       id: newId(),
@@ -188,8 +196,13 @@ class _ThemeScreenState extends State<ThemeScreen> {
         ),
       ],
     );
-    await AlbumStorage.instance.saveAlbum(album);
-    if (mounted) Navigator.pop(context, album);
+    try {
+      await AlbumStorage.instance.saveAlbum(album);
+      _entitlements.consumeGrant(theme.id);
+      if (mounted) Navigator.pop(context, album);
+    } finally {
+      _creating = false;
+    }
   }
 
   Widget _buildThemedCover(AlbumThemePreset theme, String title) {
@@ -247,7 +260,9 @@ class _ThemeScreenState extends State<ThemeScreen> {
                       Icon(Icons.lock_rounded, size: 13, color: colors.primary),
                       const SizedBox(width: 5),
                       Text(
-                        _entitlements.priceLabelFor(theme.id),
+                        MonetizationPolicy.rewardedOnly
+                            ? context.tr('Reklamla aç')
+                            : _entitlements.priceLabelFor(theme.id),
                         style: TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w700,
@@ -505,7 +520,9 @@ class _ThemeScreenState extends State<ThemeScreen> {
                             padding: const EdgeInsets.fromLTRB(24, 4, 24, 0),
                             child: Text(
                               context.tr(
-                                'Kilitli · {price}',
+                                MonetizationPolicy.rewardedOnly
+                                    ? 'Reklam izle, bir kez kullan'
+                                    : 'Kilitli · {price}',
                                 values: {
                                   'price': _entitlements.priceLabelFor(
                                     selectedTheme.id,
@@ -615,7 +632,9 @@ class _ThemeScreenState extends State<ThemeScreen> {
                               label: Text(
                                 selectedLocked
                                     ? context.tr(
-                                        '{price} · Kapağı aç',
+                                        MonetizationPolicy.rewardedOnly
+                                            ? 'Reklamla aç'
+                                            : '{price} · Kapağı aç',
                                         values: {
                                           'price': _entitlements.priceLabelFor(
                                             selectedTheme.id,

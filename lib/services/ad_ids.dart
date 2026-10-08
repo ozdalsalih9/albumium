@@ -22,17 +22,17 @@ abstract final class AdIds {
 
   /// The AdMob app id for iOS, also declared in ios/Runner/Info.plist.
   ///
-  /// Empty until the iOS app exists in AdMob. While it is empty the SDK is
-  /// never started on iOS: the Google Mobile Ads SDK throws when it starts
-  /// without an app id, and an app that will not open is far worse than an app
-  /// that shows no ads.
-  static const iosApplicationId = '';
+  /// Google's sample app for simulator/TestFlight validation. Replace it in
+  /// this file AND Info.plist before enabling live iOS ads.
+  static const iosTestApplicationId = 'ca-app-pub-3940256099942544~1458002511';
+  static const iosApplicationId = iosTestApplicationId;
 
   /// The rewarded unit for iOS. Empty until it exists; see [iosApplicationId].
   static const iosRewardedUnitId = '';
 
   /// Google's public test unit, which always fills and never earns revenue.
   static const testRewardedUnitId = 'ca-app-pub-3940256099942544/5224354917';
+  static const iosTestRewardedUnitId = 'ca-app-pub-3940256099942544/1712485313';
 
   /// Whether this build may request real, paying ads.
   ///
@@ -54,12 +54,23 @@ abstract final class AdIds {
 
   /// Whether ads can run here at all.
   ///
-  /// False on a platform whose AdMob app has not been created yet, and on
-  /// desktop builds, which have no ad SDK.
-  static bool get configured => applicationId.isNotEmpty;
+  /// iOS test builds use the sample app; live builds require real iOS IDs.
+  /// Other platforms retain their existing configuration behavior.
+  static bool get configured {
+    if (!_isIOS) return applicationId.isNotEmpty;
+    if (kIsWeb) return false;
+    if (liveAds && kReleaseMode) {
+      return iosApplicationId.isNotEmpty &&
+          iosApplicationId != iosTestApplicationId &&
+          iosRewardedUnitId.isNotEmpty;
+    }
+    return iosApplicationId.isNotEmpty;
+  }
 
   static String get rewardedUnitId {
-    if (!liveAds || !kReleaseMode) return testRewardedUnitId;
+    if (!liveAds || !kReleaseMode) {
+      return _isIOS ? iosTestRewardedUnitId : testRewardedUnitId;
+    }
     return _isIOS ? iosRewardedUnitId : androidRewardedUnitId;
   }
 }

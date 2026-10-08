@@ -1,15 +1,20 @@
 import 'albumium_entitlements.dart';
 import 'error_reporter.dart';
 import 'play_billing.dart';
+import 'monetization_policy.dart';
 
 /// Connects the ledgers to Google Play.
 ///
 /// Called without awaiting: reaching the store takes a round trip, and the
 /// first frame must not wait for it. Until it answers, the app shows the
 /// catalogue's own prices and whatever was bought on this device before.
-Future<void> startBilling(AlbumiumEntitlements entitlements) async {
+Future<void> startBilling(
+  AlbumiumEntitlements entitlements, {
+  BillingClient Function()? createClient,
+}) async {
+  if (MonetizationPolicy.rewardedOnly) return;
   try {
-    final client = PlayBillingClient()..start();
+    final client = (createClient ?? () => PlayBillingClient()..start())();
     final covers = PlayCoverPurchaseSource(client);
     final features = PlayFeaturePurchaseSource(client);
 

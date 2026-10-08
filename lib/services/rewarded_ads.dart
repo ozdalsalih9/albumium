@@ -1,5 +1,17 @@
 import 'feature_entitlements.dart';
 
+enum RewardedAdPlacement {
+  cover,
+  fullHdExport,
+  customStickers;
+
+  static RewardedAdPlacement forFeature(AlbumiumFeature feature) =>
+      switch (feature) {
+        AlbumiumFeature.fullHdExport => fullHdExport,
+        AlbumiumFeature.customStickers => customStickers,
+      };
+}
+
 /// How showing a rewarded ad ended.
 enum RewardedAdOutcome {
   /// Watched to the end: the user earned one use of the feature.
@@ -21,7 +33,7 @@ enum RewardedAdOutcome {
 /// `CoverPurchaseSource` keeps the store out of them. Only one file ever
 /// imports the SDK, and it is not this one.
 abstract class RewardedAdSource {
-  Future<RewardedAdOutcome> show(AlbumiumFeature feature);
+  Future<RewardedAdOutcome> show(RewardedAdPlacement placement);
 }
 
 /// The source used until the real SDK is installed, and in every test.
@@ -32,7 +44,7 @@ class NoRewardedAdSource implements RewardedAdSource {
   const NoRewardedAdSource();
 
   @override
-  Future<RewardedAdOutcome> show(AlbumiumFeature feature) async =>
+  Future<RewardedAdOutcome> show(RewardedAdPlacement placement) async =>
       RewardedAdOutcome.unavailable;
 }
 

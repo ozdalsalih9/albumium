@@ -4,6 +4,7 @@ import '../l10n/albumium_localizations.dart';
 import '../models/album_library_query.dart';
 import '../models/album_models.dart';
 import '../services/cover_entitlements.dart';
+import '../services/monetization_policy.dart';
 import '../theme/albumium_app_theme.dart';
 import '../widgets/album_cover_3d.dart';
 import '../widgets/cover_purchase_sheet.dart';
@@ -16,7 +17,10 @@ enum CoverCatalogSort { freeFirst, paidFirst, alphabetical }
 
 String _sortLabel(CoverCatalogSort sort) => switch (sort) {
   CoverCatalogSort.freeFirst => 'Önce ücretsiz',
-  CoverCatalogSort.paidFirst => 'Önce ücretli',
+  CoverCatalogSort.paidFirst =>
+    MonetizationPolicy.rewardedOnly
+        ? 'Önce reklamla açılanlar'
+        : 'Önce ücretli',
   CoverCatalogSort.alphabetical => 'Alfabetik',
 };
 
@@ -30,6 +34,9 @@ String coverStatusLabel(
   required bool locked,
   String? priceLabel,
 }) {
+  if (MonetizationPolicy.rewardedOnly && theme.isPremium) {
+    return context.tr(locked ? 'Reklamla aç' : 'Bir kullanım hazır');
+  }
   if (locked) return priceLabel ?? theme.price.label ?? '';
   return context.tr(theme.isPremium ? 'Satın alındı' : 'Ücretsiz');
 }

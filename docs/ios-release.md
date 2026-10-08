@@ -1,5 +1,9 @@
 # Albumium iOS 17+ yayın hazırlığı
 
+Güncel iOS gelir modeli satın alma yerine reklamla tek kullanımlık açmadır.
+Kurulum ve kabul kontrolleri için [iOS reklam akışı](ios-rewarded-unlocks.md)
+belgesini kullan; Android satın alma modeli korunur.
+
 Bu depo artık iPhone/iPad projesi ve yerel platform uygulamalarını içeriyor. **iOS simülatör derlemesi ve 4 yerel XCTest, Codemagic macOS üzerinde geçti.** İmzalama ve gerçek cihaz doğrulaması henüz yapılmadı; simülatör sonucu fiziksel cihaz testinin yerine geçmez.
 
 ## Eklenenler

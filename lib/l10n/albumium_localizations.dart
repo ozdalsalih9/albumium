@@ -681,6 +681,21 @@ class AlbumiumLocalizations {
     'Alfabetik': 'Alphabetical',
     // Ücretli özellikler
     'Reklam izle, bir kez kullan': 'Watch an ad, use it once',
+    'Reklamla aç': 'Unlock with an ad',
+    'Bir kullanım hazır': 'One use ready',
+    'Önce reklamla açılanlar': 'Ad unlocks first',
+    'Bir reklam izle, bu kapakla bir albüm oluştur.':
+        'Watch an ad and create one album with this cover.',
+    'Oluşturduğun albümün kapağı sende kalır.':
+        'The cover stays on the album you create.',
+    'Bir reklam izle, bir sticker oluştur.':
+        'Watch an ad and create one sticker.',
+    'Bir reklam izle, bir videoyu 1080p dışa aktar.':
+        'Watch an ad and export one video in 1080p.',
+    'Her yeni kullanım için yeniden reklam izle.':
+        'Watch another ad for each new use.',
+    'Şu anda gösterilecek reklam yok. Daha sonra tekrar dene.':
+        'No ad is available right now. Try again later.',
     '{price} · Kalıcı aç': '{price} · Unlock for good',
     'Ödülü kazanmak için reklamı sonuna kadar izlemelisin.':
         'You have to watch the ad to the end to earn the reward.',

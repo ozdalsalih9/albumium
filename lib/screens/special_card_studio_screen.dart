@@ -21,6 +21,7 @@ import '../theme/albumium_app_theme.dart';
 import '../widgets/album_page_canvas.dart';
 import '../widgets/export_delivery.dart';
 import '../widgets/feature_unlock_sheet.dart';
+import '../services/monetization_policy.dart';
 import '../widgets/element_edit_panel.dart';
 import '../widgets/font_selector_dialog.dart';
 import '../widgets/handmade_craft.dart';
@@ -519,7 +520,10 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
     final String? sticker;
     if (personal) {
       // Making your own stickers is the paid part; see the album editor.
-      if (!await ensureCustomStickers(context)) return;
+      if (!MonetizationPolicy.rewardedOnly &&
+          !await ensureCustomStickers(context)) {
+        return;
+      }
       if (!mounted) return;
       sticker = await Navigator.push<String>(
         context,

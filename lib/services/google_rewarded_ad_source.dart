@@ -5,7 +5,6 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'ad_consent.dart';
 import 'ad_ids.dart';
 import 'error_reporter.dart';
-import 'feature_entitlements.dart';
 import 'rewarded_ads.dart';
 
 /// The only file in the app that touches the ad SDK.
@@ -16,7 +15,7 @@ class GoogleRewardedAdSource implements RewardedAdSource {
   const GoogleRewardedAdSource();
 
   @override
-  Future<RewardedAdOutcome> show(AlbumiumFeature feature) async {
+  Future<RewardedAdOutcome> show(RewardedAdPlacement placement) async {
     final RewardedAd ad;
     try {
       ad = await _load();

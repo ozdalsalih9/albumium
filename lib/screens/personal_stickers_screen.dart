@@ -6,6 +6,10 @@ import '../l10n/albumium_localizations.dart';
 import '../services/photo_selection_service.dart';
 import '../services/personal_sticker_storage.dart';
 import '../services/platform_album_services.dart';
+import '../services/albumium_entitlements.dart';
+import '../services/feature_entitlements.dart';
+import '../services/monetization_policy.dart';
+import '../widgets/feature_unlock_sheet.dart';
 
 class PersonalStickersScreen extends StatefulWidget {
   const PersonalStickersScreen({super.key});
@@ -42,8 +46,14 @@ class _PersonalStickersScreenState extends State<PersonalStickersScreen> {
   }
 
   Future<void> _create() async {
+    if (_busy) return;
     setState(() => _busy = true);
     try {
+      if (MonetizationPolicy.rewardedOnly &&
+          !await ensureCustomStickers(context)) {
+        return;
+      }
+      if (!mounted) return;
       final photos = await PhotoSelectionService.pick(
         context,
         preserveTransparency: true,
@@ -438,8 +448,14 @@ class _StickerCutoutScreenState extends State<StickerCutoutScreen> {
   }
 
   Future<void> _save() async {
+    if (_busy) return;
     setState(() => _busy = true);
     try {
+      if (MonetizationPolicy.rewardedOnly &&
+          !await ensureCustomStickers(context)) {
+        return;
+      }
+      if (!mounted) return;
       final source = _original!;
       final recorder = ui.PictureRecorder();
       StickerCutoutPainter(
@@ -463,6 +479,11 @@ class _StickerCutoutScreenState extends State<StickerCutoutScreen> {
         source.width / source.height,
         _name.text.trim().isEmpty ? context.tr('Stickerım') : _name.text.trim(),
       );
+      if (MonetizationPolicy.rewardedOnly) {
+        AlbumiumEntitlements.instance.features.consumeGrant(
+          AlbumiumFeature.customStickers,
+        );
+      }
       if (mounted) Navigator.pop(context, sticker.content);
     } catch (_) {
       if (mounted) setState(() => _error = 'Kaydedilemedi. Tekrar dene.');

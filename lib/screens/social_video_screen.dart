@@ -13,6 +13,7 @@ import '../models/social_video_draft.dart';
 import '../services/albumium_entitlements.dart';
 import '../services/cinematic_soundtrack.dart';
 import '../services/feature_entitlements.dart';
+import '../services/monetization_policy.dart';
 import '../services/platform_album_services.dart';
 import '../services/personal_sticker_storage.dart';
 import '../services/video_export_support.dart';
@@ -156,6 +157,12 @@ class _SocialVideoScreenState extends State<SocialVideoScreen>
 
   Future<void> _export() async {
     if (!_draft.canExport || _exporting) return;
+    if (MonetizationPolicy.rewardedOnly &&
+        _quality == VideoExportQuality.fullHd &&
+        _fullHdLocked) {
+      await _selectQuality(VideoExportQuality.fullHd);
+      if (!mounted || _fullHdLocked || _exporting) return;
+    }
     _play.stop();
     setState(() {
       _exporting = true;

@@ -20,6 +20,7 @@ import '../models/social_video_draft.dart';
 import '../services/albumium_entitlements.dart';
 import '../services/album_storage.dart';
 import '../services/feature_entitlements.dart';
+import '../services/monetization_policy.dart';
 import 'social_video_screen.dart';
 import '../models/cinematic_storyboard.dart';
 import '../models/single_page_export_storyboard.dart';
@@ -1307,6 +1308,12 @@ class _PreviewScreenState extends State<PreviewScreen>
     required VideoExportSettings settings,
   }) async {
     if (_exporting) return;
+    if (MonetizationPolicy.rewardedOnly &&
+        settings.quality == VideoExportQuality.fullHd &&
+        _fullHdLocked) {
+      if (!await _offerFullHd(context)) return;
+      if (!mounted || _fullHdLocked || _exporting) return;
+    }
     final includeSoundtrack = settings.includeSoundtrack;
     final localizedShareText = context.tr(
       '“{title}” albümümün sayfalarını Albumium ile hazırladım.',

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../l10n/albumium_localizations.dart';
 import '../models/album_models.dart';
 import '../services/cover_entitlements.dart';
+import '../services/monetization_policy.dart';
+import '../services/rewarded_ads.dart';
 import '../theme/albumium_app_theme.dart';
 import 'album_cover_3d.dart';
 
@@ -35,6 +37,36 @@ class _CoverPurchaseSheet extends StatefulWidget {
 class _CoverPurchaseSheetState extends State<_CoverPurchaseSheet> {
   bool _working = false;
   String? _error;
+
+  Future<void> _watchAd() async {
+    if (_working) return;
+    setState(() {
+      _working = true;
+      _error = null;
+    });
+    RewardedAdOutcome outcome;
+    try {
+      outcome = await RewardedAds.source.show(RewardedAdPlacement.cover);
+    } catch (_) {
+      outcome = RewardedAdOutcome.failed;
+    }
+    if (!mounted) return;
+    if (outcome == RewardedAdOutcome.earned) {
+      widget.entitlements.grant(widget.theme.id);
+      Navigator.pop(context, true);
+      return;
+    }
+    setState(() {
+      _working = false;
+      _error = context.tr(switch (outcome) {
+        RewardedAdOutcome.dismissed =>
+          'Ödülü kazanmak için reklamı sonuna kadar izlemelisin.',
+        RewardedAdOutcome.unavailable =>
+          'Şu anda gösterilecek reklam yok. Daha sonra tekrar dene.',
+        _ => 'Reklam açılamadı. Tekrar deneyebilirsin.',
+      });
+    });
+  }
 
   AlbumModel get _preview {
     final date = DateTime(2026);
@@ -77,7 +109,10 @@ class _CoverPurchaseSheetState extends State<_CoverPurchaseSheet> {
   Widget build(BuildContext context) {
     final colors = AlbumiumAppTheme.colorsOf(context);
     final theme = widget.theme;
-    final price = widget.entitlements.priceLabelFor(theme.id);
+    final rewardedOnly = MonetizationPolicy.rewardedOnly;
+    final price = rewardedOnly
+        ? ''
+        : widget.entitlements.priceLabelFor(theme.id);
 
     Widget bullet(IconData icon, String text) => Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -138,9 +173,17 @@ class _CoverPurchaseSheetState extends State<_CoverPurchaseSheet> {
             const SizedBox(height: 18),
             bullet(
               Icons.auto_stories_outlined,
-              'Bu kapağı tüm albümlerinde kullanabilirsin.',
+              rewardedOnly
+                  ? 'Bir reklam izle, bu kapakla bir albüm oluştur.'
+                  : 'Bu kapağı tüm albümlerinde kullanabilirsin.',
             ),
-            bullet(Icons.sell_outlined, 'Tek seferlik satın alma.'),
+            if (!rewardedOnly)
+              bullet(Icons.sell_outlined, 'Tek seferlik satın alma.'),
+            if (rewardedOnly)
+              bullet(
+                Icons.check_circle_outline,
+                'Oluşturduğun albümün kapağı sende kalır.',
+              ),
             bullet(Icons.cloud_off_outlined, 'Çevrimdışı çalışır.'),
             if (_error != null)
               Padding(
@@ -155,12 +198,18 @@ class _CoverPurchaseSheetState extends State<_CoverPurchaseSheet> {
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                key: const ValueKey('cover-purchase-confirm'),
+                key: ValueKey(
+                  rewardedOnly
+                      ? 'cover-unlock-watch-ad'
+                      : 'cover-purchase-confirm',
+                ),
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 15),
                 ),
                 onPressed: _working
                     ? null
+                    : rewardedOnly
+                    ? _watchAd
                     : () => _run(
                         () => widget.entitlements.purchase(theme.id),
                         'Satın alma tamamlanamadı. Tekrar deneyebilirsin.',
@@ -171,27 +220,37 @@ class _CoverPurchaseSheetState extends State<_CoverPurchaseSheet> {
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.lock_open_rounded),
+                    : Icon(
+                        rewardedOnly
+                            ? Icons.play_circle_outline_rounded
+                            : Icons.lock_open_rounded,
+                      ),
                 label: Text(
-                  context.tr('{price} · Satın al', values: {'price': price}),
+                  rewardedOnly
+                      ? context.tr('Reklam izle, bir kez kullan')
+                      : context.tr(
+                          '{price} · Satın al',
+                          values: {'price': price},
+                        ),
                 ),
               ),
             ),
             // Side by side these two labels do not fit a narrow phone, and
             // "Satın alımları geri yükle" must not be truncated.
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                key: const ValueKey('cover-purchase-restore'),
-                onPressed: _working
-                    ? null
-                    : () => _run(() async {
-                        await widget.entitlements.restore();
-                        return widget.entitlements.isUnlocked(theme.id);
-                      }, 'Geri yüklenecek satın alma bulunamadı.'),
-                child: Text(context.tr('Satın alımları geri yükle')),
+            if (!rewardedOnly)
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  key: const ValueKey('cover-purchase-restore'),
+                  onPressed: _working
+                      ? null
+                      : () => _run(() async {
+                          await widget.entitlements.restore();
+                          return widget.entitlements.isUnlocked(theme.id);
+                        }, 'Geri yüklenecek satın alma bulunamadı.'),
+                  child: Text(context.tr('Satın alımları geri yükle')),
+                ),
               ),
-            ),
             SizedBox(
               width: double.infinity,
               child: TextButton(

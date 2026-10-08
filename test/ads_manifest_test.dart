@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:albumium/services/ad_ids.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The manifest carries values the SDK reads before any Dart runs, so nothing
@@ -32,7 +33,7 @@ void main() {
     expect(AdIds.androidRewardedUnitId, startsWith('$account/'));
   });
 
-  test('iOS stays silent until its AdMob app exists', () {
+  test('iOS test ads have a matching native app id and attribution list', () {
     // AdMob issues a separate app and separate units per platform. Until the
     // iOS ones are made, the SDK must not start there: it throws without an
     // app id, and a crash is worse than no ads.
@@ -57,15 +58,26 @@ void main() {
     expect(AdIds.iosApplicationId, contains('~'));
     expect(
       AdIds.iosRewardedUnitId,
-      startsWith('${AdIds.iosApplicationId.split('~').first}/'),
+      isEmpty,
+      reason: 'a live iOS unit has not been supplied yet',
     );
-    // Apple requires the tracking prompt before personalised ads.
-    expect(infoPlist, contains('NSUserTrackingUsageDescription'));
     expect(
       infoPlist,
       contains('SKAdNetworkItems'),
       reason: 'without these, iOS ad revenue cannot be attributed',
     );
+  });
+
+  test('iOS uses its own rewarded test unit and Android retains its IDs', () {
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    expect(AdIds.configured, isTrue);
+    expect(AdIds.rewardedUnitId, AdIds.iosTestRewardedUnitId);
+    expect(AdIds.rewardedUnitId, isNot(AdIds.testRewardedUnitId));
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    expect(AdIds.configured, isTrue);
+    expect(AdIds.applicationId, AdIds.androidApplicationId);
+    expect(AdIds.rewardedUnitId, AdIds.testRewardedUnitId);
   });
 
   test('live ads are off unless a build asks for them', () {

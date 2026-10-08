@@ -10,7 +10,7 @@ class _FakeAds implements RewardedAdSource {
   int shown = 0;
 
   @override
-  Future<RewardedAdOutcome> show(AlbumiumFeature feature) async {
+  Future<RewardedAdOutcome> show(RewardedAdPlacement placement) async {
     shown++;
     return outcome;
   }
@@ -33,7 +33,7 @@ void main() {
   test('a build with no ad SDK reports that no ad is available', () async {
     expect(RewardedAds.source, isA<NoRewardedAdSource>());
     expect(
-      await RewardedAds.source.show(AlbumiumFeature.fullHdExport),
+      await RewardedAds.source.show(RewardedAdPlacement.fullHdExport),
       RewardedAdOutcome.unavailable,
     );
   });
@@ -100,7 +100,7 @@ void main() {
       RewardedAds.configure(ads);
 
       final result = await RewardedAds.source.show(
-        AlbumiumFeature.fullHdExport,
+        RewardedAdPlacement.fullHdExport,
       );
       if (result == RewardedAdOutcome.earned) {
         features.grant(AlbumiumFeature.fullHdExport);

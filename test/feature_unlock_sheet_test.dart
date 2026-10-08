@@ -12,7 +12,7 @@ class _FakeAds implements RewardedAdSource {
   int shown = 0;
 
   @override
-  Future<RewardedAdOutcome> show(AlbumiumFeature feature) async {
+  Future<RewardedAdOutcome> show(RewardedAdPlacement placement) async {
     shown++;
     return outcome;
   }

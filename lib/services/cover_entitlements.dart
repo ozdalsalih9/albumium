@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/album_models.dart';
+import 'monetization_policy.dart';
 
 /// Where a cover purchase actually happens.
 ///
@@ -68,6 +69,7 @@ class CoverEntitlements extends ChangeNotifier {
   Future<void>? _initialization;
   bool _isInitialized = false;
   Set<String> _purchased = <String>{};
+  final Set<String> _granted = <String>{};
 
   bool get isInitialized => _isInitialized;
   Set<String> get purchasedThemeIds => Set.unmodifiable(_purchased);
@@ -89,16 +91,30 @@ class CoverEntitlements extends ChangeNotifier {
   /// Free covers are always available; premium ones need a purchase.
   bool isUnlocked(String themeId) {
     if (!themeById(themeId).isPremium) return true;
-    return _purchased.contains(themeId);
+    return _granted.contains(themeId) ||
+        (!MonetizationPolicy.rewardedOnly && _purchased.contains(themeId));
   }
 
-  bool isUnlockedTheme(AlbumThemePreset theme) =>
-      !theme.isPremium || _purchased.contains(theme.id);
+  bool isUnlockedTheme(AlbumThemePreset theme) => isUnlocked(theme.id);
+
+  /// One new album with this cover; existing albums retain their artwork.
+  void grant(String themeId) {
+    if (_granted.add(themeId)) notifyListeners();
+  }
+
+  bool hasGrant(String themeId) => _granted.contains(themeId);
+
+  bool consumeGrant(String themeId) {
+    if (!_granted.remove(themeId)) return false;
+    notifyListeners();
+    return true;
+  }
 
   String priceLabelFor(String themeId) => _source.priceLabelFor(themeId);
 
   /// Returns true when the cover is unlocked afterwards.
   Future<bool> purchase(String themeId) async {
+    if (MonetizationPolicy.rewardedOnly) return false;
     final preferences = await _getPreferences();
     if (_purchased.contains(themeId)) return true;
     if (!await _source.purchase(themeId)) return false;
@@ -113,6 +129,7 @@ class CoverEntitlements extends ChangeNotifier {
 
   /// Adds anything the store already considers owned.
   Future<void> restore() async {
+    if (MonetizationPolicy.rewardedOnly) return;
     final preferences = await _getPreferences();
     final owned = await _source.restore();
     final merged = {..._purchased, ...owned};
@@ -151,8 +168,9 @@ class CoverEntitlements extends ChangeNotifier {
 
   Future<void> reset() async {
     final preferences = await _getPreferences();
-    final changed = _purchased.isNotEmpty;
+    final changed = _purchased.isNotEmpty || _granted.isNotEmpty;
     _purchased = <String>{};
+    _granted.clear();
     if (changed) notifyListeners();
     await preferences.remove(purchasedCoversPreferenceKey);
   }
