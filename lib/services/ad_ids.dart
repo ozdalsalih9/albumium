@@ -47,6 +47,17 @@ abstract final class AdIds {
   /// The unit [configured] checks before letting a live build start the SDK.
   static const iosRewardedUnitId = iosRewardedExportUnitId;
 
+  /// The banner above the navigation bar, and the full-screen ad shown at a
+  /// natural break. Empty until the units exist; empty means that surface
+  /// simply does not appear.
+  static const iosBannerUnitId = '';
+  static const iosInterstitialUnitId = '';
+
+  /// Google's public test units for those two surfaces.
+  static const iosTestBannerUnitId = 'ca-app-pub-3940256099942544/2934735716';
+  static const iosTestInterstitialUnitId =
+      'ca-app-pub-3940256099942544/4411468910';
+
   /// Google's public test unit, which always fills and never earns revenue.
   static const testRewardedUnitId = 'ca-app-pub-3940256099942544/5224354917';
   static const iosTestRewardedUnitId = 'ca-app-pub-3940256099942544/1712485313';
@@ -82,6 +93,20 @@ abstract final class AdIds {
           iosRewardedUnitId.isNotEmpty;
     }
     return iosApplicationId.isNotEmpty;
+  }
+
+  /// The banner unit, or null when there is none to show.
+  static String? get bannerUnitId {
+    if (!_isIOS) return null;
+    if (!liveAds || !kReleaseMode) return iosTestBannerUnitId;
+    return iosBannerUnitId.isEmpty ? null : iosBannerUnitId;
+  }
+
+  /// The full-screen unit, or null when there is none to show.
+  static String? get interstitialUnitId {
+    if (!_isIOS) return null;
+    if (!liveAds || !kReleaseMode) return iosTestInterstitialUnitId;
+    return iosInterstitialUnitId.isEmpty ? null : iosInterstitialUnitId;
   }
 
   /// The unit to request for one place in the app.

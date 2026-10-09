@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'ad_consent.dart';
+import 'google_ad_surfaces.dart';
 import 'ad_ids.dart';
 import 'error_reporter.dart';
 import 'rewarded_ads.dart';
@@ -91,6 +92,7 @@ Future<void> initializeAds() async {
     if (!await ConsentInformation.instance.canRequestAds()) return;
     await MobileAds.instance.initialize();
     RewardedAds.configure(const GoogleRewardedAdSource());
+    configureAdSurfaces();
   } catch (error, stack) {
     ErrorReporter.report(error, stack, context: 'MobileAds.initialize');
   }

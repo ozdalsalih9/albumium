@@ -13,6 +13,7 @@ import '../l10n/albumium_localizations.dart';
 import '../models/album_models.dart';
 import '../services/album_storage.dart';
 import '../services/error_reporter.dart';
+import '../services/interstitial_ads.dart';
 import '../services/personal_sticker_storage.dart';
 import '../widgets/feature_unlock_sheet.dart';
 import '../services/monetization_policy.dart';
@@ -321,10 +322,7 @@ class _EditorScreenState extends State<EditorScreen>
           );
           await AlbumStorage.instance.saveAlbum(snapshot);
         } catch (_) {}
-        setState(() => _allowPop = true);
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) Navigator.of(context).pop();
-        });
+        _popAndOfferAd();
         return;
       }
       if (choice == _LeaveChoice.save) {
@@ -333,10 +331,7 @@ class _EditorScreenState extends State<EditorScreen>
         // _leaving intentionally stays true so dispose() does not fire a
         // second unsynchronized _persistChanges() after we've already saved.
         if (!saved || !mounted) return;
-        setState(() => _allowPop = true);
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) Navigator.of(context).pop();
-        });
+        _popAndOfferAd();
         return;
       }
     }
@@ -345,9 +340,20 @@ class _EditorScreenState extends State<EditorScreen>
     final saved = await _save();
     // _leaving intentionally stays true — dispose() must not race with us.
     if (!saved || !mounted) return;
+    _popAndOfferAd();
+  }
+
+  /// Leaves the editor, then offers a full-screen ad.
+  ///
+  /// The ad comes after the pop, never before: one that delays leaving reads
+  /// as a toll on having used the app, and Google counts an ad that
+  /// interrupts a task as disruptive. [InterstitialAds] decides whether the
+  /// platform and the cadence allow one at all.
+  void _popAndOfferAd() {
     setState(() => _allowPop = true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) Navigator.of(context).pop();
+      unawaited(InterstitialAds.maybeShow(InterstitialPlacement.editorExit));
     });
   }
 
@@ -1500,6 +1506,7 @@ class _EditorScreenState extends State<EditorScreen>
             PreviewScreen(album: album, openShareOnReady: openShareOptions),
       ),
     );
+    unawaited(InterstitialAds.maybeShow(InterstitialPlacement.previewExit));
   }
 
   @override

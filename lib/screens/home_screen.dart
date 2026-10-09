@@ -14,6 +14,7 @@ import '../widgets/app_theme_picker.dart';
 import '../widgets/cinematic_album_opening.dart';
 import '../widgets/handmade_craft.dart';
 import '../widgets/occasion_cards.dart';
+import '../widgets/ad_banner.dart';
 import '../widgets/ad_consent_button.dart';
 import '../widgets/privacy_policy_button.dart';
 import 'editor_screen.dart';
@@ -319,24 +320,33 @@ class _HomeScreenState extends State<HomeScreen> {
     final remainingAlbumCount = matchingAlbums.length - visibleAlbums.length;
     return Scaffold(
       backgroundColor: colors.background,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _section,
-        onDestinationSelected: (value) {
-          setState(() => _section = value);
-          if (value == 0) _reload();
-        },
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.auto_stories_outlined),
-            label: context.tr('Albümler'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.auto_awesome_mosaic_outlined),
-            label: context.tr('Temalar'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.style_outlined),
-            label: context.tr('Kartlar'),
+      // The banner rides above the navigation bar on the two browsing tabs.
+      // It is kept off the cards tab and out of the editor, where the screen
+      // is worked with a finger and a stray tap would be an accidental click.
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_section != 2) const AdBanner(),
+          NavigationBar(
+            selectedIndex: _section,
+            onDestinationSelected: (value) {
+              setState(() => _section = value);
+              if (value == 0) _reload();
+            },
+            destinations: [
+              NavigationDestination(
+                icon: const Icon(Icons.auto_stories_outlined),
+                label: context.tr('Albümler'),
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.auto_awesome_mosaic_outlined),
+                label: context.tr('Temalar'),
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.style_outlined),
+                label: context.tr('Kartlar'),
+              ),
+            ],
           ),
         ],
       ),

@@ -3,8 +3,7 @@ import '../services/platform_album_services.dart';
 
 import '../l10n/albumium_localizations.dart';
 
-const albumiumPrivacyUrl =
-    'https://albumiumapp.com/privacy.html';
+const albumiumPrivacyUrl = 'https://albumiumapp.com/privacy.html';
 
 class PrivacyPolicyButton extends StatelessWidget {
   const PrivacyPolicyButton({super.key});
