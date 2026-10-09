@@ -109,6 +109,26 @@ void main() {
     }
   });
 
+  test('the banner and the full-screen ad have units of their own', () {
+    // An empty id here is how a surface is turned off, so a typo that empties
+    // one would read as "no banner on iOS" and never be noticed.
+    final account = AdIds.iosApplicationId.split('~').first;
+    for (final unit in [AdIds.iosBannerUnitId, AdIds.iosInterstitialUnitId]) {
+      expect(unit, startsWith('$account/'));
+    }
+    expect(
+      {
+        AdIds.iosBannerUnitId,
+        AdIds.iosInterstitialUnitId,
+        AdIds.iosRewardedCoverUnitId,
+        AdIds.iosRewardedStickerUnitId,
+        AdIds.iosRewardedExportUnitId,
+      },
+      hasLength(5),
+      reason: 'a unit reused across formats reports as one line',
+    );
+  });
+
   test('live ads are off unless a build asks for them', () {
     // Watching your own live ads is invalid traffic, and Google suspends
     // accounts for it. Only a build passing ALBUMIUM_LIVE_ADS goes live.

@@ -48,10 +48,9 @@ abstract final class AdIds {
   static const iosRewardedUnitId = iosRewardedExportUnitId;
 
   /// The banner above the navigation bar, and the full-screen ad shown at a
-  /// natural break. Empty until the units exist; empty means that surface
-  /// simply does not appear.
-  static const iosBannerUnitId = '';
-  static const iosInterstitialUnitId = '';
+  /// natural break. An empty value would mean that surface does not appear.
+  static const iosBannerUnitId = 'ca-app-pub-3816017115155014/7120804435';
+  static const iosInterstitialUnitId = 'ca-app-pub-3816017115155014/8823848472';
 
   /// Google's public test units for those two surfaces.
   static const iosTestBannerUnitId = 'ca-app-pub-3940256099942544/2934735716';
