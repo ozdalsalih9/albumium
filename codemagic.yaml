@@ -143,7 +143,7 @@ workflows:
       - name: Apply signing profiles
         script: xcode-project use-profiles
       - name: Build IPA
-        script: flutter build ipa --release --build-number=$PROJECT_BUILD_NUMBER --export-options-plist=/Users/builder/export_options.plist
+        script: flutter build ipa --release --dart-define=ALBUMIUM_LIVE_ADS=true --build-number=$PROJECT_BUILD_NUMBER --export-options-plist=/Users/builder/export_options.plist
     artifacts:
       - build/ios/ipa/*.ipa
       - build/ios/archive/*.xcarchive
