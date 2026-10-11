@@ -67,7 +67,7 @@ class _NoAd implements Exception {
   const _NoAd();
 }
 
-/// A banner sized to the screen it sits on.
+/// A banner sized to the ad inside it.
 ///
 /// It reserves no space until an ad actually loads, so a screen never opens
 /// with an empty grey strip where an ad might one day appear.
@@ -82,7 +82,7 @@ class _AdaptiveBanner extends StatefulWidget {
 
 class _AdaptiveBannerState extends State<_AdaptiveBanner> {
   BannerAd? _ad;
-  bool _loaded = false;
+  AdSize? _filled;
   double? _requestedWidth;
 
   @override
@@ -96,23 +96,33 @@ class _AdaptiveBannerState extends State<_AdaptiveBanner> {
     if (_requestedWidth == width.toDouble()) return;
     _requestedWidth = width.toDouble();
     try {
-      final size =
+      // The tallest banner Google recommends for the bottom of this screen,
+      // which is also the best paying one it can send.
+      final ceiling =
           await AdSize.getLargeAnchoredAdaptiveBannerAdSizeWithOrientation(
             MediaQuery.orientationOf(context),
             width,
           );
-      if (size == null || !mounted) return;
+      if (ceiling == null || !mounted) return;
       final ad = BannerAd(
         adUnitId: widget.unitId,
-        size: size,
+        // Asked for as a ceiling rather than a fixed slot. The same tall ad
+        // is still allowed, but a shorter one comes back short instead of
+        // being centred in a tall box with app background showing above and
+        // below it. That background was the gap around the ad.
+        size: AdSize.getInlineAdaptiveBannerAdSize(width, ceiling.height),
         request: const AdRequest(),
         listener: BannerAdListener(
-          onAdLoaded: (_) {
-            if (mounted) setState(() => _loaded = true);
+          onAdLoaded: (ad) async {
+            // A ceiling says what was allowed, not what arrived; the height
+            // actually filled is only known once the ad is there.
+            final filled = await (ad as BannerAd).getPlatformAdSize();
+            if (!mounted) return;
+            setState(() => _filled = filled ?? ceiling);
           },
           onAdFailedToLoad: (ad, _) {
             ad.dispose();
-            if (mounted) setState(() => _loaded = false);
+            if (mounted) setState(() => _filled = null);
           },
         ),
       );
@@ -133,10 +143,11 @@ class _AdaptiveBannerState extends State<_AdaptiveBanner> {
   @override
   Widget build(BuildContext context) {
     final ad = _ad;
-    if (!_loaded || ad == null) return const SizedBox.shrink();
+    final filled = _filled;
+    if (ad == null || filled == null) return const SizedBox.shrink();
     return SizedBox(
-      width: ad.size.width.toDouble(),
-      height: ad.size.height.toDouble(),
+      width: filled.width.toDouble(),
+      height: filled.height.toDouble(),
       child: AdWidget(ad: ad),
     );
   }
