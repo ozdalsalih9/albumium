@@ -81,6 +81,14 @@ class _AdaptiveBanner extends StatefulWidget {
 }
 
 class _AdaptiveBannerState extends State<_AdaptiveBanner> {
+  /// The tallest the strip may grow, in logical pixels.
+  ///
+  /// A ceiling, not a size: a shorter ad takes a shorter strip. Google's own
+  /// recommendation for the bottom of a phone screen lands near this, so it
+  /// is high enough to keep the big, better paying ads in the running, and
+  /// low enough that one cannot take half the screen.
+  static const _maximumHeight = 100;
+
   BannerAd? _ad;
   AdSize? _filled;
   double? _requestedWidth;
@@ -96,21 +104,13 @@ class _AdaptiveBannerState extends State<_AdaptiveBanner> {
     if (_requestedWidth == width.toDouble()) return;
     _requestedWidth = width.toDouble();
     try {
-      // The tallest banner Google recommends for the bottom of this screen,
-      // which is also the best paying one it can send.
-      final ceiling =
-          await AdSize.getLargeAnchoredAdaptiveBannerAdSizeWithOrientation(
-            MediaQuery.orientationOf(context),
-            width,
-          );
-      if (ceiling == null || !mounted) return;
       final ad = BannerAd(
         adUnitId: widget.unitId,
-        // Asked for as a ceiling rather than a fixed slot. The same tall ad
-        // is still allowed, but a shorter one comes back short instead of
-        // being centred in a tall box with app background showing above and
-        // below it. That background was the gap around the ad.
-        size: AdSize.getInlineAdaptiveBannerAdSize(width, ceiling.height),
+        // Asked for as a ceiling rather than a fixed slot. A tall ad is still
+        // allowed, but a shorter one comes back short instead of being
+        // centred in a tall box with app background showing above and below
+        // it. That background was the gap around the ad.
+        size: AdSize.getInlineAdaptiveBannerAdSize(width, _maximumHeight),
         request: const AdRequest(),
         listener: BannerAdListener(
           onAdLoaded: (ad) async {
@@ -118,7 +118,10 @@ class _AdaptiveBannerState extends State<_AdaptiveBanner> {
             // actually filled is only known once the ad is there.
             final filled = await (ad as BannerAd).getPlatformAdSize();
             if (!mounted) return;
-            setState(() => _filled = filled ?? ceiling);
+            setState(
+              () => _filled =
+                  filled ?? AdSize(width: width, height: _maximumHeight),
+            );
           },
           onAdFailedToLoad: (ad, _) {
             ad.dispose();

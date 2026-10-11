@@ -367,9 +367,9 @@ abstract final class AlbumiumAppTheme {
         backgroundColor: colors.surface,
         surfaceTintColor: Colors.transparent,
         // Material's own 80 leaves a band of empty surface above the icons.
-        // 64 still clears the 48 a finger needs and gives the page, and the
+        // 68 still clears the 48 a finger needs and gives the page, and the
         // banner sitting on top of the bar, the rest of it back.
-        height: 64,
+        height: 68,
         indicatorColor: colors.glow,
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
