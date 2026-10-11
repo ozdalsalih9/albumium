@@ -83,11 +83,11 @@ class _AdaptiveBanner extends StatefulWidget {
 class _AdaptiveBannerState extends State<_AdaptiveBanner> {
   /// The tallest the strip may grow, in logical pixels.
   ///
-  /// A ceiling, not a size: a shorter ad takes a shorter strip. Google's own
-  /// recommendation for the bottom of a phone screen lands near this, so it
-  /// is high enough to keep the big, better paying ads in the running, and
-  /// low enough that one cannot take half the screen.
-  static const _maximumHeight = 100;
+  /// A ceiling, not a size: a shorter ad takes a shorter strip. Google would
+  /// allow about 100 at the bottom of a phone screen, which is a third again
+  /// as tall as this; the 320x100 class of ad is given up for the room, and
+  /// most banner demand is 50 to 60 tall anyway.
+  static const _maximumHeight = 80;
 
   BannerAd? _ad;
   AdSize? _filled;
