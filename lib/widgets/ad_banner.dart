@@ -7,15 +7,15 @@ import 'package:flutter/material.dart';
 typedef BannerAdBuilder = Widget? Function(BuildContext context);
 
 abstract final class BannerAds {
-  static BannerAdBuilder _builder = _none;
+  /// A listenable, not a plain field: the SDK needs consent and a network
+  /// round trip before it can hand over a builder, by which time the screens
+  /// have long since been built. Without this they would never hear that the
+  /// banner had arrived and would stay empty until an unrelated rebuild.
+  static final ValueNotifier<BannerAdBuilder?> builder = ValueNotifier(null);
 
-  static Widget? _none(BuildContext context) => null;
+  static void configure(BannerAdBuilder value) => builder.value = value;
 
-  static BannerAdBuilder get builder => _builder;
-
-  static void configure(BannerAdBuilder value) => _builder = value;
-
-  static void resetForTesting() => _builder = _none;
+  static void resetForTesting() => builder.value = null;
 }
 
 /// A banner beside the navigation bar, on the screens people browse.
@@ -32,13 +32,18 @@ class AdBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final banner = BannerAds.builder(context);
-    if (banner == null) return const SizedBox.shrink();
-    return Semantics(
-      key: const ValueKey('ad-banner'),
-      label: 'Reklam',
-      container: true,
-      child: banner,
+    return ValueListenableBuilder<BannerAdBuilder?>(
+      valueListenable: BannerAds.builder,
+      builder: (context, build, _) {
+        final banner = build?.call(context);
+        if (banner == null) return const SizedBox.shrink();
+        return Semantics(
+          key: const ValueKey('ad-banner'),
+          label: 'Reklam',
+          container: true,
+          child: banner,
+        );
+      },
     );
   }
 }

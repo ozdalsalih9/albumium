@@ -55,6 +55,25 @@ void main() {
       debugDefaultTargetPlatformOverride = null;
     });
 
+    testWidgets('appears when the SDK arrives, without another rebuild', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+
+      // The real order of events: the screen is built first, and the ad SDK
+      // only hands over a builder once consent and its own startup are done.
+      // Nothing is going to rebuild that screen, so the banner has to notice
+      // for itself or it stays empty for the whole session.
+      await _pumpBanner(tester);
+      expect(find.byKey(const ValueKey('ad-banner')), findsNothing);
+
+      BannerAds.configure((context) => const SizedBox(height: 50));
+      await tester.pump();
+
+      expect(find.byKey(const ValueKey('ad-banner')), findsOneWidget);
+      debugDefaultTargetPlatformOverride = null;
+    });
+
     testWidgets('shows the ad it is given on iOS', (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
       BannerAds.configure((context) => const SizedBox(height: 50));
