@@ -29,7 +29,7 @@ void main() {
   });
 
   group('banner', () {
-    testWidgets('draws nothing where the app sells instead of advertising', (
+    testWidgets('shows on Android too, where the covers are sold', (
       tester,
     ) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
@@ -37,9 +37,29 @@ void main() {
 
       await _pumpBanner(tester);
 
-      // Android charges for the covers and stickers; a banner there would be
-      // asking twice.
-      expect(find.text('reklam'), findsNothing);
+      // The banner is the one ad Android carries: the full-screen one stays
+      // off a platform whose users have already paid.
+      expect(find.text('reklam'), findsOneWidget);
+      debugDefaultTargetPlatformOverride = null;
+    });
+
+    testWidgets('its padding arrives with the ad, not before it', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: AdBanner(padding: EdgeInsets.only(top: 6, bottom: 2)),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // An unfilled banner must not push the navigation bar off the bottom
+      // edge with a gap holding nothing.
+      expect(tester.getSize(find.byType(AdBanner)).height, 0);
       debugDefaultTargetPlatformOverride = null;
     });
 
@@ -149,8 +169,9 @@ void main() {
 
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
 
-    // Android has neither surface at all.
-    expect(AdIds.bannerUnitId, isNull);
+    // Android has a banner of its own, and no full-screen ad at all.
+    expect(AdIds.bannerUnitId, AdIds.testBannerUnitId);
+    expect(AdIds.bannerUnitId, isNot(AdIds.iosTestBannerUnitId));
     expect(AdIds.interstitialUnitId, isNull);
   });
 }

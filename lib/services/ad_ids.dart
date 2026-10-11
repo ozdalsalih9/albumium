@@ -22,6 +22,13 @@ abstract final class AdIds {
   /// The rewarded unit that pays for one Full HD export on Android.
   static const androidRewardedUnitId = 'ca-app-pub-3816017115155014/8093727919';
 
+  /// The banner under the navigation bar on Android.
+  ///
+  /// Empty until the unit is created, and empty means the banner simply does
+  /// not appear. Android has no full-screen unit: it sells its covers, and a
+  /// full-screen ad on top of that is more than a paying app may ask.
+  static const androidBannerUnitId = '';
+
   /// Google's sample app, kept only so [configured] can refuse a live build
   /// that still carries it.
   static const iosTestApplicationId = 'ca-app-pub-3940256099942544~1458002511';
@@ -53,6 +60,7 @@ abstract final class AdIds {
   static const iosInterstitialUnitId = 'ca-app-pub-3816017115155014/8823848472';
 
   /// Google's public test units for those two surfaces.
+  static const testBannerUnitId = 'ca-app-pub-3940256099942544/6300978111';
   static const iosTestBannerUnitId = 'ca-app-pub-3940256099942544/2934735716';
   static const iosTestInterstitialUnitId =
       'ca-app-pub-3940256099942544/4411468910';
@@ -95,10 +103,16 @@ abstract final class AdIds {
   }
 
   /// The banner unit, or null when there is none to show.
+  ///
+  /// Both platforms carry a banner: the one place an ad costs an Android user
+  /// nothing they already paid for.
   static String? get bannerUnitId {
-    if (!_isIOS) return null;
-    if (!liveAds || !kReleaseMode) return iosTestBannerUnitId;
-    return iosBannerUnitId.isEmpty ? null : iosBannerUnitId;
+    if (kIsWeb) return null;
+    if (!liveAds || !kReleaseMode) {
+      return _isIOS ? iosTestBannerUnitId : testBannerUnitId;
+    }
+    final unit = _isIOS ? iosBannerUnitId : androidBannerUnitId;
+    return unit.isEmpty ? null : unit;
   }
 
   /// The full-screen unit, or null when there is none to show.

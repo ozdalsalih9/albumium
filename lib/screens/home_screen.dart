@@ -7,6 +7,7 @@ import '../models/album_library_query.dart';
 import '../models/album_models.dart';
 import '../services/album_storage.dart';
 import '../services/language_controller.dart';
+import '../services/monetization_policy.dart';
 import '../services/theme_controller.dart';
 import '../theme/albumium_app_theme.dart';
 import '../widgets/album_cover_3d.dart';
@@ -303,6 +304,65 @@ class _HomeScreenState extends State<HomeScreen> {
     await _reload();
   }
 
+  /// The navigation bar with the banner on the side each platform expects.
+  ///
+  /// On iOS it goes above: the strip below belongs to the home indicator, and
+  /// an ad in a swipe path is an accidental click waiting to happen. On
+  /// Android it goes below, between the tabs and the system keys, which is
+  /// where people are used to seeing one.
+  Widget _bottomBar(BuildContext context) {
+    final showBanner = _section != 2;
+    if (MonetizationPolicy.rewardedOnly) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [if (showBanner) const AdBanner(), _navigationBar(context)],
+      );
+    }
+
+    // The navigation bar keeps the system inset for itself, which would leave
+    // the banner under the system keys: half covered, and half covered is not
+    // a legal impression. Taking the inset off it and adding it back below
+    // the ad keeps the ad whole and off the keys.
+    final systemKeys = MediaQuery.paddingOf(context).bottom;
+    return MediaQuery.removePadding(
+      context: context,
+      removeBottom: true,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _navigationBar(context),
+          if (showBanner)
+            const AdBanner(padding: EdgeInsets.only(top: 6, bottom: 2)),
+          SizedBox(height: systemKeys),
+        ],
+      ),
+    );
+  }
+
+  Widget _navigationBar(BuildContext context) {
+    return NavigationBar(
+      selectedIndex: _section,
+      onDestinationSelected: (value) {
+        setState(() => _section = value);
+        if (value == 0) _reload();
+      },
+      destinations: [
+        NavigationDestination(
+          icon: const Icon(Icons.auto_stories_outlined),
+          label: context.tr('Albümler'),
+        ),
+        NavigationDestination(
+          icon: const Icon(Icons.auto_awesome_mosaic_outlined),
+          label: context.tr('Temalar'),
+        ),
+        NavigationDestination(
+          icon: const Icon(Icons.style_outlined),
+          label: context.tr('Kartlar'),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = AlbumiumAppTheme.colorsOf(context);
@@ -320,36 +380,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final remainingAlbumCount = matchingAlbums.length - visibleAlbums.length;
     return Scaffold(
       backgroundColor: colors.background,
-      // The banner rides above the navigation bar on the two browsing tabs.
+      // The banner rides beside the navigation bar on the two browsing tabs.
       // It is kept off the cards tab and out of the editor, where the screen
       // is worked with a finger and a stray tap would be an accidental click.
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_section != 2) const AdBanner(),
-          NavigationBar(
-            selectedIndex: _section,
-            onDestinationSelected: (value) {
-              setState(() => _section = value);
-              if (value == 0) _reload();
-            },
-            destinations: [
-              NavigationDestination(
-                icon: const Icon(Icons.auto_stories_outlined),
-                label: context.tr('Albümler'),
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.auto_awesome_mosaic_outlined),
-                label: context.tr('Temalar'),
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.style_outlined),
-                label: context.tr('Kartlar'),
-              ),
-            ],
-          ),
-        ],
-      ),
+      bottomNavigationBar: _bottomBar(context),
       body: CraftBackdrop(
         key: const ValueKey('home-velvet-backdrop'),
         variant: CraftBackdropVariant.velvet,
