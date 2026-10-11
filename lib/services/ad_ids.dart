@@ -24,10 +24,9 @@ abstract final class AdIds {
 
   /// The banner under the navigation bar on Android.
   ///
-  /// Empty until the unit is created, and empty means the banner simply does
-  /// not appear. Android has no full-screen unit: it sells its covers, and a
-  /// full-screen ad on top of that is more than a paying app may ask.
-  static const androidBannerUnitId = '';
+  /// Android has no full-screen unit: it sells its covers, and a full-screen
+  /// ad on top of that is more than a paying app may ask.
+  static const androidBannerUnitId = 'ca-app-pub-3816017115155014/6515505059';
 
   /// Google's sample app, kept only so [configured] can refuse a live build
   /// that still carries it.

@@ -29,9 +29,15 @@ void main() {
     expect(AdIds.androidApplicationId, contains('~'));
   });
 
-  test('the rewarded unit belongs to the same AdMob account', () {
+  test('the Android units belong to the same AdMob account', () {
     final account = AdIds.androidApplicationId.split('~').first;
     expect(AdIds.androidRewardedUnitId, startsWith('$account/'));
+    expect(AdIds.androidBannerUnitId, startsWith('$account/'));
+    expect(
+      AdIds.androidBannerUnitId,
+      isNot(AdIds.androidRewardedUnitId),
+      reason: 'a format reused across units reports as one line',
+    );
   });
 
   test('the iOS app id in the plist is the one the code requests', () {
