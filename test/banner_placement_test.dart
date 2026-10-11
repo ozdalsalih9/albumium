@@ -17,58 +17,51 @@ Future<void> _openHome(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+void _expectAboveTheTabs(WidgetTester tester) {
+  final banner = tester.getRect(find.byKey(const ValueKey('ad-banner')));
+  final tabs = tester.getRect(find.byType(NavigationBar));
+  expect(banner.bottom, lessThanOrEqualTo(tabs.top));
+}
+
 void main() {
   tearDown(() {
     debugDefaultTargetPlatformOverride = null;
     BannerAds.resetForTesting();
   });
 
-  testWidgets('Android puts the banner under the tabs, clear of the keys', (
-    tester,
-  ) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.android;
-    // A phone with on-screen keys, as in the screenshot this was drawn on.
-    tester.view.padding = const FakeViewPadding(bottom: 144);
-    addTearDown(tester.view.reset);
+  for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+    testWidgets('$platform keeps the banner above the tabs', (tester) async {
+      debugDefaultTargetPlatformOverride = platform;
+      // A phone whose bottom edge belongs to the system, whichever way it
+      // draws it: keys on Android, the home indicator on iOS.
+      tester.view.padding = const FakeViewPadding(bottom: 144);
+      addTearDown(tester.view.reset);
 
-    await _openHome(tester);
+      await _openHome(tester);
 
-    final banner = tester.getRect(find.byKey(const ValueKey('ad-banner')));
-    final tabs = tester.getRect(find.byType(NavigationBar));
-    expect(banner.top, greaterThanOrEqualTo(tabs.bottom));
+      // Below the bar would put the ad in the path of the back key and the
+      // swipe up, where a tap meant for the system lands on an ad instead.
+      _expectAboveTheTabs(tester);
 
-    // Half under the system keys is not an impression Google will pay for,
-    // and the keys are what the thumb is aiming at.
-    final keys = tester.view.padding.bottom / tester.view.devicePixelRatio;
-    final screen = tester.getSize(find.byType(MaterialApp)).height;
-    expect(banner.bottom, lessThanOrEqualTo(screen - keys));
+      debugDefaultTargetPlatformOverride = null;
+    });
+  }
 
-    debugDefaultTargetPlatformOverride = null;
-  });
-
-  testWidgets('iOS keeps the banner above the tabs', (tester) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-
-    await _openHome(tester);
-
-    final banner = tester.getRect(find.byKey(const ValueKey('ad-banner')));
-    final tabs = tester.getRect(find.byType(NavigationBar));
-    // The bottom edge of an iPhone is the home indicator's swipe path.
-    expect(banner.bottom, lessThanOrEqualTo(tabs.top));
-
-    debugDefaultTargetPlatformOverride = null;
-  });
-
-  testWidgets('the cards tab carries no banner on either platform', (
-    tester,
-  ) async {
+  testWidgets('every tab carries it, the cards tab included', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
 
     await _openHome(tester);
-    await tester.tap(find.text('Kartlar'));
-    await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('ad-banner')), findsNothing);
+    for (final tab in ['Temalar', 'Kartlar']) {
+      await tester.tap(find.text(tab));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('ad-banner')),
+        findsOneWidget,
+        reason: 'the $tab tab lost its banner',
+      );
+      _expectAboveTheTabs(tester);
+    }
 
     debugDefaultTargetPlatformOverride = null;
   });

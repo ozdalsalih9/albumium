@@ -25,25 +25,20 @@ abstract final class BannerAds {
 /// accidental clicks, which Google counts as invalid traffic and charges to
 /// the whole account — both platforms share it.
 ///
-/// [padding] applies only once an ad is there, so a screen with no fill keeps
-/// its navigation bar flush against the bottom instead of floating on a gap.
+/// It takes no height until an ad has actually loaded, so a screen with no
+/// fill keeps its navigation bar where it was instead of leaving a grey strip.
 class AdBanner extends StatelessWidget {
-  const AdBanner({super.key, this.padding = EdgeInsets.zero});
-
-  final EdgeInsetsGeometry padding;
+  const AdBanner({super.key});
 
   @override
   Widget build(BuildContext context) {
     final banner = BannerAds.builder(context);
     if (banner == null) return const SizedBox.shrink();
-    return Padding(
-      padding: padding,
-      child: Semantics(
-        key: const ValueKey('ad-banner'),
-        label: 'Reklam',
-        container: true,
-        child: banner,
-      ),
+    return Semantics(
+      key: const ValueKey('ad-banner'),
+      label: 'Reklam',
+      container: true,
+      child: banner,
     );
   }
 }

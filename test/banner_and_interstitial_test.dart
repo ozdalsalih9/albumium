@@ -43,26 +43,6 @@ void main() {
       debugDefaultTargetPlatformOverride = null;
     });
 
-    testWidgets('its padding arrives with the ad, not before it', (
-      tester,
-    ) async {
-      debugDefaultTargetPlatformOverride = TargetPlatform.android;
-
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: AdBanner(padding: EdgeInsets.only(top: 6, bottom: 2)),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // An unfilled banner must not push the navigation bar off the bottom
-      // edge with a gap holding nothing.
-      expect(tester.getSize(find.byType(AdBanner)).height, 0);
-      debugDefaultTargetPlatformOverride = null;
-    });
-
     testWidgets('draws nothing until an ad actually loads', (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
 
