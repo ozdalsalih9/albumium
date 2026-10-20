@@ -1,6 +1,22 @@
-# Albumium 1.35.1 (66)
+# Albumium 1.35.1 (66, 67)
 
 20 Ekim 2026 — editör seçim panellerinin yerleşim düzeltmeleri.
+
+## Build 67
+
+66 numaralı derleme Play'e yüklenmedi; üretime giden paket 67'dir.
+
+- Uygulama görünümü sayfasındaki Parlaklık seçeneğinde "Sistem" etiketi iki
+  satıra kırılıyordu. Üç düğme satırı eşit paylaşıyor ve ikon, en uzun etiketin
+  ihtiyaç duyduğu yeri alıyordu: "Sistem" tek satırda 85 dp isterken denenen
+  bütün telefon genişliklerinde 58–73 dp alıyordu. İngilizcede "Light" ve
+  "System" de kırılıyordu. İkonlar tek sıradan kaldırıldı; dar ekranda ve büyük
+  yazıda düğmeler alt alta dizildiği için orada korunuyor.
+- Kırılan bir etiket taşma uyarısı veya istisna üretmediğinden regresyon testi,
+  çizilen genişlik ile tek satırın gerektireceği genişliği karşılaştırır.
+  `test/theme_brightness_labels_test.dart`, 320–600 dp arası altı genişlikte ve
+  iki dilde çalışır ve eski kodda başarısız olduğu doğrulandı.
+- Doğrulama: `flutter analyze --no-pub` sorunsuz, tam test paketi **486 geçti**.
 
 - Sayfa zemini panelindeki desenler ve renkler, aynı sütun genişliklerini ve
   önizleme yüksekliğini kullanır. Satır araları artık farklı genişlikteki Wrap
