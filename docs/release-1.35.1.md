@@ -1,4 +1,4 @@
-# Albumium 1.35.1 (66, 67)
+# Albumium 1.35.1 (66, 67, 68)
 
 20 Ekim 2026 — editör seçim panellerinin yerleşim düzeltmeleri.
 
@@ -17,6 +17,27 @@
   `test/theme_brightness_labels_test.dart`, 320–600 dp arası altı genişlikte ve
   iki dilde çalışır ve eski kodda başarısız olduğu doğrulandı.
 - Doğrulama: `flutter analyze --no-pub` sorunsuz, tam test paketi **486 geçti**.
+
+## Build 68
+
+67 numaralı derleme de Play'e yüklenmedi; üretime giden paket 68'dir.
+
+- `assets/paper_kit` ve `assets/scrapbook` altındaki 78 üretilmiş görsel PNG'den
+  WebP'ye çevrildi: **13,36 MB → 2,74 MB (%80 küçülme)**. Projenin geri kalanı
+  zaten WebP kullanıyordu. Kalite 95 seçildi; kayıpsız sıkıştırma yalnızca %37
+  kazandırıyordu, kalite 90 ise 0,7 MB daha kazandırıp riski artırıyordu.
+- Saydamlık riski yok: libwebp alfa kanalını ayrı ve kayıpsız sıkıştırır. 78
+  dosyanın 17'sinde alfa kanalı düştü; üçünün de orijinali tamamen opak olduğu
+  için kaybolan saydamlık yoktur, git kayıtlarındaki PNG'lerle karşılaştırılarak
+  doğrulandı.
+- `tool/png_to_webp.py` eklendi. Üretici Dart araçları yalnızca PNG yazabiliyor
+  (Flutter'ın `toByteData` metodunda başka biçim yok, `image` paketi WebP'yi
+  okuyor ama yazamıyor), bu yüzden üretimden sonra bu betik çalıştırılır. İki
+  üretici aracın başına da bu not düşüldü.
+- `test/generated_art_format_test.dart`, bu klasörlerde PNG kalmadığını ve her
+  desen, kâğıt parçası, şablon önizlemesi ve kolaj parçasının dosyasının
+  bulunduğunu doğrular. Çevirmeyi unutan bir yeniden üretim testten geçemez.
+- Doğrulama: `flutter analyze --no-pub` sorunsuz, tam test paketi **490 geçti**.
 
 - Sayfa zemini panelindeki desenler ve renkler, aynı sütun genişliklerini ve
   önizleme yüksekliğini kullanır. Satır araları artık farklı genişlikteki Wrap

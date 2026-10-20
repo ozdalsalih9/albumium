@@ -2,7 +2,7 @@ name: albumium
 description: "Anılarını etkileşimli dijital albümlere dönüştür."
 publish_to: 'none'
 
-version: 1.35.1+67
+version: 1.35.1+68
 
 environment:
   sdk: ^3.11.5

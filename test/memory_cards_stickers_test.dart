@@ -292,9 +292,13 @@ void main() {
         matching: find.byType(Scrollable),
       ),
     );
-    await tester.ensureVisible(find.byKey(const ValueKey('card-template-birthday_flower')));
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('card-template-birthday_flower')),
+    );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('card-template-birthday_flower')));
+    await tester.tap(
+      find.byKey(const ValueKey('card-template-birthday_flower')),
+    );
     await tester.pumpAndSettle();
     expect(project.cardThemeId, 'birthday_flower');
     expect(project.pages.first.elements.first.y, .16);

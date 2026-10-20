@@ -35,7 +35,7 @@ class ScrapbookArtImage extends StatelessWidget {
   final bool preview;
   @override
   Widget build(BuildContext context) => Image.asset(
-    'assets/scrapbook/$design.png',
+    'assets/scrapbook/$design.webp',
     fit: preview ? BoxFit.contain : BoxFit.fill,
     cacheWidth: preview
         ? (140 * math.min(1, scrapbookArt[design]?.$2 ?? 1)).ceil()

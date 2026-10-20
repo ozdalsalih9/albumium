@@ -552,7 +552,7 @@ class PaperMaterialImage extends StatelessWidget {
   final bool preview;
   @override
   Widget build(BuildContext context) => Image.asset(
-    'assets/paper_kit/material_$pattern.png',
+    'assets/paper_kit/material_$pattern.webp',
     fit: BoxFit.fill,
     cacheWidth: preview ? 120 : 600,
     gaplessPlayback: true,
@@ -566,7 +566,7 @@ class PaperKitImage extends StatelessWidget {
   final bool preview;
   @override
   Widget build(BuildContext context) => Image.asset(
-    'assets/paper_kit/$design.png',
+    'assets/paper_kit/$design.webp',
     fit: BoxFit.contain,
     cacheWidth: preview ? 160 : 600,
     gaplessPlayback: true,

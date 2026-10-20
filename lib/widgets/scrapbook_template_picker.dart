@@ -52,7 +52,7 @@ Future<ScrapbookTemplate?> showScrapbookTemplatePicker(
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: Image.asset(
-                          'assets/scrapbook/template_${t.id}.png',
+                          'assets/scrapbook/template_${t.id}.webp',
                           fit: BoxFit.contain,
                           cacheWidth: 240,
                         ),

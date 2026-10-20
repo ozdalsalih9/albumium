@@ -288,13 +288,18 @@ void main() {
       for (
         var i = 0;
         i < 12 &&
-            find.byKey(const ValueKey('social-quality-1080')).evaluate().isEmpty;
+            find
+                .byKey(const ValueKey('social-quality-1080'))
+                .evaluate()
+                .isEmpty;
         i++
       ) {
         await tester.dragFrom(const Offset(8, 700), const Offset(0, -450));
         await tester.pumpAndSettle();
       }
-      await tester.ensureVisible(find.byKey(const ValueKey('social-quality-1080')));
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('social-quality-1080')),
+      );
       await tester.pumpAndSettle();
       expect(
         tester

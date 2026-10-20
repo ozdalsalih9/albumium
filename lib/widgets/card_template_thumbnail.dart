@@ -12,7 +12,7 @@ class CardTemplateThumbnail extends StatelessWidget {
       ? AspectRatio(
           aspectRatio: 5 / 7,
           child: Image.asset(
-            'assets/scrapbook/template_${template.id.substring(10)}.png',
+            'assets/scrapbook/template_${template.id.substring(10)}.webp',
             fit: BoxFit.contain,
             cacheWidth: 240,
           ),

@@ -1,4 +1,6 @@
 // Run after render_scrapbook_assets.dart using flutter test.
+// These write PNG because Flutter's toByteData has no other format.
+// The app ships WebP, so follow this with: python -I tool/png_to_webp.py
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:albumium/models/album_models.dart';

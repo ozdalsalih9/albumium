@@ -9,40 +9,38 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  testWidgets(
-    'iPhone share menu names iCloud and explains folder selection',
-    (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      final now = DateTime(2026);
-      await tester.pumpWidget(
-        MaterialApp(
-          home: PreviewScreen(
-            album: AlbumModel(
-              id: 'backup-ui',
-              title: 'Anılar',
-              themeId: 'vintage_diary',
-              createdAt: now,
-              updatedAt: now,
-              pages: [
-                AlbumPageModel(
-                  id: 'page',
-                  backgroundColor: 0xFFF2E8D3,
-                  paperPattern: 'rose',
-                ),
-              ],
-            ),
-            openShareOnReady: true,
+  testWidgets('iPhone share menu names iCloud and explains folder selection', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final now = DateTime(2026);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PreviewScreen(
+          album: AlbumModel(
+            id: 'backup-ui',
+            title: 'Anılar',
+            themeId: 'vintage_diary',
+            createdAt: now,
+            updatedAt: now,
+            pages: [
+              AlbumPageModel(
+                id: 'page',
+                backgroundColor: 0xFFF2E8D3,
+                paperPattern: 'rose',
+              ),
+            ],
           ),
+          openShareOnReady: true,
         ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('iCloud’a yedekle'), findsOneWidget);
-      expect(find.textContaining('iCloud Drive klasörünü seç'), findsOneWidget);
-      expect(find.text('Google Drive’a yedekle'), findsNothing);
-      expect(tester.takeException(), isNull);
-    },
-    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
-  );
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('iCloud’a yedekle'), findsOneWidget);
+    expect(find.textContaining('iCloud Drive klasörünü seç'), findsOneWidget);
+    expect(find.text('Google Drive’a yedekle'), findsNothing);
+    expect(tester.takeException(), isNull);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
 
   testWidgets('empty library offers restore and cancelling leaves it usable', (
     tester,

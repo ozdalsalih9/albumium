@@ -906,7 +906,7 @@ class _AlbumElementViewState extends State<_AlbumElementView> {
             if (style >= 16)
               if (paperPhotoFrames[style - 16] == 'lace')
                 Image.asset(
-                  'assets/paper_kit/frame_lace.png',
+                  'assets/paper_kit/frame_lace.webp',
                   fit: BoxFit.fill,
                   cacheWidth: 600,
                 )
