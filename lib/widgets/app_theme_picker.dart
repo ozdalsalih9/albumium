@@ -118,28 +118,38 @@ class _AppThemePicker extends StatelessWidget {
                     builder: (context, constraints) {
                       final textScale =
                           MediaQuery.textScalerOf(context).scale(14) / 14;
+                      final stacked =
+                          constraints.maxWidth < 320 || textScale > 1.25;
+                      // Side by side, the three segments split the row and the
+                      // icon takes what the longest label needs: "Sistem" then
+                      // breaks across two lines while its neighbours stay on
+                      // one, and the control looks crooked. Stacked there is
+                      // room for both.
                       return SizedBox(
                         width: double.infinity,
                         child: SegmentedButton<ThemeMode>(
-                          direction:
-                              constraints.maxWidth < 320 || textScale > 1.25
-                              ? Axis.vertical
-                              : Axis.horizontal,
+                          direction: stacked ? Axis.vertical : Axis.horizontal,
                           showSelectedIcon: false,
                           segments: [
                             ButtonSegment(
                               value: ThemeMode.dark,
-                              icon: const Icon(Icons.dark_mode_outlined),
+                              icon: stacked
+                                  ? const Icon(Icons.dark_mode_outlined)
+                                  : null,
                               label: Text(context.tr('Koyu')),
                             ),
                             ButtonSegment(
                               value: ThemeMode.light,
-                              icon: const Icon(Icons.light_mode_outlined),
+                              icon: stacked
+                                  ? const Icon(Icons.light_mode_outlined)
+                                  : null,
                               label: Text(context.tr('Açık')),
                             ),
                             ButtonSegment(
                               value: ThemeMode.system,
-                              icon: const Icon(Icons.settings_suggest_outlined),
+                              icon: stacked
+                                  ? const Icon(Icons.settings_suggest_outlined)
+                                  : null,
                               label: Text(context.tr('Sistem')),
                             ),
                           ],
