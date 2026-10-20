@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/album_models.dart';
+import 'reminder_service.dart';
 import 'error_reporter.dart';
 
 /// Ham veriden okunan kütüphane ile o okumanın ne kadar güvenilir olduğunu
@@ -157,6 +158,7 @@ class AlbumStorage {
       }),
     );
     if (!saved) throw StateError('Albüm diske kaydedilemedi');
+    await ReminderService.syncAlbums(albums);
   }
 
   Future<({AlbumModel album, bool reused})> importAlbumOnce(

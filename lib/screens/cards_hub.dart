@@ -157,6 +157,7 @@ class _CardsHubState extends State<CardsHub> {
                               : card.pages.first,
                           theme: specialCardThemeFor(
                             occasionTemplateById(card.cardThemeId),
+                            artworkVisible: card.cardArtworkVisible,
                           ),
                           showPageNumber: false,
                         ),
@@ -299,7 +300,12 @@ class _CardsHubState extends State<CardsHub> {
                       ),
                       Expanded(
                         child: _grid(
-                          occasionCardTemplates
+                          [
+                                ...atelierCardTemplates,
+                                ...occasionCardTemplates.where(
+                                  (t) => !atelierCardTemplates.contains(t),
+                                ),
+                              ]
                               .where(
                                 (t) =>
                                     _category == null ||

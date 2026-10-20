@@ -71,6 +71,10 @@ void applyAlbumPhotoCrop(
   Rect crop,
   double sourceAspect,
 ) {
+  if (element.photoSlot) {
+    element.photoCrop = crop;
+    return;
+  }
   final center = Offset(
     element.x + element.width / 2,
     element.y + element.height / 2,

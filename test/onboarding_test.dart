@@ -8,6 +8,37 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   testWidgets(
+    'onboarding can advance and go back with system animations disabled',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      await tester.pumpWidget(const AlbumiumApp(showLaunchAnimation: false));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('onboarding-next')));
+      await tester.pumpAndSettle();
+      expect(find.text('Her sayfada senin dokunuşun'), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Anıların için yeni bir sayfa'), findsOneWidget);
+      for (var i = 0; i < 4; i++) {
+        await tester.tap(find.byKey(const ValueKey('onboarding-next')));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      }
+      expect(find.byType(HomeScreen), findsOneWidget);
+      expect(
+        (await SharedPreferences.getInstance()).getBool(
+          AlbumiumApp.onboardingCompletedKey,
+        ),
+        true,
+      );
+    },
+  );
+  testWidgets(
     'first launch completes four steps and stays completed after restart',
     (tester) async {
       SharedPreferences.setMockInitialValues({});

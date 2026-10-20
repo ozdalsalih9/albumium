@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:albumium/models/album_models.dart';
 import 'package:albumium/services/album_storage.dart';
+import 'package:albumium/services/reminder_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -27,6 +30,36 @@ void main() {
   final storage = AlbumStorage.instance;
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  test(
+    'a slow native notification scheduler does not delay a saved album',
+    () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final started = Completer<void>();
+      final release = Completer<void>();
+      messenger.setMockMethodCallHandler(ReminderService.channel, (call) async {
+        if (call.method == 'permissionStatus') return true;
+        if (call.method == 'configure') {
+          started.complete();
+          await release.future;
+        }
+        return null;
+      });
+      addTearDown(() async {
+        if (!release.isCompleted) release.complete();
+        await Future<void>.delayed(Duration.zero);
+        messenger.setMockMethodCallHandler(ReminderService.channel, null);
+        debugDefaultTargetPlatformOverride = null;
+      });
+      final saved = storage.saveAlbum(_album('slow-notifications'));
+      await started.future.timeout(const Duration(seconds: 2));
+      await saved.timeout(const Duration(seconds: 2));
+      expect(release.isCompleted, isFalse);
+      expect((await storage.loadAlbums()).single.id, 'slow-notifications');
+    },
+  );
 
   test(
     'repeated concurrent imports reuse one record and preserve local edits',
@@ -179,10 +212,11 @@ void main() {
       final raw = (await SharedPreferences.getInstance()).getString(_key)!;
       final envelope = jsonDecode(raw) as Map<String, dynamic>;
       expect(envelope['schemaVersion'], 2);
-      expect((await storage.loadAlbums()).map((e) => e.id).toSet(), {
-        'eski',
-        'yeni',
-      }, reason: 'Yükseltme eski albümleri düşürmemeli.');
+      expect(
+        (await storage.loadAlbums()).map((e) => e.id).toSet(),
+        {'eski', 'yeni'},
+        reason: 'Yükseltme eski albümleri düşürmemeli.',
+      );
     });
 
     test('sürüm 1 verisi karantinaya alınmaz', () async {

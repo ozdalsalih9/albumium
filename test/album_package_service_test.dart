@@ -99,6 +99,11 @@ void main() {
     final original = _album(photoPath: source.path);
     const crop = Rect.fromLTRB(.1, .2, .8, .9);
     original.pages.first.elements.first.photoCrop = crop;
+    original.pages.first.elements.first
+      ..frameStyle = 18
+      ..frameScale = .7
+      ..frameSpacing = 8
+      ..locked = true;
 
     final exported = await service.createPackage(original);
     expect(await exported.file.exists(), isTrue);
@@ -138,8 +143,52 @@ void main() {
         .toList();
     expect(importedPhotos.first.content, importedPhotos.last.content);
     expect(importedPhotos.first.photoCrop, crop);
+    expect(importedPhotos.first.frameStyle, 18);
+    expect(importedPhotos.first.frameScale, .7);
+    expect(importedPhotos.first.frameSpacing, 8);
+    expect(importedPhotos.first.locked, isTrue);
     expect(await File(importedPhotos.first.content).exists(), isTrue);
   });
+
+  test(
+    'backup preserves source bytes, paper and decorations through restore',
+    () async {
+      final source = File('${root.path}/backup-photo.png');
+      final bytes = image.encodePng(
+        image.Image(width: 23, height: 37, numChannels: 4),
+      );
+      await source.writeAsBytes(bytes);
+      final original = _album(photoPath: source.path);
+      original.pages.first.paperPattern = 'plaid';
+      original.pages.first.elements.add(
+        AlbumElementModel(
+          id: 'paper-seal',
+          type: AlbumElementType.sticker,
+          content: 'albumium:paperkit_seal_gold',
+          x: .3,
+          y: .5,
+          width: .2,
+          height: .2,
+        ),
+      );
+      final exported = await service.createPackage(
+        original,
+        preserveOriginalMedia: true,
+      );
+      final preview = await service.openPackage(exported.file.path);
+      addTearDown(preview.dispose);
+      final imported = await service.importCopy(preview);
+      expect(imported.pages.first.paperPattern, 'plaid');
+      expect(
+        imported.pages.first.elements.last.content,
+        'albumium:paperkit_seal_gold',
+      );
+      expect(
+        await File(imported.pages.first.elements.first.content).readAsBytes(),
+        bytes,
+      );
+    },
+  );
 
   test('creates and opens an album that has no photos', () async {
     final exported = await service.createPackage(_album());

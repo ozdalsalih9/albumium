@@ -24,9 +24,20 @@ Future<void> _pumpStudio(WidgetTester tester, AlbumModel project) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _chooseTheme(WidgetTester tester, String title) async {
-  final tile = find.text(title).first;
+Future<void> _chooseTheme(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey('card-choose-template')));
+  await tester.pumpAndSettle();
+  final tile = find.byKey(const ValueKey('card-template-birthday_flower'));
+  await tester.scrollUntilVisible(
+    tile,
+    240,
+    scrollable: find.descendant(
+      of: find.byKey(const ValueKey('card-template-grid')),
+      matching: find.byType(Scrollable),
+    ),
+  );
   await tester.ensureVisible(tile);
+  await tester.pumpAndSettle();
   await tester.tap(tile);
   await tester.pumpAndSettle();
 }
@@ -39,7 +50,7 @@ void main() {
     expect(project.title, 'İyi ki Doğdun! Kartı');
 
     await _pumpStudio(tester, project);
-    await _chooseTheme(tester, 'Senin Günün');
+    await _chooseTheme(tester);
 
     expect(project.cardThemeId, 'birthday_flower');
     expect(project.title, 'Senin Günün Kartı');
@@ -58,7 +69,7 @@ void main() {
     _role(project, 'card-title-').content = 'Canım Annem';
 
     await _pumpStudio(tester, project);
-    await _chooseTheme(tester, 'Senin Günün');
+    await _chooseTheme(tester);
 
     expect(project.cardThemeId, 'birthday_flower');
     expect(project.title, 'Annemin Kartı');

@@ -62,7 +62,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Kart Teması'), findsOneWidget);
+    expect(find.text('Özel Kart'), findsOneWidget);
     expect(find.text('Şekiller'), findsOneWidget);
   });
 

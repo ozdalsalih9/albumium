@@ -56,10 +56,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Future<void> _next() async {
     if (_saving) return;
     if (_index < _steps.length - 1) {
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _controller.jumpToPage(_index + 1);
+        return;
+      }
       await _controller.nextPage(
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 300),
+        duration: const Duration(milliseconds: 300),
         curve: Curves.easeOutCubic,
       );
       return;
@@ -87,6 +89,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && _index > 0 && !_saving) {
+          if (MediaQuery.disableAnimationsOf(context)) {
+            _controller.jumpToPage(_index - 1);
+            return;
+          }
           _controller.previousPage(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOut,

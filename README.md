@@ -30,4 +30,6 @@ flutter build apk --release
 
 ## Kapsam notu
 
-Albüm verisi ve dışa aktarma cihazda kalır; ağa yalnızca ödüllü reklam ve Play ödemesi için çıkılır. Uygulama yüklemeden tarayıcıda albüm görüntüleme, kullanıcı hesabı, bulut senkronizasyonu ve özel paylaşım bağlantıları backend/web görüntüleyici fazına ayrılmıştır.
+Albüm verisi cihazda otomatik saklanır. Kullanıcı, düzenlenebilir `.albumium` yedeğini Android sistem dosya seçicisinden Google Drive’a veya iOS Dosyalar üzerinden iCloud Drive’a kaydedebilir; koleksiyondaki “Yedekten geri yükle” ile tekrar açabilir. Bulut aktarımını seçilen dosya sağlayıcısı yönetir. Otomatik bulut senkronizasyonu, tarayıcıda albüm görüntüleme ve özel paylaşım bağlantıları bu akışa dahil değildir.
+
+Yeni kâğıt desenleri, 30 parçalık çizim koleksiyonu ve yedekleme ayrıntıları: [Kâğıt atölyesi ve yedekler](docs/paper-atelier-and-backups.md).

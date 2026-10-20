@@ -123,7 +123,7 @@ void main() {
     await tester.pumpWidget(_englishApp(const StickerPackPickerSheet()));
     await tester.pump();
     expect(find.text('All Decorations'), findsOneWidget);
-    expect(find.text('Botanical keepsake bouquet'), findsOneWidget);
+    expect(find.text('Denim strip'), findsOneWidget);
     expect(find.text('Tüm Süsler'), findsNothing);
     expect(tester.takeException(), isNull);
   });

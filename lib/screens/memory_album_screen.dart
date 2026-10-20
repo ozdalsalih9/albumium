@@ -205,6 +205,7 @@ class _MemoryAlbumScreenState extends State<MemoryAlbumScreen> {
 
 Future<void> showReminderSettings(BuildContext context) async {
   final values = await ReminderService.settings();
+  final permitted = await ReminderService.permissionGranted();
   if (!context.mounted) return;
   await showModalBottomSheet<void>(
     context: context,
@@ -224,6 +225,27 @@ Future<void> showReminderSettings(BuildContext context) async {
                     context.tr('Anı hatırlatmaları'),
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
+                  const SizedBox(height: 8),
+                  Text(
+                    context.tr(
+                      'Küçük bir hatırlatma, güzel bir alışkanlık. Saatini ve ritmini sen seç.',
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 14),
+                  if (!permitted)
+                    ListTile(
+                      leading: const Icon(Icons.notifications_none_rounded),
+                      title: Text(
+                        context.tr('Telefonda bildirim izni gerekli'),
+                      ),
+                      subtitle: Text(
+                        context.tr(
+                          'İzin verdiğinde küçük hatırlatmaların sana ulaşır.',
+                        ),
+                      ),
+                      onTap: ReminderService.openSystemSettings,
+                    ),
                   SwitchListTile(
                     title: Text(context.tr('Hatırlatmaları aç')),
                     value: values['enabled'] as bool,
@@ -231,17 +253,29 @@ Future<void> showReminderSettings(BuildContext context) async {
                         ? null
                         : (v) => setState(() => values['enabled'] = v),
                   ),
+                  SwitchListTile(
+                    title: Text(context.tr('Başladığım albümleri hatırlat')),
+                    subtitle: Text(
+                      context.tr(
+                        'Ara verdiğinde haftada bir nazik hatırlatma.',
+                      ),
+                    ),
+                    value: values['continuation'] as bool,
+                    onChanged: busy || values['enabled'] != true
+                        ? null
+                        : (v) => setState(() => values['continuation'] = v),
+                  ),
                   for (final kind in MemoryKind.values)
                     SwitchListTile(
                       title: Text(
                         context.tr(switch (kind) {
-                          MemoryKind.weekend => 'Hafta sonu',
-                          MemoryKind.month => 'Ay sonu',
-                          MemoryKind.year => 'Yıl sonu',
+                          MemoryKind.weekend => 'Haftalık anılar',
+                          MemoryKind.month => 'Aylık anılar',
+                          MemoryKind.year => 'Yıllık anılar',
                         }),
                       ),
                       value: values[kind.name] as bool,
-                      onChanged: busy
+                      onChanged: busy || values['enabled'] != true
                           ? null
                           : (v) => setState(() => values[kind.name] = v),
                     ),
@@ -281,6 +315,7 @@ Future<void> showReminderSettings(BuildContext context) async {
                                 values,
                                 Localizations.localeOf(context).languageCode,
                                 requestPermission: values['enabled'] == true,
+                                userInitiated: true,
                               );
                               if (!context.mounted) return;
                               if (!allowed) {

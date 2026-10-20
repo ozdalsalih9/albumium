@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:albumium/services/reminder_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -17,6 +18,59 @@ void main() {
     ReminderService.channel.setMethodCallHandler(null);
     ReminderService.pending.value = null;
   });
+  test(
+    'album synchronization preserves the first permission request',
+    () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      var permitted = false;
+      final calls = <MethodCall>[];
+      messenger.setMockMethodCallHandler(ReminderService.channel, (call) async {
+        calls.add(call);
+        if (call.method == 'permissionStatus') return permitted;
+        if (call.method == 'requestPermission') return permitted = true;
+        return null;
+      });
+      await ReminderService.refreshSchedule('tr');
+      expect((await ReminderService.settings())['enabled'], true);
+      await ReminderService.syncAlbums([]);
+      await Future<void>.delayed(Duration.zero);
+      expect((await ReminderService.settings())['enabled'], true);
+      await ReminderService.enableDefaultReminders('tr');
+      expect(
+        calls.where((call) => call.method == 'requestPermission'),
+        hasLength(1),
+      );
+      expect((await ReminderService.settings())['enabled'], true);
+      expect(calls.last.arguments['enabled'], true);
+    },
+  );
+  test(
+    'a delayed background refresh cannot override a manual disable',
+    () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      final started = Completer<void>();
+      final permission = Completer<bool>();
+      final configurations = <Map<dynamic, dynamic>>[];
+      messenger.setMockMethodCallHandler(ReminderService.channel, (call) async {
+        if (call.method == 'permissionStatus') {
+          started.complete();
+          return permission.future;
+        }
+        if (call.method == 'configure') {
+          configurations.add(call.arguments as Map);
+        }
+        return null;
+      });
+      await ReminderService.syncAlbums([]);
+      await started.future;
+      await ReminderService.save({'enabled': false}, 'tr', userInitiated: true);
+      permission.complete(true);
+      await Future<void>.delayed(Duration.zero);
+      expect(configurations, hasLength(1));
+      expect(configurations.single['enabled'], false);
+      expect((await ReminderService.settings())['enabled'], false);
+    },
+  );
   for (final platform in [TargetPlatform.iOS, TargetPlatform.android]) {
     test(
       '$platform denied permission persists disabled and configures native disabled',
@@ -36,6 +90,8 @@ void main() {
         );
         expect(input['enabled'], true);
         expect((await ReminderService.settings())['enabled'], false);
+        expect((await ReminderService.settings())['enabled'], false);
+        expect(ReminderService.enabled.value, false);
         expect(calls.last.method, 'configure');
         expect(calls.last.arguments['enabled'], false);
       },

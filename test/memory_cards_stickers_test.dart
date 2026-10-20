@@ -143,15 +143,22 @@ void main() {
     final card = AlbumModel.fromJson(json);
     expect(card.memoryPeriod, isNull);
     expect(occasionTemplateById('birthday').id, 'birthday');
-    expect(occasionCardTemplates, hasLength(18));
-    expect(occasionCardTemplates.first.category, 'Doğum günü');
-    expect(
-      occasionCardTemplates
-          .skip(15)
-          .every((t) => t.category == 'Cuma ve bayram'),
-      isTrue,
-    );
-    expect(occasionCardTemplates.map((t) => t.category).toSet(), hasLength(6));
+    // New collections may be prepended; legacy IDs and categories must survive.
+    for (final entry in {
+      'birthday_confetti': 'Doğum günü',
+      'love_letter': 'Sevgi',
+      'thanks_leaf': 'Teşekkür',
+      'morning_sun': 'Günlük selamlar',
+      'celebrate_success': 'Kutlamalar',
+      'friday_gold': 'Cuma ve bayram',
+      'eid_garden': 'Cuma ve bayram',
+      'kandil_light': 'Cuma ve bayram',
+    }.entries) {
+      expect(occasionTemplateById(entry.key).id, entry.key);
+      expect(occasionTemplateById(entry.key).category, entry.value);
+    }
+    final ids = occasionCardTemplates.map((template) => template.id);
+    expect(ids.toSet(), hasLength(ids.length));
     expect(
       createSpecialCardProject(
         template: blankCardTemplate,
@@ -275,10 +282,22 @@ void main() {
       MaterialApp(home: SpecialCardStudioScreen(project: project)),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Senin Günün').last);
+    await tester.tap(find.byKey(const ValueKey('card-choose-template')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('card-template-birthday_flower')),
+      240,
+      scrollable: find.descendant(
+        of: find.byKey(const ValueKey('card-template-grid')),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    await tester.ensureVisible(find.byKey(const ValueKey('card-template-birthday_flower')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('card-template-birthday_flower')));
     await tester.pumpAndSettle();
     expect(project.cardThemeId, 'birthday_flower');
-    expect(project.pages.first.elements.first.y, .15);
+    expect(project.pages.first.elements.first.y, .16);
     expect(project.pages.first.elements[1].content, 'Hayırlı Cumalar, ailem!');
     await tester.pumpWidget(const SizedBox());
     await tester.pump();

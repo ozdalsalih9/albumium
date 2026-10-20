@@ -1,3 +1,5 @@
+import '../services/album_backup_service.dart';
+import 'album_import_screen.dart';
 import '../widgets/memory_prompt_cards.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +12,7 @@ import '../services/language_controller.dart';
 import '../services/theme_controller.dart';
 import '../theme/albumium_app_theme.dart';
 import '../widgets/album_cover_3d.dart';
+import '../widgets/album_page_canvas.dart';
 import '../widgets/app_theme_picker.dart';
 import '../widgets/cinematic_album_opening.dart';
 import '../widgets/handmade_craft.dart';
@@ -17,6 +20,7 @@ import '../widgets/occasion_cards.dart';
 import '../widgets/ad_banner.dart';
 import '../widgets/ad_consent_button.dart';
 import '../widgets/privacy_policy_button.dart';
+import '../widgets/app_update_banner.dart';
 import 'editor_screen.dart';
 import 'cards_hub.dart';
 import 'memory_album_screen.dart';
@@ -59,15 +63,48 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   int _section = 0;
   bool _openingMemory = false;
+  bool _restoringBackup = false;
+
+  Future<void> _restoreBackup() async {
+    if (_restoringBackup) return;
+    setState(() => _restoringBackup = true);
+    try {
+      final path = await AlbumBackupService.pick();
+      if (path == null || !mounted) return;
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(builder: (_) => AlbumImportScreen(packagePath: path)),
+      );
+      if (mounted) await _reload();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              context.tr(
+                'Yedek açılamadı. Bulut hesabını ve bağlantını kontrol edip tekrar dene.',
+              ),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _restoringBackup = false);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _reload();
     ReminderService.pending.addListener(_onMemoryNotification);
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _onMemoryNotification(),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _onMemoryNotification();
+      if (mounted) {
+        await ReminderService.enableDefaultReminders(
+          Localizations.localeOf(context).languageCode,
+        );
+      }
+    });
   }
 
   @override
@@ -109,6 +146,10 @@ class _HomeScreenState extends State<HomeScreen> {
       _matchingAlbumsCache = null;
       _loading = false;
     });
+    await ReminderService.syncAlbums(albums);
+    if (mounted && !_openingMemory && ReminderService.pending.value != null) {
+      await _onMemoryNotification();
+    }
   }
 
   Future<void> _createAlbum({
@@ -143,16 +184,30 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _onMemoryNotification() async {
     final data = ReminderService.pending.value;
-    if (data == null || !mounted || _openingMemory) return;
+    if (data == null ||
+        !mounted ||
+        _openingMemory ||
+        ModalRoute.of(context)?.isCurrent == false) {
+      return;
+    }
     ReminderService.pending.value = null;
     _openingMemory = true;
     try {
+      if (data['albumId'] case final String id) {
+        final albums = await AlbumStorage.instance.loadAlbums();
+        final matches = albums.where((a) => a.id == id).toList();
+        if (matches.isNotEmpty && mounted) {
+          setState(() => _section = 0);
+          await _continueMemory(matches.first);
+          return;
+        }
+      }
       final kinds = (data['kinds'] as String)
           .split(',')
           .where((k) => MemoryKind.values.any((v) => v.name == k))
           .map((k) => MemoryKind.values.byName(k))
           .toList();
-      if (kinds.isEmpty) return;
+      if (kinds.isEmpty || !mounted) return;
       setState(() => _section = 0);
       final date = DateTime(
         data['year'] as int,
@@ -192,30 +247,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _startMemory(MemoryPeriod period) async {
     final albums = await AlbumStorage.instance.loadAlbums();
     if (!mounted) return;
-    final matches = albums.where((a) => a.memoryPeriod == period.key).toList();
+    final matches = albums
+        .where((a) => a.memoryPeriod == period.key && !a.memoryCompleted)
+        .toList();
     if (matches.isNotEmpty) {
-      final createNew = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(context.tr('Bu döneme ait albümün var')),
-          content: Text(matches.first.title),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(context.tr('Devam et')),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(context.tr('Yeni albüm')),
-            ),
-          ],
-        ),
-      );
-      if (createNew == null || !mounted) return;
-      if (!createNew) {
-        await _openAlbum(matches.first);
-        return;
-      }
+      matches.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      await _continueMemory(matches.first);
+      return;
     }
     if (!mounted) return;
     final album = await Navigator.push<AlbumModel>(
@@ -227,9 +265,107 @@ class _HomeScreenState extends State<HomeScreen> {
         context,
         MaterialPageRoute(builder: (_) => EditorScreen(album: album)),
       );
+      await AlbumStorage.instance.flush();
       await _reload();
     }
   }
+
+  Future<void> _continueMemory(AlbumModel album) async {
+    HapticFeedback.lightImpact();
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(builder: (_) => EditorScreen(album: album)),
+    );
+    await AlbumStorage.instance.flush();
+    if (mounted) {
+      await _reload();
+      if (!_openingMemory) await _onMemoryNotification();
+    }
+  }
+
+  Future<void> _completeMemory(AlbumModel album) async {
+    final previous = album.memoryCompleted;
+    album.memoryCompleted = true;
+    try {
+      await AlbumStorage.instance.saveAlbum(album);
+      if (!mounted) return;
+      await _reload();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(
+          SnackBar(
+            persist: false,
+            duration: const Duration(seconds: 4),
+            showCloseIcon: true,
+            content: Text(
+              context.tr('Güzel bir hikâye sakladın. Albümün koleksiyonunda.'),
+            ),
+            action: SnackBarAction(
+              label: context.tr('Geri al'),
+              onPressed: () async {
+                album.memoryCompleted = false;
+                await AlbumStorage.instance.saveAlbum(album);
+                if (mounted) await _reload();
+              },
+            ),
+          ),
+        );
+    } catch (_) {
+      album.memoryCompleted = previous;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.tr('Kaydedilemedi. Tekrar dene.'))),
+        );
+      }
+    }
+  }
+
+  Widget _memorySection(double inset) => SliverToBoxAdapter(
+    child: Padding(
+      padding: EdgeInsets.fromLTRB(inset, 0, inset, 26),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  context.tr('Anılarını biriktir'),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontFamily: 'AlbumiumDisplay',
+                    fontSize: 25,
+                  ),
+                ),
+              ),
+              ValueListenableBuilder<bool>(
+                valueListenable: ReminderService.enabled,
+                builder: (context, enabled, _) => IconButton(
+                  tooltip: context.tr('Anı hatırlatmaları'),
+                  icon: Icon(
+                    enabled
+                        ? Icons.notifications_active_outlined
+                        : Icons.notifications_off_outlined,
+                  ),
+                  onPressed: () async {
+                    await showReminderSettings(context);
+                    if (mounted) await _reload();
+                  },
+                ),
+              ),
+            ],
+          ),
+          MemoryPromptCards(
+            albums: _albums,
+            onContinue: _continueMemory,
+            onComplete: _completeMemory,
+            onSelect: (kind) =>
+                _startMemory(MemoryPeriod.current(kind, DateTime.now())),
+          ),
+        ],
+      ),
+    ),
+  );
 
   Future<void> _openAlbum(AlbumModel album) async {
     HapticFeedback.lightImpact();
@@ -378,6 +514,7 @@ class _HomeScreenState extends State<HomeScreen> {
               : CustomScrollView(
                   physics: const BouncingScrollPhysics(),
                   slivers: [
+                    const SliverToBoxAdapter(child: AppUpdateBanner()),
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: EdgeInsets.fromLTRB(
@@ -422,44 +559,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: horizontalInset,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    context.tr('Anılarını biriktir'),
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.titleLarge,
-                                  ),
-                                ),
-                                IconButton(
-                                  onPressed: () =>
-                                      showReminderSettings(context),
-                                  tooltip: context.tr('Anı hatırlatmaları'),
-                                  icon: const Icon(
-                                    Icons.notifications_outlined,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            MemoryPromptCards(
-                              onSelect: (kind) => _startMemory(
-                                MemoryPeriod.current(kind, DateTime.now()),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                          ],
-                        ),
-                      ),
-                    ),
+                    _memorySection(horizontalInset),
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: EdgeInsets.symmetric(
@@ -503,6 +603,39 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
+                    if (AlbumBackupService.supported)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: horizontalInset,
+                          ),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              key: const ValueKey('restore_cloud_backup'),
+                              onPressed: _restoringBackup
+                                  ? null
+                                  : _restoreBackup,
+                              icon: _restoringBackup
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.cloud_download_outlined),
+                              label: Text(
+                                context.tr(
+                                  _restoringBackup
+                                      ? 'Yedek açılıyor…'
+                                      : 'Yedekten geri yükle',
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     if (!_loading && _albums.isNotEmpty)
                       SliverToBoxAdapter(
                         child: Padding(
@@ -1343,11 +1476,15 @@ class _SpecialCardThumbnail extends StatelessWidget {
       child: AspectRatio(
         aspectRatio: 5 / 7,
         child: IgnorePointer(
-          child: OccasionCardView(
-            cardId: template.id,
-            customTitle: project.title,
-            customSubtitle: context.tr('Kartını açmak için dokun'),
-            customBadge: template.badge,
+          child: AlbumPageCanvas(
+            page: project.pages.isEmpty
+                ? createSpecialCardProject(template: template).pages.first
+                : project.pages.first,
+            theme: specialCardThemeFor(
+              template,
+              artworkVisible: project.cardArtworkVisible,
+            ),
+            showPageNumber: false,
           ),
         ),
       ),

@@ -31,6 +31,8 @@ AlbumModel _album() => AlbumModel(
 );
 
 Future<void> _tapStickerTool(WidgetTester tester) async {
+  await tester.ensureVisible(find.text('Sticker'));
+  await tester.pumpAndSettle();
   await tester.tap(find.text('Sticker'));
   await tester.pumpAndSettle();
 }

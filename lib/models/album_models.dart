@@ -14,7 +14,19 @@ const albumElementScaleStep = 1.12;
 
 /// The crop silhouette applied to a photo independently from its decorative
 /// frame. Existing albums use [free] so their saved layout stays unchanged.
-enum AlbumPhotoShape { free, square, landscape, portrait, circle, arch, torn }
+enum AlbumPhotoShape {
+  free,
+  square,
+  landscape,
+  portrait,
+  circle,
+  arch,
+  torn,
+  rounded,
+  heart,
+  diamond,
+  hexagon,
+}
 
 /// Kütüphanede albümler ile bağımsız özel gün kartlarını birlikte saklar.
 enum AlbumProjectType { album, occasionCard }
@@ -613,8 +625,13 @@ class AlbumElementModel {
     this.rotation = 0,
     this.scale = 1,
     this.frameStyle = 0,
+    this.frameScale = 1,
+    this.frameSpacing = 0,
     this.photoShape = AlbumPhotoShape.free,
     this.photoCrop,
+    this.photoSlot = false,
+    this.photoFit = BoxFit.cover,
+    this.groupId,
     this.textColor = 0xFF2B2521,
     this.textAlign = TextAlign.center,
     this.fontSize = 24,
@@ -638,11 +655,18 @@ class AlbumElementModel {
   /// Append-only index into the photo-frame catalogue. Existing numeric IDs
   /// must keep their meaning so older albums render identically.
   int frameStyle;
+  double frameScale;
+  double frameSpacing;
   AlbumPhotoShape photoShape;
 
   /// Normalized source-image region. Null preserves legacy cover rendering;
   /// the full unit rectangle explicitly shows the entire original image.
   Rect? photoCrop;
+
+  /// A reusable photo container; an empty content string means an empty slot.
+  bool photoSlot;
+  BoxFit photoFit;
+  String? groupId;
   int textColor;
   TextAlign textAlign;
   double fontSize;
@@ -660,7 +684,12 @@ class AlbumElementModel {
     'rotation': rotation,
     'scale': scale,
     'frameStyle': frameStyle,
+    'frameScale': frameScale,
+    'frameSpacing': frameSpacing,
     'photoShape': photoShape.name,
+    if (photoSlot) 'photoSlot': true,
+    if (photoSlot || photoFit != BoxFit.cover) 'photoFit': photoFit.name,
+    if (groupId != null) 'groupId': groupId,
     if (photoCrop case final crop?)
       'photoCrop': [crop.left, crop.top, crop.right, crop.bottom],
     'textColor': textColor,
@@ -683,7 +712,16 @@ class AlbumElementModel {
         rotation: (json['rotation'] as num?)?.toDouble() ?? 0,
         scale: (json['scale'] as num?)?.toDouble() ?? 1,
         frameStyle: json['frameStyle'] as int? ?? 0,
+        frameScale: _boundedPhotoSetting(json['frameScale'], 1, .4, 2.4),
+        frameSpacing: _boundedPhotoSetting(json['frameSpacing'], 0, 0, 20),
         photoCrop: parsePhotoCrop(json['photoCrop']),
+        photoSlot: json['photoSlot'] as bool? ?? false,
+        photoFit:
+            json['photoFit'] == 'contain' ||
+                (json['photoFit'] == null && json['photoSlot'] == true)
+            ? BoxFit.contain
+            : BoxFit.cover,
+        groupId: json['groupId'] as String?,
         photoShape: AlbumPhotoShape.values.firstWhere(
           (shape) => shape.name == json['photoShape'],
           orElse: () => AlbumPhotoShape.free,
@@ -700,6 +738,15 @@ class AlbumElementModel {
       );
 }
 
+double _boundedPhotoSetting(
+  Object? value,
+  double fallback,
+  double min,
+  double max,
+) => value is num && value.isFinite
+    ? value.toDouble().clamp(min, max)
+    : fallback;
+
 Rect? parsePhotoCrop(Object? raw) {
   if (raw is! List ||
       raw.length != 4 ||
@@ -714,18 +761,66 @@ Rect? parsePhotoCrop(Object? raw) {
   return rect.width >= .01 && rect.height >= .01 ? rect : null;
 }
 
+List<AlbumElementModel> albumElementMembers(
+  List<AlbumElementModel> elements,
+  String id,
+) {
+  final found = elements.where((e) => e.id == id).toList();
+  if (found.isEmpty) return [];
+  final group = found.first.groupId;
+  return group == null
+      ? found
+      : elements.where((e) => e.groupId == group).toList();
+}
+
+List<List<AlbumElementModel>> albumElementSets(
+  List<AlbumElementModel> elements,
+) {
+  final seen = <String>{};
+  return [
+    for (final e in elements)
+      if (seen.add(e.groupId ?? e.id)) albumElementMembers(elements, e.id),
+  ];
+}
+
+List<AlbumElementModel> duplicateAlbumElementSet(
+  List<AlbumElementModel> elements,
+  String id,
+) {
+  final members = albumElementMembers(elements, id);
+  final group = members.length > 1 ? newId() : null;
+  final copies = [
+    for (final e in members)
+      AlbumElementModel.fromJson({
+        ...e.toJson(),
+        'id': newId(),
+        'groupId': group,
+        'x': e.x + .035,
+        'y': e.y + .025,
+      }),
+  ];
+  elements.addAll(copies);
+  return copies;
+}
+
+void removeAlbumElementSet(List<AlbumElementModel> elements, String id) {
+  final ids = albumElementMembers(elements, id).map((e) => e.id).toSet();
+  elements.removeWhere((e) => ids.contains(e.id));
+}
+
 bool canMoveAlbumElementLayer(
   List<AlbumElementModel> elements,
   String elementId,
   AlbumElementLayerAction action,
 ) {
-  final index = elements.indexWhere((element) => element.id == elementId);
-  if (index < 0 || elements.length < 2) return false;
+  final sets = albumElementSets(elements);
+  final index = sets.indexWhere((set) => set.any((e) => e.id == elementId));
+  if (index < 0 || sets.length < 2) return false;
   return switch (action) {
     AlbumElementLayerAction.moveDown ||
     AlbumElementLayerAction.sendToBack => index > 0,
     AlbumElementLayerAction.moveUp ||
-    AlbumElementLayerAction.bringToFront => index < elements.length - 1,
+    AlbumElementLayerAction.bringToFront => index < sets.length - 1,
   };
 }
 
@@ -737,15 +832,19 @@ bool moveAlbumElementLayer(
   AlbumElementLayerAction action,
 ) {
   if (!canMoveAlbumElementLayer(elements, elementId, action)) return false;
-  final index = elements.indexWhere((element) => element.id == elementId);
+  final sets = albumElementSets(elements);
+  final index = sets.indexWhere((set) => set.any((e) => e.id == elementId));
   final targetIndex = switch (action) {
     AlbumElementLayerAction.moveDown => index - 1,
     AlbumElementLayerAction.moveUp => index + 1,
     AlbumElementLayerAction.sendToBack => 0,
-    AlbumElementLayerAction.bringToFront => elements.length - 1,
+    AlbumElementLayerAction.bringToFront => sets.length - 1,
   };
-  final element = elements.removeAt(index);
-  elements.insert(targetIndex, element);
+  final set = sets.removeAt(index);
+  sets.insert(targetIndex, set);
+  elements
+    ..clear()
+    ..addAll(sets.expand((set) => set));
   return true;
 }
 
@@ -775,22 +874,28 @@ class AlbumPageModel {
   AlbumPageModel({
     required this.id,
     required this.backgroundColor,
+    this.paperPattern = 'plain',
     List<AlbumElementModel>? elements,
   }) : elements = elements ?? [];
 
   final String id;
   int backgroundColor;
+  String paperPattern;
   final List<AlbumElementModel> elements;
 
   Map<String, dynamic> toJson() => {
     'id': id,
     'backgroundColor': backgroundColor,
+    'paperPattern': paperPattern,
     'elements': elements.map((element) => element.toJson()).toList(),
   };
 
   factory AlbumPageModel.fromJson(Map<String, dynamic> json) => AlbumPageModel(
     id: json['id'] as String,
     backgroundColor: json['backgroundColor'] as int,
+    paperPattern: json['paperPattern'] is String
+        ? json['paperPattern'] as String
+        : 'plain',
     elements: _recoverList(json['elements'], AlbumElementModel.fromJson),
   );
 }
@@ -806,8 +911,10 @@ class AlbumModel {
     required this.pages,
     this.projectType = AlbumProjectType.album,
     this.cardThemeId = 'birthday',
+    this.cardArtworkVisible = true,
     this.importFingerprint,
     this.memoryPeriod,
+    this.memoryCompleted = false,
     this.coverPhotoPath,
   });
 
@@ -820,8 +927,10 @@ class AlbumModel {
   final List<AlbumPageModel> pages;
   AlbumProjectType projectType;
   String cardThemeId;
+  bool cardArtworkVisible;
   String? importFingerprint;
   String? memoryPeriod;
+  bool memoryCompleted;
   String? coverPhotoPath;
 
   Map<String, dynamic> toJson() => {
@@ -834,8 +943,10 @@ class AlbumModel {
     'pages': pages.map((page) => page.toJson()).toList(),
     'projectType': projectType.name,
     'cardThemeId': cardThemeId,
+    if (!cardArtworkVisible) 'cardArtworkVisible': false,
     if (importFingerprint != null) 'importFingerprint': importFingerprint,
     if (memoryPeriod != null) 'memoryPeriod': memoryPeriod,
+    if (memoryCompleted) 'memoryCompleted': true,
     if (coverPhotoPath != null) 'coverPhotoPath': coverPhotoPath,
   };
 
@@ -857,8 +968,10 @@ class AlbumModel {
       orElse: () => AlbumProjectType.album,
     ),
     cardThemeId: json['cardThemeId'] as String? ?? 'birthday',
+    cardArtworkVisible: json['cardArtworkVisible'] as bool? ?? true,
     importFingerprint: json['importFingerprint'] as String?,
     memoryPeriod: json['memoryPeriod'] as String?,
+    memoryCompleted: json['memoryCompleted'] as bool? ?? false,
     coverPhotoPath: json['coverPhotoPath'] as String?,
   );
 }

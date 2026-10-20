@@ -66,13 +66,13 @@ void main() {
     expect(draft.pageIds, ['p0', 'p1', 'p2']);
     expect(album.toJson(), before);
   });
-  for (final seconds in [15, 30]) {
-    for (final pages in [1, 3, 7, 20]) {
+  for (final pace in SocialVideoPace.values) {
+    for (final pages in [1, 3, 7, 20, 45]) {
       test(
-        '$seconds seconds with $pages pages has continuous exact timing and audio',
+        '${pace.name} with $pages pages has continuous page-based timing',
         () {
           final draft = SocialVideoDraft(socialTestAlbum(pages: pages))
-            ..seconds = seconds;
+            ..pace = pace;
           var cursor = 0;
           for (final shot in draft.shots) {
             expect(shot.start, cursor);
@@ -81,8 +81,11 @@ void main() {
             expect(draft.shotAt(cursor + shot.frames - 1).index, shot.index);
             cursor += shot.frames;
           }
-          expect(cursor, seconds * 30);
-          expect(draft.soundtrack.totalFrames, cursor);
+          expect(cursor, 105 + pages * pace.pageFrames);
+          expect(
+            draft.duration.inMicroseconds,
+            (cursor * 1000000 / 30).round(),
+          );
           expect(
             draft.shots.where((s) => s.pageId != null).map((s) => s.pageId),
             draft.pageIds,
@@ -97,7 +100,7 @@ void main() {
       final album = socialTestAlbum();
       final before = album.toJson();
       final draft = SocialVideoDraft(album)
-        ..seconds = 30
+        ..pace = SocialVideoPace.calm
         ..coverPageId = 'p2'
         ..closingNote = 'Yeniden buluşalım';
       draft.pageIds
@@ -112,16 +115,28 @@ void main() {
       expect(draft.closingNote, 'Yeniden buluşalım');
     },
   );
+  test('empty, duplicate and missing page drafts cannot export', () {
+    expect(SocialVideoDraft(socialTestAlbum(pages: 0)).canExport, false);
+    expect(SocialVideoDraft(socialTestAlbum(pages: 45)).canExport, true);
+    final draft = SocialVideoDraft(socialTestAlbum());
+    draft.pageIds.add('p0');
+    expect(draft.canExport, false);
+    draft.pageIds.removeLast();
+    draft.pageIds.add('missing');
+    expect(draft.canExport, false);
+  });
   test(
-    'empty, duplicate, oversized and unsupported duration drafts cannot export',
+    'selecting fewer pages reduces duration without speeding up the others',
     () {
-      expect(SocialVideoDraft(socialTestAlbum(pages: 0)).canExport, false);
-      expect(SocialVideoDraft(socialTestAlbum(pages: 21)).canExport, false);
-      final draft = SocialVideoDraft(socialTestAlbum());
-      draft.pageIds.add('p0');
-      expect(draft.canExport, false);
+      final draft = SocialVideoDraft(socialTestAlbum(pages: 25));
+      final duration = draft.totalFrames;
+      final pageDuration = draft.shots[1].frames;
       draft.pageIds.removeLast();
-      draft.seconds = 16;
+      expect(draft.totalFrames, duration - pageDuration);
+      expect(draft.shots[1].frames, pageDuration);
+      expect(draft.shotAt(-10).index, 0);
+      expect(draft.shotAt(999999).index, draft.pageIds.length + 1);
+      draft.coverPageId = 'missing';
       expect(draft.canExport, false);
     },
   );

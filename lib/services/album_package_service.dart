@@ -101,6 +101,7 @@ class AlbumPackageService {
   Future<AlbumPackageExport> createPackage(
     AlbumModel album, {
     AlbumPackageProgress? onProgress,
+    bool preserveOriginalMedia = false,
   }) async {
     if (album.projectType != AlbumProjectType.album) {
       throw const AlbumPackageException(
@@ -152,6 +153,7 @@ class AlbumPackageService {
     final sourceToPackagePath = <String, String>{};
     final packagedMedia = <String, Map<String, Object>>{};
     var originalMediaBytes = 0;
+    var stagedMediaBytes = 0;
 
     try {
       for (var index = 0; index < photoSources.length; index++) {
@@ -169,7 +171,8 @@ class AlbumPackageService {
         }
         originalMediaBytes += sourceLength;
         final original = await sourceFile.readAsBytes();
-        final optimized = transparentSources.contains(source)
+        final optimized =
+            preserveOriginalMedia || transparentSources.contains(source)
             ? null
             : await Isolate.run<Uint8List?>(() {
                 return _optimizeAlbumPhoto(
@@ -189,6 +192,11 @@ class AlbumPackageService {
         final packagePath = 'media/$digest$extension';
         sourceToPackagePath[source] = packagePath;
         if (!packagedMedia.containsKey(packagePath)) {
+          stagedMediaBytes += outputBytes.length;
+          // A backup must fit the same expanded-size limit used on restore.
+          if (stagedMediaBytes > maxUncompressedBytes - maxManifestBytes) {
+            throw const AlbumPackageException(AlbumPackageFailure.tooLarge);
+          }
           final staged = File(
             '${workspace.path}${Platform.pathSeparator}${packagePath.replaceAll('/', Platform.pathSeparator)}',
           );
@@ -224,6 +232,7 @@ class AlbumPackageService {
           }
           if (element['type'] == AlbumElementType.photo.name) {
             final source = element['content'] as String;
+            if (element['photoSlot'] == true && source.isEmpty) continue;
             final packagePath = sourceToPackagePath[source];
             if (packagePath == null) {
               throw AlbumPackageException(
@@ -448,6 +457,7 @@ class AlbumPackageService {
           }
           if (element['type'] != AlbumElementType.photo.name) continue;
           final mediaPath = element['content'];
+          if (element['photoSlot'] == true && mediaPath == '') continue;
           final extractedPath = extractedPaths[mediaPath];
           if (mediaPath is! String || extractedPath == null) {
             throw const AlbumPackageException(AlbumPackageFailure.corruptMedia);
@@ -519,7 +529,9 @@ class AlbumPackageService {
       for (final page in preview.album.pages) {
         final elements = <AlbumElementModel>[];
         for (final element in page.elements) {
-          final content = element.type == AlbumElementType.photo
+          final content =
+              element.type == AlbumElementType.photo &&
+                  element.content.isNotEmpty
               ? await copyPhoto(element.content)
               : element.type == AlbumElementType.sticker &&
                     isPersonalSticker(element.content)
@@ -530,7 +542,7 @@ class AlbumPackageService {
               : element.content;
           elements.add(
             AlbumElementModel(
-              id: newId(),
+              id: _importedElementId(element.id),
               type: element.type,
               content: content,
               x: element.x,
@@ -540,8 +552,13 @@ class AlbumPackageService {
               rotation: element.rotation,
               scale: element.scale,
               frameStyle: element.frameStyle,
+              frameScale: element.frameScale,
+              frameSpacing: element.frameSpacing,
               photoShape: element.photoShape,
               photoCrop: element.photoCrop,
+              photoSlot: element.photoSlot,
+              photoFit: element.photoFit,
+              groupId: element.groupId,
               textColor: element.textColor,
               textAlign: element.textAlign,
               fontSize: element.fontSize,
@@ -555,6 +572,7 @@ class AlbumPackageService {
           AlbumPageModel(
             id: newId(),
             backgroundColor: page.backgroundColor,
+            paperPattern: page.paperPattern,
             elements: elements,
           ),
         );
@@ -714,6 +732,21 @@ Future<void> _deleteDirectoryQuietly(Directory directory) async {
   } catch (_) {
     // Temporary cleanup is best effort and must not hide the primary result.
   }
+}
+
+// Keep template roles while allocating fresh identities for an imported copy.
+String _importedElementId(String original) {
+  for (final prefix in const [
+    'scrap-decor-',
+    'scrap-photo-',
+    'scrap-text-',
+    'card-badge-',
+    'card-title-',
+    'card-message-',
+  ]) {
+    if (original.startsWith(prefix)) return '$prefix${newId()}';
+  }
+  return newId();
 }
 
 // Package media paths are content hashes, so this identity survives renaming,

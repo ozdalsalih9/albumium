@@ -1,7 +1,6 @@
 import 'package:albumium/l10n/albumium_localizations.dart';
 import 'package:albumium/screens/special_card_studio_screen.dart';
 import 'package:albumium/theme/albumium_app_theme.dart';
-import 'package:albumium/widgets/occasion_cards.dart';
 import 'package:albumium/widgets/album_page_canvas.dart';
 import 'package:albumium/models/album_models.dart';
 import 'package:albumium/screens/editor_screen.dart';
@@ -69,7 +68,6 @@ void main() {
                 'Şekiller',
                 'Özel Kart',
                 'Yazı',
-                occasionCardTemplates.first.title,
               ]) {
                 final found = find.descendant(
                   of: controls,

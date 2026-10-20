@@ -13,8 +13,8 @@ void main() {
       expect(settings.quality.height, 1280);
       expect(settings.quality.videoBitrate, 4000000);
       expect(settings.fps, 30);
-      expect(settings.audioBitrate, 128000);
-      expect(settings.estimatedBytes(const Duration(seconds: 60)), 30960000);
+      expect(settings.audioBitrate, 0);
+      expect(settings.estimatedBytes(const Duration(seconds: 60)), 30000000);
       expect(settings.estimatedBytes(Duration.zero), 0);
       expect(settings.estimatedBytes(const Duration(seconds: -1)), 0);
       expect(

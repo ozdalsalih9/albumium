@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/album_models.dart';
+import '../models/photo_grid_transform.dart';
 import '../l10n/albumium_localizations.dart';
 import '../services/personal_sticker_storage.dart';
 import 'sticker_packs.dart';
@@ -102,10 +103,15 @@ class ElementEditPanel extends StatefulWidget {
     required this.onLayer,
     required this.canMoveLayer,
     this.onFitPhoto,
+    this.onReplacePhoto,
+    this.onClearPhoto,
+    this.groupElements = const [],
   });
   final AlbumElementModel element;
+  final List<AlbumElementModel> groupElements;
   final VoidCallback onChanged, onClose, onStyle, onCrop, onDuplicate, onDelete;
   final VoidCallback? onFitPhoto;
+  final VoidCallback? onReplacePhoto, onClearPhoto;
   final ValueChanged<AlbumElementLayerAction> onLayer;
   final bool Function(AlbumElementLayerAction) canMoveLayer;
   @override
@@ -121,14 +127,27 @@ class _ElementEditPanelState extends State<ElementEditPanel> {
 
   void _change(VoidCallback action) {
     if (widget.element.locked) return;
+    final before = AlbumElementModel.fromJson(widget.element.toJson());
+    final group = widget.groupElements.length > 1
+        ? PhotoGridTransform(widget.groupElements, const Size(500, 700))
+        : null;
     setState(action);
+    group?.followCellChange(before, widget.element);
+    if (before.locked != widget.element.locked) {
+      for (final member in widget.groupElements) {
+        member.locked = widget.element.locked;
+      }
+    }
     widget.onChanged();
   }
 
   void _align(int column, int row) => _change(() {
     final e = widget.element;
     const page = Size(500, 700);
-    final bounds = albumElementBounds(e, page);
+    final geometry = widget.groupElements.length > 1
+        ? photoGridFrame(widget.groupElements, page)
+        : e;
+    final bounds = albumElementBounds(geometry, page);
     final cx = column == 0
         ? bounds.width / 2
         : column == 1
@@ -139,8 +158,8 @@ class _ElementEditPanelState extends State<ElementEditPanel> {
         : row == 1
         ? 350.0
         : 700 - bounds.height / 2;
-    e.x = cx / 500 - e.width / 2;
-    e.y = cy / 700 - e.height / 2;
+    e.x += (cx - bounds.center.dx) / 500;
+    e.y += (cy - bounds.center.dy) / 700;
   });
 
   Widget _tool(
@@ -296,7 +315,41 @@ class _ElementEditPanelState extends State<ElementEditPanel> {
   );
 
   List<Widget> _tools(AlbumElementModel e, List<String> sections) => [
-    if (e.type == AlbumElementType.photo)
+    if (e.photoSlot && e.content.isNotEmpty)
+      PopupMenuButton<BoxFit>(
+        tooltip: context.tr('Fotoğraf yerleşimi'),
+        icon: Icon(
+          e.photoFit == BoxFit.contain
+              ? Icons.fit_screen_rounded
+              : Icons.crop_free_rounded,
+        ),
+        enabled: !e.locked,
+        initialValue: e.photoFit,
+        onSelected: (fit) => _change(() => e.photoFit = fit),
+        itemBuilder: (context) => [
+          for (final fit in [BoxFit.contain, BoxFit.cover])
+            CheckedPopupMenuItem(
+              value: fit,
+              checked: fit == e.photoFit,
+              child: Text(
+                context.tr(fit == BoxFit.contain ? 'Sığdır' : 'Doldur'),
+              ),
+            ),
+        ],
+      ),
+    if (e.photoSlot && widget.onReplacePhoto != null)
+      _tool(
+        e.content.isEmpty ? 'Fotoğraf ekle' : 'Fotoğraf değiştir',
+        Icons.add_photo_alternate_outlined,
+        widget.onReplacePhoto,
+      ),
+    if (e.photoSlot && e.content.isNotEmpty && widget.onClearPhoto != null)
+      _tool(
+        'Yuvayı boşalt',
+        Icons.image_not_supported_outlined,
+        widget.onClearPhoto,
+      ),
+    if (e.type == AlbumElementType.photo && e.content.isNotEmpty)
       _tool('Kırp', Icons.crop_rounded, widget.onCrop),
     if (e.type == AlbumElementType.sticker &&
         isAlbumShape(e.content) &&
@@ -364,13 +417,15 @@ class _ElementEditPanelState extends State<ElementEditPanel> {
   Widget build(BuildContext context) {
     final e = widget.element;
     final theme = Theme.of(context);
-    final type = switch (e.type) {
-      AlbumElementType.photo => 'Fotoğraf',
-      AlbumElementType.text => 'Yazı',
-      AlbumElementType.card => 'Kart',
-      AlbumElementType.sticker => 'Şekil / Süs',
-      AlbumElementType.drawing => 'Çizim',
-    };
+    final type = e.groupId != null
+        ? 'Izgara'
+        : switch (e.type) {
+            AlbumElementType.photo => 'Fotoğraf',
+            AlbumElementType.text => 'Yazı',
+            AlbumElementType.card => 'Kart',
+            AlbumElementType.sticker => 'Şekil / Süs',
+            AlbumElementType.drawing => 'Çizim',
+          };
     final sections = <String>[
       'Hassas ayar',
       'Hizala',
@@ -409,7 +464,13 @@ class _ElementEditPanelState extends State<ElementEditPanel> {
     final lockButton = IconButton(
       tooltip: context.tr(e.locked ? 'Kilidi aç' : 'Sabitle'),
       onPressed: () {
-        setState(() => e.locked = !e.locked);
+        setState(() {
+          final value = !e.locked;
+          e.locked = value;
+          for (final cell in widget.groupElements) {
+            cell.locked = value;
+          }
+        });
         widget.onChanged();
       },
       icon: Icon(e.locked ? Icons.lock : Icons.lock_open, size: 20),

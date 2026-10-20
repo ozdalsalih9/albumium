@@ -1,3 +1,4 @@
+import '../models/scrapbook_templates.dart';
 import '../services/platform_album_services.dart';
 import 'personal_stickers_screen.dart';
 import 'dart:async';
@@ -15,6 +16,9 @@ import 'package:share_plus/share_plus.dart';
 
 import '../l10n/albumium_localizations.dart';
 import '../models/album_models.dart';
+import '../models/card_design_history.dart';
+import '../widgets/card_color_picker.dart';
+import '../widgets/card_template_thumbnail.dart';
 import '../services/album_storage.dart';
 import '../services/personal_sticker_storage.dart';
 import '../theme/albumium_app_theme.dart';
@@ -28,6 +32,8 @@ import '../widgets/handmade_craft.dart';
 import '../widgets/handwriting_painter.dart';
 import '../widgets/occasion_cards.dart';
 import '../widgets/photo_style_picker.dart';
+import '../widgets/photo_slot_picker.dart';
+import '../services/photo_slot_service.dart';
 import '../widgets/photo_crop_editor.dart';
 import '../widgets/sticker_packs.dart';
 
@@ -56,6 +62,7 @@ AlbumModel createSpecialCardProject({
       AlbumPageModel(
         id: newId(),
         backgroundColor: selected.primaryColor.toARGB32(),
+        paperPattern: scrapbookTemplateById(selected.id)?.pattern ?? 'plain',
         elements: _defaultCardElements(selected, localize),
       ),
     ],
@@ -70,73 +77,118 @@ String _defaultCardTitle(
 List<AlbumElementModel> _defaultCardElements(
   OccasionCardTemplate template,
   String Function(String text) localize,
-) => template.layout == 'blank'
-    ? []
-    : [
-        AlbumElementModel(
-          id: '$_cardRoleBadge${newId()}',
-          type: AlbumElementType.text,
-          content: template.layout == 'classic'
-              ? '${template.emoji}  ${localize(template.badge)}'
-              : localize(template.badge),
-          extraData: 'Inter',
-          x: .16,
-          y: template.layout == 'photo'
-              ? .055
-              : ['geometric', 'arch'].contains(template.layout)
-              ? .22
-              : .15,
-          width: .68,
-          height: .08,
-          fontSize: 12,
-          textColor: template.accentColor.toARGB32(),
-        ),
-        AlbumElementModel(
-          id: '$_cardRoleTitle${newId()}',
-          type: AlbumElementType.text,
-          content: localize(template.title),
-          extraData: 'Cormorant Garamond',
-          x: .10,
-          y: template.layout == 'photo'
-              ? .63
-              : template.layout == 'editorial'
-              ? .22
-              : .31,
-          width: .80,
-          height: .18,
-          fontSize: template.layout == 'editorial' ? 37 : 31,
-          textColor: const Color(0xFF2C2520).toARGB32(),
-        ),
-        AlbumElementModel(
-          id: '$_cardRoleMessage${newId()}',
-          type: AlbumElementType.text,
-          content: localize(template.subtitle),
-          extraData: 'Inter',
-          x: .13,
-          y: template.layout == 'photo'
-              ? .81
-              : template.layout == 'editorial'
-              ? .50
-              : .57,
-          width: .74,
-          height: template.layout == 'photo' ? .11 : .16,
-          fontSize: 17,
-          textColor: const Color(0xFF645850).toARGB32(),
-        ),
-      ];
+) {
+  if (template.layout == 'blank') return [];
+  final scrapbook = scrapbookTemplateById(template.id);
+  if (scrapbook != null) {
+    return createScrapbookPage(scrapbook, translate: localize).elements;
+  }
+  final layout = template.layout;
+  final photo = ['photo', 'gallery'].contains(layout);
+  final left = [
+    'letterpress',
+    'postcard',
+    'editorial',
+    'herbarium',
+  ].contains(layout);
+  final dark = template.primaryColor.computeLuminance() < .2;
+  final titleY = switch (layout) {
+    'photo' => .63,
+    'gallery' => .66,
+    'letterpress' => .27,
+    'postcard' => .33,
+    'herbarium' => .32,
+    'coastal' => .30,
+    'editorial' => .22,
+    'ribbon' => .40,
+    _ => .31,
+  };
+  final messageY = photo
+      ? .84
+      : layout == 'ribbon'
+      ? .68
+      : layout == 'cutout'
+      ? .62
+      : .58;
+  return [
+    if (photo) _cardPhotoSlot(template),
+    AlbumElementModel(
+      id: '$_cardRoleBadge${newId()}',
+      type: AlbumElementType.text,
+      content: localize(template.badge),
+      extraData: 'Inter',
+      x: .12,
+      y: photo
+          ? .035
+          : layout == 'ribbon'
+          ? .33
+          : ['geometric', 'arch', 'celestial'].contains(layout)
+          ? .24
+          : .16,
+      width: .76,
+      height: .06,
+      fontSize: 10,
+      textAlign: left ? TextAlign.left : TextAlign.center,
+      textColor: template.accentColor.toARGB32(),
+    ),
+    AlbumElementModel(
+      id: '$_cardRoleTitle${newId()}',
+      type: AlbumElementType.text,
+      content: localize(template.title),
+      extraData: template.fontFamily,
+      x: .11,
+      y: titleY,
+      width: layout == 'herbarium' ? .67 : .78,
+      height: photo ? .17 : .24,
+      fontSize: ['letterpress', 'editorial'].contains(layout) ? 35 : 36,
+      textAlign: left ? TextAlign.left : TextAlign.center,
+      textColor: template.accentColor.toARGB32(),
+    ),
+    AlbumElementModel(
+      id: '$_cardRoleMessage${newId()}',
+      type: AlbumElementType.text,
+      content: localize(template.subtitle),
+      extraData: 'Inter',
+      x: .12,
+      y: messageY,
+      width: layout == 'herbarium' ? .61 : .76,
+      height: photo ? .08 : .13,
+      fontSize: 14,
+      textAlign: left ? TextAlign.left : TextAlign.center,
+      textColor: (dark ? const Color(0xFFD7D5CD) : const Color(0xFF645E55))
+          .toARGB32(),
+    ),
+  ];
+}
 
-AlbumThemePreset specialCardThemeFor(OccasionCardTemplate template) =>
-    AlbumThemePreset(
-      id: 'special_card_${template.id}',
-      name: template.title,
-      subtitle: template.subtitle,
-      emoji: template.emoji,
-      coverStart: template.secondaryColor,
-      coverEnd: template.accentColor,
-      pageColor: template.primaryColor,
-      accent: template.accentColor,
-      textureLabel: 'Kart kâğıdı',
+AlbumElementModel _cardPhotoSlot(OccasionCardTemplate template) =>
+    AlbumElementModel(
+      id: 'card-photo-${newId()}',
+      type: AlbumElementType.photo,
+      content: '',
+      photoSlot: true,
+      photoFit: BoxFit.contain,
+      x: template.layout == 'gallery' ? .168 : .172,
+      y: template.layout == 'gallery' ? .144 : .216,
+      width: template.layout == 'gallery' ? .664 : .656,
+      height: template.layout == 'gallery' ? .397 : .323,
+      rotation: template.layout == 'gallery' ? -.035 : -.04,
     );
+
+AlbumThemePreset specialCardThemeFor(
+  OccasionCardTemplate template, {
+  bool artworkVisible = true,
+}) => AlbumThemePreset(
+  id: 'special_card_${artworkVisible ? template.id : 'blank'}',
+  name: template.title,
+  subtitle: template.subtitle,
+  emoji: template.emoji,
+  coverStart: template.secondaryColor,
+  coverEnd: template.accentColor,
+  pageColor: template.primaryColor,
+  accent: template.accentColor,
+  textureLabel: 'Kart kâğıdı',
+);
 
 class SpecialCardStudioScreen extends StatefulWidget {
   const SpecialCardStudioScreen({super.key, required this.project});
@@ -153,13 +205,15 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
   Timer? _saveDebounce;
   String? _selectedId;
   bool _sharing = false;
+  late final CardDesignHistory _history;
 
   AlbumModel get project => widget.project;
   AlbumPageModel get page => project.pages.first;
   OccasionCardTemplate get template =>
       occasionTemplateById(project.cardThemeId);
 
-  AlbumThemePreset get cardTheme => specialCardThemeFor(template);
+  AlbumThemePreset get cardTheme =>
+      specialCardThemeFor(template, artworkVisible: project.cardArtworkVisible);
 
   AlbumElementModel? get selectedElement {
     if (_selectedId == null) return null;
@@ -177,10 +231,24 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
         AlbumPageModel(
           id: newId(),
           backgroundColor: template.primaryColor.toARGB32(),
+          paperPattern: scrapbookTemplateById(template.id)?.pattern ?? 'plain',
           elements: _defaultCardElements(template, (text) => text),
         ),
       );
     }
+    if (['photo', 'gallery'].contains(template.layout) &&
+        !page.elements.any((e) => e.photoSlot)) {
+      final photos = page.elements.where(
+        (e) => e.type == AlbumElementType.photo,
+      );
+      if (photos.isEmpty) {
+        page.elements.insert(0, _cardPhotoSlot(template));
+      } else {
+        photos.first.photoSlot = true;
+      }
+    }
+    recoverPhotoGridGroups(page);
+    _history = CardDesignHistory(project);
   }
 
   @override
@@ -190,7 +258,9 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
     super.dispose();
   }
 
-  void _changed() {
+  void _changed({bool record = true}) {
+    if (record) _history.record(project);
+    if (mounted) setState(() {});
     _saveDebounce?.cancel();
     _saveDebounce = Timer(
       const Duration(milliseconds: 420),
@@ -200,6 +270,44 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
 
   void _selectTemplate(OccasionCardTemplate next) {
     final previous = template;
+    if (previous.id == next.id) return;
+    final scrapbook = scrapbookTemplateById(next.id);
+    if (scrapbook != null) {
+      final previousCopy =
+          [
+                ..._defaultCardElements(previous, (text) => text),
+                ..._defaultCardElements(previous, context.tr),
+              ]
+              .where((e) => e.type == AlbumElementType.text)
+              .map((e) => e.content)
+              .toSet();
+      setState(() {
+        applyScrapbookToPage(
+          page,
+          scrapbook,
+          translate: context.tr,
+          replaceableTextIds: page.elements
+              .where(
+                (e) =>
+                    e.type == AlbumElementType.text &&
+                    (e.id.startsWith('scrap-text-') ||
+                        e.id.startsWith('card-')) &&
+                    previousCopy.contains(e.content),
+              )
+              .map((e) => e.id)
+              .toSet(),
+        );
+        if (project.title == _defaultCardTitle(previous, (text) => text) ||
+            project.title == _defaultCardTitle(previous, context.tr)) {
+          project.title = _defaultCardTitle(next, context.tr);
+        }
+        project.cardThemeId = next.id;
+        project.cardArtworkVisible = true;
+        _selectedId = null;
+      });
+      _changed();
+      return;
+    }
     // Cards are created with untranslated copy and may be viewed in another
     // language later, so a default can be in either form.
     String raw(String text) => text;
@@ -211,18 +319,20 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
       (element) => element.id.startsWith(role) && element.content == content,
     );
     setState(() {
+      if (previous.layout == 'scrapbook') {
+        page.paperPattern = 'plain';
+        page.elements.removeWhere(
+          (e) => e.id.startsWith('scrap-decor-') && !e.locked,
+        );
+      }
       project.cardThemeId = next.id;
+      project.cardArtworkVisible = true;
       page.backgroundColor = next.primaryColor.toARGB32();
       // Wording the user typed survives a theme change; copy that still
       // matches the previous template is replaced with the new template's.
       if (project.title == _defaultCardTitle(previous, raw) ||
           project.title == _defaultCardTitle(previous, context.tr)) {
         project.title = _defaultCardTitle(next, context.tr);
-      }
-      for (final element in page.elements.where(
-        (e) => e.type == AlbumElementType.text,
-      )) {
-        element.textColor = next.accentColor.toARGB32();
       }
       final defaults = _defaultCardElements(next, context.tr);
       for (final role in [_cardRoleBadge, _cardRoleTitle, _cardRoleMessage]) {
@@ -245,8 +355,15 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
             ..y = layout.y
             ..width = layout.width
             ..height = layout.height
-            ..fontSize = layout.fontSize;
+            ..fontSize = layout.fontSize
+            ..extraData = layout.extraData
+            ..textAlign = layout.textAlign
+            ..textColor = layout.textColor;
         }
+      }
+      if (['photo', 'gallery'].contains(next.layout) &&
+          !page.elements.any((e) => e.photoSlot)) {
+        page.elements.add(_cardPhotoSlot(next));
       }
       _selectedId = null;
     });
@@ -285,8 +402,40 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
     _changed();
   }
 
+  Future<void> _addPhotoSlots() async {
+    final preset = await showPhotoSlotPicker(context);
+    if (preset == null || !mounted) return;
+    setState(() {
+      page.elements.addAll(preset.create());
+      _selectedId = null;
+    });
+    _changed();
+  }
+
+  Future<void> _fillPhotoSlot(String id) async {
+    final slots = page.elements.where((e) => e.id == id && e.photoSlot);
+    if (slots.isEmpty) return;
+    final slot = slots.first;
+    if (await pickPhotoIntoSlot(context, slot) &&
+        mounted &&
+        page.elements.contains(slot)) {
+      setState(() => _selectedId = id);
+      _changed();
+    }
+  }
+
+  void _clearPhotoSlot() {
+    final slot = selectedElement;
+    if (slot == null || !slot.photoSlot || slot.locked) return;
+    setState(() {
+      slot.content = '';
+      slot.photoCrop = null;
+    });
+    _changed();
+  }
+
   Future<void> _addPhoto() async {
-    final photos = await PhotoSelectionService.pick(context);
+    final photos = await PhotoSelectionService.pick(context, multiple: true);
     if (photos.isEmpty || !mounted) return;
     for (final picked in photos) {
       String path;
@@ -312,18 +461,47 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
         continue;
       }
       if (!mounted) return;
+      final empty = page.elements.where(
+        (e) => e.photoSlot && e.content.isEmpty && !e.locked,
+      );
+      if (empty.isNotEmpty) {
+        final slot = empty.first;
+        setState(() {
+          slot.content = path;
+          slot.photoCrop = null;
+          _selectedId = slot.id;
+        });
+        _changed();
+        continue;
+      }
       setState(() {
         final element = AlbumElementModel(
           id: newId(),
           type: AlbumElementType.photo,
           content: path,
-          x: template.layout == 'photo' ? .172 : (1 - size.width) / 2,
-          y: template.layout == 'photo' ? .216 : (1 - size.height) / 2,
-          width: template.layout == 'photo' ? .656 : size.width,
-          height: template.layout == 'photo' ? .323 : size.height,
+          x: template.layout == 'gallery'
+              ? .168
+              : template.layout == 'photo'
+              ? .172
+              : (1 - size.width) / 2,
+          y: template.layout == 'gallery'
+              ? .144
+              : template.layout == 'photo'
+              ? .216
+              : (1 - size.height) / 2,
+          width: template.layout == 'gallery'
+              ? .664
+              : template.layout == 'photo'
+              ? .656
+              : size.width,
+          height: template.layout == 'gallery'
+              ? .397
+              : template.layout == 'photo'
+              ? .323
+              : size.height,
           photoCrop: fullPhotoCrop,
-          rotation: -.025,
-          frameStyle: 1,
+          rotation: template.layout == 'gallery' ? -.035 : -.025,
+          frameStyle: template.layout == 'gallery' ? 0 : 1,
         );
         page.elements.add(element);
         _selectedId = element.id;
@@ -334,7 +512,11 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
 
   Future<void> _cropSelectedPhoto() async {
     final element = selectedElement;
-    if (element == null || element.type != AlbumElementType.photo) return;
+    if (element == null ||
+        element.locked ||
+        element.type != AlbumElementType.photo) {
+      return;
+    }
     if (await editAlbumPhotoCrop(context, element) && mounted) {
       setState(() {});
       _changed();
@@ -446,6 +628,10 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
   Future<void> _activateElement(String elementId) async {
     final element = selectedElement;
     if (element == null || element.id != elementId || element.locked) return;
+    if (element.photoSlot) {
+      await _fillPhotoSlot(elementId);
+      return;
+    }
     if (element.type != AlbumElementType.text) return;
     await _editSelected();
   }
@@ -500,18 +686,80 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
     _changed();
   }
 
+  bool _elementMenuOpen = false;
+  Future<void> _showElementMenu(String id, Offset position) async {
+    if (_elementMenuOpen) return;
+    final found = page.elements.where((e) => e.id == id);
+    if (found.isEmpty) return;
+    final element = found.first;
+    _elementMenuOpen = true;
+    try {
+      setState(() => _selectedId = id);
+      final size = MediaQuery.sizeOf(context);
+      final action = await showMenu<String>(
+        context: context,
+        position: RelativeRect.fromLTRB(
+          position.dx,
+          position.dy,
+          size.width - position.dx,
+          size.height - position.dy,
+        ),
+        items: [
+          if (element.type == AlbumElementType.photo)
+            PopupMenuItem(
+              value: 'edit',
+              enabled: !element.locked,
+              child: Text(context.tr('Düzenle')),
+            ),
+          PopupMenuItem(
+            value: 'lock',
+            child: Text(context.tr(element.locked ? 'Kilidi aç' : 'Sabitle')),
+          ),
+        ],
+      );
+      if (!mounted) return;
+      if (action == 'edit') await _styleSelectedPhoto();
+      if (action == 'lock') {
+        setState(() {
+          final value = !element.locked;
+          for (final e in albumElementMembers(page.elements, id)) {
+            e.locked = value;
+          }
+        });
+        _changed();
+      }
+    } finally {
+      _elementMenuOpen = false;
+    }
+  }
+
   Future<void> _styleSelectedPhoto() async {
     final element = selectedElement;
-    if (element == null || element.type != AlbumElementType.photo) return;
+    if (element == null ||
+        element.locked ||
+        element.type != AlbumElementType.photo) {
+      return;
+    }
     final style = await showAlbumPhotoStylePicker(
       context,
       selectedFrameStyle: element.frameStyle,
       selectedShape: element.photoShape,
+      element: element,
     );
     if (style == null || !mounted) return;
     setState(() {
-      element.frameStyle = style.frameStyle;
-      applyAlbumPhotoShape(element, style.shape);
+      final targets = style.scope == PhotoStyleScope.selected
+          ? [element]
+          : page.elements;
+      for (final target in targets.where(
+        (e) => e.type == AlbumElementType.photo && !e.locked,
+      )) {
+        applyPhotoStudioResult(
+          target,
+          style,
+          includeCrop: target.id == element.id,
+        );
+      }
     });
     _changed();
   }
@@ -541,12 +789,7 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
   }
 
   Future<void> _addShape() async {
-    final shape = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => const ShapeObjectPickerSheet(),
-    );
+    final shape = await showShapeObjectPicker(context);
     if (shape != null && mounted) _insertDecoration(shape);
   }
 
@@ -572,27 +815,8 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
     final source = selectedElement;
     if (source == null) return;
     setState(() {
-      final copy = AlbumElementModel(
-        id: newId(),
-        type: source.type,
-        content: source.content,
-        x: (source.x + .04).clamp(-.25, .9),
-        y: (source.y + .04).clamp(-.2, .92),
-        width: source.width,
-        height: source.height,
-        rotation: source.rotation,
-        scale: source.scale,
-        frameStyle: source.frameStyle,
-        photoShape: source.photoShape,
-        photoCrop: source.photoCrop,
-        textColor: source.textColor,
-        textAlign: source.textAlign,
-        fontSize: source.fontSize,
-        extraData: source.extraData,
-        cardColor: source.cardColor,
-      );
-      page.elements.add(copy);
-      _selectedId = copy.id;
+      final copies = duplicateAlbumElementSet(page.elements, source.id);
+      _selectedId = copies.first.id;
     });
     _changed();
   }
@@ -600,7 +824,7 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
   void _deleteSelected() {
     if (_selectedId == null) return;
     setState(() {
-      page.elements.removeWhere((element) => element.id == _selectedId);
+      removeAlbumElementSet(page.elements, _selectedId!);
       _selectedId = null;
     });
     _changed();
@@ -831,6 +1055,10 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
                     ? ElementEditPanel(
                         key: ValueKey(_selectedId),
                         element: selectedElement!,
+                        groupElements: albumElementMembers(
+                          page.elements,
+                          selectedElement!.id,
+                        ),
                         onChanged: () {
                           setState(() {});
                           _changed();
@@ -840,6 +1068,10 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
                             ? _styleSelectedPhoto
                             : _editSelected,
                         onCrop: _cropSelectedPhoto,
+                        onReplacePhoto: selectedElement!.photoSlot
+                            ? () => _fillPhotoSlot(selectedElement!.id)
+                            : null,
+                        onClearPhoto: _clearPhotoSlot,
                         onDuplicate: _duplicateSelected,
                         onDelete: _deleteSelected,
                         canMoveLayer: (action) => canMoveAlbumElementLayer(
@@ -864,6 +1096,7 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
                         selectedTemplate: template,
                         onTemplateSelected: _selectTemplate,
                         onPhoto: _addPhoto,
+                        onPhotoSlots: _addPhotoSlots,
                         onText: _addText,
                         onSticker: _addSticker,
                         onPersonalSticker: () => _addSticker(personal: true),
@@ -871,8 +1104,53 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
                         onColor: _changeCardColor,
                         onDraw: _addHandwriting,
                         onCard: _addOccasionCard,
+                        onLayers: _showLayers,
+                        onToggleArtwork: () {
+                          setState(
+                            () => project.cardArtworkVisible =
+                                !project.cardArtworkVisible,
+                          );
+                          _changed();
+                        },
+                        onTemplates: _showTemplates,
                       );
-                final canvas = _buildCanvas(tablet: tablet);
+                final canvas = Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            key: const ValueKey('card-undo'),
+                            tooltip: context.tr('Geri al'),
+                            onPressed: _history.canUndo
+                                ? () => _restoreHistory(false)
+                                : null,
+                            icon: const Icon(Icons.undo_rounded),
+                          ),
+                          IconButton(
+                            key: const ValueKey('card-redo'),
+                            tooltip: context.tr('Yinele'),
+                            onPressed: _history.canRedo
+                                ? () => _restoreHistory(true)
+                                : null,
+                            icon: const Icon(Icons.redo_rounded),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              context.tr('Taşı · Boyutlandır · Döndür'),
+                              style: Theme.of(context).textTheme.labelSmall,
+                              textAlign: TextAlign.end,
+                              maxLines: 2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(child: _buildCanvas(tablet: tablet)),
+                  ],
+                );
 
                 if (sidePanel) {
                   return Row(
@@ -903,34 +1181,219 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
     );
   }
 
+  void _restoreHistory(bool redo) {
+    setState(() {
+      redo ? _history.redo(project) : _history.undo(project);
+      _selectedId = null;
+    });
+    _changed(record: false);
+  }
+
   Future<void> _changeCardColor() async {
     final color = await showDialog<int>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.tr('Kart rengi')),
-        content: Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
-            for (final color in editorCardColors)
-              IconButton.filledTonal(
-                tooltip: '#${color.toRadixString(16).substring(2)}',
-                style: IconButton.styleFrom(backgroundColor: Color(color)),
-                onPressed: () => Navigator.pop(context, color),
-                icon: Icon(
-                  page.backgroundColor == color
-                      ? Icons.check
-                      : Icons.circle_outlined,
-                  color: Colors.black54,
-                ),
-              ),
-          ],
-        ),
-      ),
+      builder: (_) =>
+          CardColorPicker(initialColor: Color(page.backgroundColor)),
     );
     if (color == null || !mounted) return;
     setState(() => page.backgroundColor = color);
     _changed();
+  }
+
+  Future<void> _showTemplates() async {
+    final catalog = [
+      ...atelierCardTemplates,
+      ...occasionCardTemplates.where((t) => !atelierCardTemplates.contains(t)),
+      blankCardTemplate,
+    ];
+    final next = await showModalBottomSheet<OccasionCardTemplate>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.sizeOf(context).height * .78,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                child: Column(
+                  children: [
+                    Text(
+                      context.tr('Bir tasarımla başla'),
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      context.tr('Yazılar, renkler ve yerleşim sana ait.'),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: GridView.builder(
+                  key: const ValueKey('card-template-grid'),
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 200,
+                    mainAxisExtent: 248,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                  ),
+                  itemCount: catalog.length,
+                  itemBuilder: (context, index) {
+                    final item = catalog[index];
+                    return InkWell(
+                      key: ValueKey('card-template-${item.id}'),
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () => Navigator.pop(context, item),
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: CardTemplateThumbnail(template: item),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Text(
+                              context.tr(item.title).replaceAll('\n', ' '),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (next != null && mounted) _selectTemplate(next);
+  }
+
+  Future<void> _showLayers() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, refresh) {
+          final sets = albumElementSets(page.elements).reversed.toList();
+          return SafeArea(
+            child: SizedBox(
+              height: MediaQuery.sizeOf(context).height * .6,
+              child: Column(
+                children: [
+                  Text(
+                    context.tr('Katmanlar'),
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(
+                      context.tr(
+                        'En üstteki öğe önde görünür. Sıralamak için sürükle.',
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: sets.isEmpty
+                        ? Center(
+                            child: Text(
+                              context.tr(
+                                'Fotoğraf, yazı veya çizim ekleyerek başla.',
+                              ),
+                            ),
+                          )
+                        : ReorderableListView.builder(
+                            buildDefaultDragHandles: false,
+                            itemCount: sets.length,
+                            onReorder: (from, to) {
+                              if (to > from) to--;
+                              sets.insert(to, sets.removeAt(from));
+                              setState(() {
+                                page.elements
+                                  ..clear()
+                                  ..addAll(sets.reversed.expand((set) => set));
+                              });
+                              _changed();
+                              refresh(() {});
+                            },
+                            itemBuilder: (context, index) {
+                              final members = sets[index];
+                              final element = members.first;
+                              final label = members.length > 1
+                                  ? '${context.tr('Izgara')} · ${members.length}'
+                                  : switch (element.type) {
+                                      AlbumElementType.text => element.content,
+                                      AlbumElementType.photo => context.tr(
+                                        'Fotoğraf',
+                                      ),
+                                      AlbumElementType.drawing => context.tr(
+                                        'Çizim',
+                                      ),
+                                      AlbumElementType.card => context.tr(
+                                        'Özel Kart',
+                                      ),
+                                      _ => context.tr('Süsler'),
+                                    };
+                              return ListTile(
+                                key: ValueKey(element.groupId ?? element.id),
+                                leading: ReorderableDragStartListener(
+                                  index: index,
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: Icon(Icons.drag_indicator_rounded),
+                                  ),
+                                ),
+                                title: Text(
+                                  label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                onTap: () {
+                                  setState(() => _selectedId = element.id);
+                                  Navigator.pop(sheetContext);
+                                },
+                                trailing: IconButton(
+                                  tooltip: context.tr(
+                                    element.locked ? 'Kilidi aç' : 'Kilitle',
+                                  ),
+                                  icon: Icon(
+                                    element.locked
+                                        ? Icons.lock_outline_rounded
+                                        : Icons.lock_open_rounded,
+                                  ),
+                                  onPressed: () {
+                                    final value = !element.locked;
+                                    setState(() {
+                                      for (final cell in members) {
+                                        cell.locked = value;
+                                      }
+                                    });
+                                    _changed();
+                                    refresh(() {});
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Widget _buildCanvas({required bool tablet}) {
@@ -941,7 +1404,12 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
           children: [
             Center(
               child: Padding(
-                padding: EdgeInsets.all(tablet ? 34 : 18),
+                padding: EdgeInsets.fromLTRB(
+                  tablet ? 24 : 18,
+                  6,
+                  tablet ? 24 : 18,
+                  14,
+                ),
                 child: ConstrainedBox(
                   constraints: BoxConstraints(maxWidth: maxWidth),
                   child: AspectRatio(
@@ -950,7 +1418,7 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
                       key: _captureKey,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(24),
+                          borderRadius: BorderRadius.circular(6),
                           boxShadow: const [
                             BoxShadow(
                               color: Color(0x52000000),
@@ -960,7 +1428,7 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
                           ],
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(24),
+                          borderRadius: BorderRadius.circular(6),
                           child: AlbumPageCanvas(
                             page: page,
                             theme: cardTheme,
@@ -968,6 +1436,7 @@ class _SpecialCardStudioScreenState extends State<SpecialCardStudioScreen> {
                             selectedId: _selectedId,
                             onSelect: (id) => setState(() => _selectedId = id),
                             onActivate: _activateElement,
+                            onLongPressElement: _showElementMenu,
                             onChanged: _changed,
                             showPageNumber: false,
                           ),
@@ -992,6 +1461,7 @@ class _CardControls extends StatelessWidget {
     required this.selectedTemplate,
     required this.onTemplateSelected,
     required this.onPhoto,
+    required this.onPhotoSlots,
     required this.onText,
     required this.onSticker,
     required this.onPersonalSticker,
@@ -999,6 +1469,9 @@ class _CardControls extends StatelessWidget {
     required this.onColor,
     required this.onDraw,
     required this.onCard,
+    required this.onLayers,
+    required this.onToggleArtwork,
+    required this.onTemplates,
   });
 
   final bool sidePanel;
@@ -1006,6 +1479,7 @@ class _CardControls extends StatelessWidget {
   final OccasionCardTemplate selectedTemplate;
   final ValueChanged<OccasionCardTemplate> onTemplateSelected;
   final VoidCallback onPhoto;
+  final VoidCallback onPhotoSlots;
   final VoidCallback onText;
   final VoidCallback onSticker;
   final VoidCallback onPersonalSticker;
@@ -1013,6 +1487,7 @@ class _CardControls extends StatelessWidget {
   final VoidCallback onColor;
   final VoidCallback onDraw;
   final VoidCallback onCard;
+  final VoidCallback onLayers, onToggleArtwork, onTemplates;
 
   @override
   Widget build(BuildContext context) {
@@ -1048,176 +1523,150 @@ class _CardControls extends StatelessWidget {
 
   Widget _buildContent(BuildContext context) {
     final colors = AlbumiumAppTheme.colorsOf(context);
-    const cardTextStyle = TextStyle(fontSize: 12, fontWeight: FontWeight.w600);
-    final labelSizes = [
-      for (final card in occasionCardTemplates)
-        controlLabelSize(context, context.tr(card.title), cardTextStyle),
-    ];
-    final labelHeight = labelSizes.fold<double>(
-      0,
-      (h, s) => h > s.height ? h : s.height,
-    );
-    final tileHeight = (labelHeight + 18).clamp(62.0, double.infinity);
-    final tools = [
-      _CardTool(
-        icon: Icons.draw_outlined,
-        label: context.tr('Çizim'),
-        onTap: onDraw,
-      ),
-      _CardTool(
-        icon: Icons.add_reaction_outlined,
-        label: context.tr('Sticker'),
-        onTap: onPersonalSticker,
-      ),
-      _CardTool(
-        icon: Icons.celebration_outlined,
-        label: context.tr('Özel Kart'),
-        onTap: onCard,
-      ),
-      _CardTool(
-        icon: Icons.palette_outlined,
-        label: context.tr('Renk'),
-        onTap: onColor,
-      ),
-      _CardTool(
-        icon: Icons.add_photo_alternate_outlined,
-        label: context.tr('Fotoğraf'),
-        onTap: onPhoto,
-      ),
-      _CardTool(
-        icon: Icons.text_fields_rounded,
-        label: context.tr('Yazı'),
-        onTap: onText,
-      ),
-      _CardTool(
-        icon: Icons.auto_awesome_outlined,
-        label: context.tr('Süsler'),
-        onTap: onSticker,
-      ),
-      _CardTool(
-        icon: Icons.interests_outlined,
-        label: context.tr('Şekiller'),
-        onTap: onShape,
-      ),
-    ];
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          context.tr('Kart Teması'),
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: colors.mutedText,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: sidePanel ? tileHeight * 3 + 16 : tileHeight,
-          child: ListView.separated(
-            scrollDirection: sidePanel ? Axis.vertical : Axis.horizontal,
-            itemCount: occasionCardTemplates.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 8, height: 8),
-            itemBuilder: (context, index) {
-              final card = occasionCardTemplates[index];
-              final selected = selectedTemplate.id == card.id;
-              return Semantics(
-                selected: selected,
-                button: true,
-                child: Material(
-                  color: selected
-                      ? colors.primary.withValues(alpha: .08)
-                      : colors.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  child: InkWell(
-                    onTap: () => onTemplateSelected(card),
-                    borderRadius: BorderRadius.circular(14),
-                    child: Container(
-                      width: sidePanel
-                          ? double.infinity
-                          : (labelSizes[index].width + 91).clamp(
-                              168.0,
-                              double.infinity,
-                            ),
-                      constraints: const BoxConstraints(minHeight: 62),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: selected
-                              ? colors.primary.withValues(alpha: .65)
-                              : Colors.transparent,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 18,
-                            backgroundColor: card.primaryColor,
-                            child: Icon(
-                              card.icon,
-                              size: 18,
-                              color: card.accentColor,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              context.tr(card.title),
-                              maxLines: sidePanel ? null : 1,
-                              softWrap: sidePanel,
-                              style: TextStyle(
-                                color: colors.text,
-                                fontSize: 12,
-                                fontWeight: selected
-                                    ? FontWeight.w600
-                                    : FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 5),
-                          Opacity(
-                            opacity: selected ? 1 : 0,
-                            child: Icon(
-                              Icons.check_circle_rounded,
-                              size: 16,
-                              color: colors.primary,
-                            ),
-                          ),
-                        ],
-                      ),
+        Row(
+          children: [
+            SizedBox(
+              width: 30,
+              height: 42,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: CardTemplateThumbnail(template: selectedTemplate),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    context.tr('Tasarım atölyesi'),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
                     ),
                   ),
-                ),
-              );
-            },
-          ),
+                  Text(
+                    context.tr(selectedTemplate.title).replaceAll('\n', ' '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: colors.mutedText, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            TextButton.icon(
+              key: const ValueKey('card-choose-template'),
+              onPressed: onTemplates,
+              icon: const Icon(Icons.grid_view_rounded, size: 17),
+              label: Text(context.tr('Temalar')),
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
-        Divider(height: 1, color: colors.border),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [for (final tool in tools) tool],
+            children: [
+              _CardTool(
+                icon: Icons.add_photo_alternate_outlined,
+                label: context.tr('Fotoğraf'),
+                onTap: onPhoto,
+              ),
+              _CardTool(
+                icon: Icons.text_fields_rounded,
+                label: context.tr('Yazı'),
+                onTap: onText,
+              ),
+              _CardTool(
+                icon: Icons.photo_size_select_large_outlined,
+                label: context.tr('Fotoğraf yuvaları'),
+                onTap: onPhotoSlots,
+              ),
+              _CardTool(
+                icon: Icons.draw_outlined,
+                label: context.tr('Çizim'),
+                onTap: onDraw,
+              ),
+              _CardTool(
+                icon: Icons.palette_outlined,
+                label: context.tr('Renk'),
+                onTap: onColor,
+              ),
+              _CardTool(
+                icon: Icons.layers_outlined,
+                label: context.tr('Katmanlar'),
+                onTap: onLayers,
+              ),
+              _CardTool(
+                icon: Icons.interests_outlined,
+                label: context.tr('Şekiller'),
+                onTap: onShape,
+              ),
+              _CardTool(
+                icon: Icons.auto_awesome_outlined,
+                label: context.tr('Süsler'),
+                onTap: onSticker,
+              ),
+              _CardTool(
+                icon: Icons.add_reaction_outlined,
+                label: context.tr('Sticker'),
+                onTap: onPersonalSticker,
+              ),
+              _CardTool(
+                icon: Icons.celebration_outlined,
+                label: context.tr('Özel Kart'),
+                onTap: onCard,
+              ),
+            ],
           ),
         ),
-        if (sidePanel) ...[
-          const SizedBox(height: 18),
-          Text(
-            context.tr(
-              'Nesneleri parmağınla taşı; iki parmakla büyüt, küçült ve döndür. Kart PNG olarak paylaşılabilir.',
-            ),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: colors.mutedText,
-              height: 1.5,
+        const SizedBox(height: 6),
+        InkWell(
+          key: const ValueKey('card-artwork-toggle'),
+          onTap: selectedTemplate.layout == 'blank' ? null : onToggleArtwork,
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 9),
+            child: Row(
+              children: [
+                Icon(
+                  project.cardArtworkVisible
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  size: 18,
+                  color: colors.mutedText,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    context.tr(
+                      project.cardArtworkVisible
+                          ? 'Tema deseni açık'
+                          : 'Tema deseni kapalı',
+                    ),
+                    style: TextStyle(fontSize: 12, color: colors.mutedText),
+                  ),
+                ),
+                Icon(Icons.tune_rounded, size: 16, color: colors.mutedText),
+              ],
             ),
           ),
-        ],
+        ),
+        if (sidePanel)
+          Padding(
+            padding: const EdgeInsets.only(top: 18),
+            child: Text(
+              context.tr(
+                'Bir öğeye dokun; taşı, boyutlandır veya döndür. Kendi tasarımını şablon olarak da kaydedebilirsin.',
+              ),
+              style: TextStyle(color: colors.mutedText, height: 1.5),
+            ),
+          ),
       ],
     );
   }
@@ -1247,11 +1696,12 @@ class _CardTool extends StatelessWidget {
         onPressed: onTap,
         style: TextButton.styleFrom(
           foregroundColor: colors.text,
+          backgroundColor: colors.surface,
           minimumSize: Size(
             (labelSize.width + 24).clamp(72.0, double.infinity),
             48 + labelSize.height,
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           textStyle: Theme.of(
             context,
           ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w500),

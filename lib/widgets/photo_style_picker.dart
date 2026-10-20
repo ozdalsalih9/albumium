@@ -1,3 +1,6 @@
+import 'photo_crop_editor.dart';
+import 'dart:math' as math;
+import 'paper_materials.dart';
 import 'package:flutter/material.dart';
 
 import '../l10n/albumium_localizations.dart';
@@ -9,10 +12,40 @@ class AlbumPhotoStyleSelection {
   const AlbumPhotoStyleSelection({
     required this.frameStyle,
     required this.shape,
+    this.frameScale = 1,
+    this.frameSpacing = 0,
+    this.draft,
+    this.scope = PhotoStyleScope.selected,
   });
 
   final int frameStyle;
   final AlbumPhotoShape shape;
+  final double frameScale, frameSpacing;
+  final AlbumElementModel? draft;
+  final PhotoStyleScope scope;
+}
+
+enum PhotoStyleScope { selected, page, album }
+
+void applyPhotoStudioResult(
+  AlbumElementModel target,
+  AlbumPhotoStyleSelection result, {
+  bool includeCrop = false,
+}) {
+  if (target.locked) return;
+  target.frameStyle = result.frameStyle;
+  target.frameScale = result.frameScale;
+  target.frameSpacing = result.frameSpacing;
+  applyAlbumPhotoShape(target, result.shape);
+  if (includeCrop && result.draft != null) {
+    final draft = result.draft!;
+    target.photoCrop = draft.photoCrop;
+    target.photoFit = draft.photoFit;
+    target.x = draft.x;
+    target.y = draft.y;
+    target.width = draft.width;
+    target.height = draft.height;
+  }
 }
 
 const _frameIcons = <IconData>[
@@ -42,6 +75,10 @@ String albumPhotoShapeLabel(AlbumPhotoShape shape) => switch (shape) {
   AlbumPhotoShape.circle => 'Yuvarlak',
   AlbumPhotoShape.arch => 'Kemer',
   AlbumPhotoShape.torn => 'Yırtık',
+  AlbumPhotoShape.rounded => 'Yumuşak köşe',
+  AlbumPhotoShape.heart => 'Kalp',
+  AlbumPhotoShape.diamond => 'Elmas',
+  AlbumPhotoShape.hexagon => 'Altıgen',
 };
 
 IconData albumPhotoShapeIcon(AlbumPhotoShape shape) => switch (shape) {
@@ -52,6 +89,10 @@ IconData albumPhotoShapeIcon(AlbumPhotoShape shape) => switch (shape) {
   AlbumPhotoShape.circle => Icons.circle_outlined,
   AlbumPhotoShape.arch => Icons.architecture_rounded,
   AlbumPhotoShape.torn => Icons.broken_image_outlined,
+  AlbumPhotoShape.rounded => Icons.rounded_corner_rounded,
+  AlbumPhotoShape.heart => Icons.favorite_border_rounded,
+  AlbumPhotoShape.diamond => Icons.diamond_outlined,
+  AlbumPhotoShape.hexagon => Icons.hexagon_outlined,
 };
 
 /// Updates the saved crop shape and, for fixed-ratio shapes, adjusts the
@@ -59,11 +100,16 @@ IconData albumPhotoShapeIcon(AlbumPhotoShape shape) => switch (shape) {
 /// album page, matching both the editor page and special-card canvas.
 void applyAlbumPhotoShape(AlbumElementModel element, AlbumPhotoShape shape) {
   element.photoShape = shape;
+  if (element.groupId != null) return;
   final visualAspect = switch (shape) {
-    AlbumPhotoShape.square || AlbumPhotoShape.circle => 1.0,
+    AlbumPhotoShape.square ||
+    AlbumPhotoShape.circle ||
+    AlbumPhotoShape.heart ||
+    AlbumPhotoShape.diamond ||
+    AlbumPhotoShape.hexagon => 1.0,
     AlbumPhotoShape.landscape || AlbumPhotoShape.torn => 4 / 3,
     AlbumPhotoShape.portrait || AlbumPhotoShape.arch => 4 / 5,
-    AlbumPhotoShape.free => null,
+    AlbumPhotoShape.free || AlbumPhotoShape.rounded => null,
   };
   if (visualAspect == null) return;
 
@@ -83,6 +129,8 @@ Future<AlbumPhotoStyleSelection?> showAlbumPhotoStylePicker(
   BuildContext context, {
   required int selectedFrameStyle,
   required AlbumPhotoShape selectedShape,
+  AlbumElementModel? element,
+  bool allowAlbumScope = false,
 }) {
   return showModalBottomSheet<AlbumPhotoStyleSelection>(
     context: context,
@@ -92,6 +140,8 @@ Future<AlbumPhotoStyleSelection?> showAlbumPhotoStylePicker(
     builder: (_) => _PhotoStylePickerSheet(
       selectedFrameStyle: selectedFrameStyle % albumPhotoFrameCount,
       selectedShape: selectedShape,
+      element: element,
+      allowAlbumScope: allowAlbumScope,
     ),
   );
 }
@@ -100,151 +150,349 @@ class _PhotoStylePickerSheet extends StatefulWidget {
   const _PhotoStylePickerSheet({
     required this.selectedFrameStyle,
     required this.selectedShape,
+    this.element,
+    this.allowAlbumScope = false,
   });
 
   final int selectedFrameStyle;
   final AlbumPhotoShape selectedShape;
+  final AlbumElementModel? element;
+  final bool allowAlbumScope;
 
   @override
   State<_PhotoStylePickerSheet> createState() => _PhotoStylePickerSheetState();
 }
 
 class _PhotoStylePickerSheetState extends State<_PhotoStylePickerSheet> {
-  late int _frameStyle;
-  late AlbumPhotoShape _shape;
-
+  late AlbumElementModel _draft;
+  int _section = 0;
+  PhotoStyleScope _scope = PhotoStyleScope.selected;
   @override
   void initState() {
     super.initState();
-    _frameStyle = widget.selectedFrameStyle;
-    _shape = widget.selectedShape;
+    _draft = widget.element == null
+        ? AlbumElementModel(
+            id: 'photo-style-preview',
+            type: AlbumElementType.photo,
+            content: '',
+            x: .15,
+            y: .15,
+            width: .7,
+            height: .7,
+            photoSlot: true,
+            frameStyle: widget.selectedFrameStyle,
+            photoShape: widget.selectedShape,
+          )
+        : AlbumElementModel.fromJson(widget.element!.toJson());
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final tablet = MediaQuery.sizeOf(context).shortestSide >= 600;
-    return FractionallySizedBox(
-      heightFactor: tablet ? .76 : .88,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 0, 18, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    final previewScale = math.min(.8 / _draft.width, .8 / _draft.height);
+    final preview = AlbumElementModel.fromJson(_draft.toJson())
+      ..width = _draft.width * previewScale
+      ..height = _draft.height * previewScale
+      ..scale = 1
+      ..rotation = 0;
+    preview.x = (1 - preview.width) / 2;
+    preview.y = (1 - preview.height) / 2;
+    final previewHeight = (MediaQuery.sizeOf(context).height * .23).clamp(
+      70.0,
+      200.0,
+    );
+    final showTabIcons = MediaQuery.sizeOf(context).width >= 400;
+    return SizedBox(
+      height: MediaQuery.sizeOf(context).height * .9,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18),
+            child: Row(
               children: [
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: colors.primaryContainer,
-                    borderRadius: BorderRadius.circular(11),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Icon(
-                      Icons.auto_fix_high_rounded,
-                      color: colors.onPrimaryContainer,
-                    ),
+                const Icon(Icons.tune_rounded),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    context.tr('Fotoğraf Stüdyosu'),
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        context.tr('Fotoğraf Stüdyosu'),
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
+                IconButton(
+                  tooltip: context.tr('Vazgeç'),
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+          ),
+          Center(
+            child: SizedBox(
+              width: previewHeight * 5 / 7,
+              height: previewHeight,
+              child: RepaintBoundary(
+                key: const ValueKey('photo-studio-live-preview'),
+                child: AlbumPageCanvas(
+                  showPageNumber: false,
+                  page: AlbumPageModel(
+                    id: 'studio-preview',
+                    backgroundColor: 0xFFF0EBE2,
+                    elements: [preview],
+                  ),
+                  theme: themeById('minimal_editorial'),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+            child: SegmentedButton<int>(
+              segments: [
+                ButtonSegment(
+                  value: 0,
+                  icon: showTabIcons
+                      ? const Icon(Icons.category_outlined)
+                      : null,
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(context.tr('Şekil'), softWrap: false),
+                  ),
+                ),
+                ButtonSegment(
+                  value: 1,
+                  icon: showTabIcons
+                      ? const Icon(Icons.filter_frames_outlined)
+                      : null,
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(context.tr('Çerçeve'), softWrap: false),
+                  ),
+                ),
+                ButtonSegment(
+                  value: 2,
+                  icon: showTabIcons ? const Icon(Icons.crop) : null,
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(context.tr('Kırp'), softWrap: false),
+                  ),
+                ),
+              ],
+              selected: {_section},
+              showSelectedIcon: false,
+              onSelectionChanged: (v) => setState(() => _section = v.first),
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              key: ValueKey('photo-studio-section-$_section'),
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_section == 0)
+                    LayoutBuilder(
+                      builder: (context, bounds) => GridView(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: bounds.maxWidth > 500 ? 5 : 3,
+                          mainAxisExtent:
+                              55 +
+                              MediaQuery.textScalerOf(context).scale(12) * 2.5,
+                          crossAxisSpacing: 9,
+                          mainAxisSpacing: 9,
+                        ),
+                        children: [
+                          for (final shape in AlbumPhotoShape.values)
+                            Semantics(
+                              selected: _draft.photoShape == shape,
+                              button: true,
+                              child: InkWell(
+                                key: ValueKey('photo-shape-${shape.name}'),
+                                borderRadius: BorderRadius.circular(14),
+                                onTap: () => setState(
+                                  () => applyAlbumPhotoShape(_draft, shape),
+                                ),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: _draft.photoShape == shape
+                                        ? colors.primaryContainer
+                                        : colors.surfaceContainerLow,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: _draft.photoShape == shape
+                                          ? colors.primary
+                                          : colors.outlineVariant,
+                                      width: _draft.photoShape == shape ? 2 : 1,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        albumPhotoShapeIcon(shape),
+                                        size: 25,
+                                      ),
+                                      const SizedBox(height: 5),
+                                      Text(
+                                        context.tr(albumPhotoShapeLabel(shape)),
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  if (_section == 1) ...[
+                    LayoutBuilder(
+                      builder: (context, bounds) => GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: bounds.maxWidth > 500 ? 5 : 3,
+                          mainAxisSpacing: 9,
+                          crossAxisSpacing: 9,
+                          mainAxisExtent:
+                              85 +
+                              MediaQuery.textScalerOf(context).scale(10) * 2,
+                        ),
+                        itemCount: albumPhotoFrameCount,
+                        itemBuilder: (context, index) => _FrameChoiceTile(
+                          index: index,
+                          selected: index == _draft.frameStyle,
+                          onTap: () =>
+                              setState(() => _draft.frameStyle = index),
                         ),
                       ),
-                      Text(
-                        context.tr('Biçimi ve çerçeveyi birlikte tasarla'),
-                        style: const TextStyle(fontSize: 11),
-                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(context.tr('Çerçeve kalınlığı')),
+                    Slider(
+                      key: const ValueKey('photo-frame-thickness'),
+                      value: _draft.frameScale,
+                      min: .4,
+                      max: 2.4,
+                      divisions: 20,
+                      label: '${(_draft.frameScale * 100).round()}%',
+                      onChanged: (v) => setState(() => _draft.frameScale = v),
+                    ),
+                    Text(context.tr('İç boşluk')),
+                    Slider(
+                      key: const ValueKey('photo-frame-spacing'),
+                      value: _draft.frameSpacing,
+                      min: 0,
+                      max: 20,
+                      divisions: 20,
+                      label: '${_draft.frameSpacing.round()}',
+                      onChanged: (v) => setState(() => _draft.frameSpacing = v),
+                    ),
+                  ],
+                  if (_section == 2) ...[
+                    Text(context.tr('Kırpma yalnızca bu fotoğrafa uygulanır.')),
+                    const SizedBox(height: 12),
+                    FilledButton.tonalIcon(
+                      key: const ValueKey('studio-crop-photo'),
+                      onPressed: _draft.content.isEmpty
+                          ? null
+                          : () async {
+                              if (await editAlbumPhotoCrop(context, _draft) &&
+                                  mounted) {
+                                setState(() {});
+                              }
+                            },
+                      icon: const Icon(Icons.crop),
+                      label: Text(context.tr('Kırp')),
+                    ),
+                    TextButton(
+                      onPressed: () =>
+                          setState(() => _draft.photoCrop = fullPhotoCrop),
+                      child: Text(context.tr('Kırpmayı sıfırla')),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  Text(
+                    context.tr('Stili uygula'),
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<PhotoStyleScope>(
+                    key: const ValueKey('photo-style-scope'),
+                    isExpanded: true,
+                    initialValue: _scope,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [
+                      for (final scope in PhotoStyleScope.values)
+                        if (scope != PhotoStyleScope.album ||
+                            widget.allowAlbumScope)
+                          DropdownMenuItem(
+                            value: scope,
+                            child: Text(
+                              context.tr(switch (scope) {
+                                PhotoStyleScope.selected =>
+                                  'Yalnızca bu fotoğrafa',
+                                PhotoStyleScope.page =>
+                                  'Bu sayfadaki fotoğraflara',
+                                PhotoStyleScope.album =>
+                                  'Albümdeki fotoğraflara',
+                              }),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                     ],
+                    onChanged: (v) => setState(() => _scope = v!),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Text(
-              context.tr('Biçim'),
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontSize: 14),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 7,
-              runSpacing: 7,
-              children: [
-                for (final shape in AlbumPhotoShape.values)
-                  ChoiceChip(
-                    key: ValueKey('photo-shape-${shape.name}'),
-                    selected: _shape == shape,
-                    showCheckmark: false,
-                    avatar: Icon(albumPhotoShapeIcon(shape), size: 16),
-                    label: Text(context.tr(albumPhotoShapeLabel(shape))),
-                    onSelected: (_) => setState(() => _shape = shape),
+                  const SizedBox(height: 6),
+                  Text(
+                    context.tr('Kilitli fotoğraflar değiştirilmez.'),
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Text(
-                  context.tr('Çerçeve'),
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleMedium?.copyWith(fontSize: 14),
-                ),
-                const Spacer(),
-                Text(
-                  context.tr(
-                    '{count} seçenek',
-                    values: {'count': albumPhotoFrameCount},
-                  ),
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.only(bottom: 8),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: tablet ? 5 : 3,
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  childAspectRatio: .92,
-                ),
-                itemCount: albumPhotoFrameCount,
-                itemBuilder: (context, index) => _FrameChoiceTile(
-                  index: index,
-                  selected: index == _frameStyle,
-                  onTap: () => setState(() => _frameStyle = index),
-                ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                key: const ValueKey('apply-photo-style'),
-                onPressed: () => Navigator.pop(
-                  context,
-                  AlbumPhotoStyleSelection(
-                    frameStyle: _frameStyle,
-                    shape: _shape,
+          ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 8, 18, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(context.tr('Vazgeç')),
+                    ),
                   ),
-                ),
-                icon: const Icon(Icons.check_rounded),
-                label: Text(context.tr('Fotoğrafa uygula')),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton.icon(
+                      key: const ValueKey('apply-photo-style'),
+                      onPressed: () => Navigator.pop(
+                        context,
+                        AlbumPhotoStyleSelection(
+                          frameStyle: _draft.frameStyle,
+                          shape: _draft.photoShape,
+                          frameScale: _draft.frameScale,
+                          frameSpacing: _draft.frameSpacing,
+                          draft: _draft,
+                          scope: _scope,
+                        ),
+                      ),
+                      icon: const Icon(Icons.check),
+                      label: Text(context.tr('Uygula')),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -265,6 +513,7 @@ class _FrameChoiceTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return InkWell(
+      key: ValueKey('photo-frame-$index'),
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: AnimatedContainer(
@@ -286,10 +535,18 @@ class _FrameChoiceTile extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  CustomPaint(painter: _FramePreviewPainter(index)),
+                  if (index >= 16)
+                    PaperKitImage(
+                      'frame_${paperPhotoFrames[index - 16]}',
+                      preview: true,
+                    )
+                  else
+                    CustomPaint(painter: _FramePreviewPainter(index)),
                   Center(
                     child: Icon(
-                      _frameIcons[index],
+                      index < _frameIcons.length
+                          ? _frameIcons[index]
+                          : Icons.photo_outlined,
                       size: 22,
                       color: const Color(0xFFD9C39C),
                     ),

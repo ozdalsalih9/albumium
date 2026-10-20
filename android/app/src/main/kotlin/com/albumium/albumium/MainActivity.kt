@@ -31,6 +31,19 @@ class MainActivity : FlutterActivity() {
         )
     }
 
+    private val backupDocuments by lazy { AlbumBackupDocuments(this) }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (!backupDocuments.onActivityResult(requestCode, resultCode, data)) {
+            super.onActivityResult(requestCode, resultCode, data)
+        }
+    }
+
+    override fun onDestroy() {
+        backupDocuments.close()
+        super.onDestroy()
+    }
+
     private var channel: MethodChannel? = null
     private var listening = false
     private var pendingPackagePath: String? = null
@@ -39,12 +52,19 @@ class MainActivity : FlutterActivity() {
     private var memoryListening = false
     private var permissionResult: MethodChannel.Result? = null
 
+    override fun onResume() {
+        super.onResume()
+        MemoryReminders.schedule(this)
+    }
+
     private fun memoryPayload(intent: Intent?): Map<String, Any>? {
         val raw = intent?.getStringExtra(MemoryReminders.EXTRA) ?: return null
         intent.removeExtra(MemoryReminders.EXTRA)
         return try {
             val json = JSONObject(raw)
-            mapOf("kinds" to json.getString("kinds"), "year" to json.getInt("year"), "month" to json.getInt("month"), "day" to json.getInt("day"))
+            mutableMapOf<String, Any>("kinds" to json.getString("kinds"), "year" to json.getInt("year"), "month" to json.getInt("month"), "day" to json.getInt("day")).apply {
+                if (json.has("albumId")) put("albumId", json.getString("albumId"))
+            }
         } catch (_: Exception) { null }
     }
 
@@ -58,16 +78,25 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.albumium.albumium/app_updates")
+            .setMethodCallHandler(AppStoreUpdates(this)::handle)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.albumium.albumium/album_backup").setMethodCallHandler(backupDocuments::handle)
         memoryChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.albumium.albumium/memories").also { bridge ->
             bridge.setMethodCallHandler { call, result ->
                 when(call.method) {
                     "initialMemory" -> { memoryListening = true; result.success(memoryPayload(intent)) }
                     "configure" -> { MemoryReminders.configure(this, call.arguments as Map<*, *>); result.success(null) }
+                    "permissionStatus" -> result.success(MemoryReminders.permitted(this))
+                    "openNotificationSettings" -> {
+                        val settings = if (Build.VERSION.SDK_INT >= 26) Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, packageName)
+                            else Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+                        startActivity(settings); result.success(true)
+                    }
                     "requestPermission" -> {
                         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                             if (permissionResult != null) result.error("busy", "Permission request in progress", null)
                             else { permissionResult = result; requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 730) }
-                        } else result.success(true)
+                        } else result.success(MemoryReminders.permitted(this))
                     }
                     "segment" -> {
                         try {

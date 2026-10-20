@@ -1,3 +1,6 @@
+import '../models/scrapbook_templates.dart';
+import '../widgets/scrapbook_template_picker.dart';
+import '../widgets/paper_materials.dart';
 import 'personal_stickers_screen.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -11,6 +14,7 @@ import '../services/photo_selection_service.dart';
 
 import '../l10n/albumium_localizations.dart';
 import '../models/album_models.dart';
+import '../models/photo_grid_transform.dart';
 import '../services/album_storage.dart';
 import '../services/error_reporter.dart';
 import '../services/interstitial_ads.dart';
@@ -24,6 +28,8 @@ import '../widgets/handmade_craft.dart';
 import '../widgets/handwriting_painter.dart';
 import '../widgets/occasion_cards.dart';
 import '../widgets/photo_style_picker.dart';
+import '../widgets/photo_slot_picker.dart';
+import '../services/photo_slot_service.dart';
 import '../widgets/photo_crop_editor.dart';
 import '../widgets/physical_book_spread.dart';
 import '../widgets/sticker_packs.dart';
@@ -56,6 +62,7 @@ class EditorScreen extends StatefulWidget {
 class _EditorScreenState extends State<EditorScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   static AlbumElementModel? _clipboard;
+  static List<AlbumElementModel> _clipboardMembers = [];
   late String _initialSnapshotJson;
   late final AnimationController _pageTurnController;
   int _pageIndex = 0;
@@ -162,6 +169,16 @@ class _EditorScreenState extends State<EditorScreen>
       return Size(width, height);
     }
 
+    if (isPaperKit(sticker)) {
+      final key = paperKitKey(sticker);
+      return proportional(
+        key.startsWith('tape_')
+            ? .09
+            : key.startsWith('seal_') || key.startsWith('corner_')
+            ? .18
+            : .42,
+      );
+    }
     if (isAlbumShape(sticker)) return proportional(.2, maxWidth: .38);
     if (sticker.contains('washi_') ||
         sticker.endsWith(':film_strip') ||
@@ -198,6 +215,9 @@ class _EditorScreenState extends State<EditorScreen>
   @override
   void initState() {
     super.initState();
+    for (final albumPage in album.pages) {
+      recoverPhotoGridGroups(albumPage);
+    }
     _initialSnapshotJson = jsonEncode(album.toJson());
     WidgetsBinding.instance.addObserver(this);
     _pageTurnController = AnimationController(
@@ -328,9 +348,13 @@ class _EditorScreenState extends State<EditorScreen>
       if (choice == _LeaveChoice.save) {
         _leaving = true;
         final saved = await _save(notify: true);
+        if (!saved) {
+          _leaving = false;
+          return;
+        }
         // _leaving intentionally stays true so dispose() does not fire a
         // second unsynchronized _persistChanges() after we've already saved.
-        if (!saved || !mounted) return;
+        if (!mounted) return;
         _popAndOfferAd();
         return;
       }
@@ -338,8 +362,12 @@ class _EditorScreenState extends State<EditorScreen>
 
     _leaving = true;
     final saved = await _save();
+    if (!saved) {
+      _leaving = false;
+      return;
+    }
     // _leaving intentionally stays true — dispose() must not race with us.
-    if (!saved || !mounted) return;
+    if (!mounted) return;
     _popAndOfferAd();
   }
 
@@ -360,6 +388,38 @@ class _EditorScreenState extends State<EditorScreen>
   void _canvasChanged() {
     if (!mounted) return;
     setState(() {});
+    _changed();
+  }
+
+  Future<void> _addPhotoSlots() async {
+    final preset = await showPhotoSlotPicker(context);
+    if (preset == null || !mounted) return;
+    setState(() {
+      page.elements.addAll(preset.create());
+      _selectedId = null;
+    });
+    _changed();
+  }
+
+  Future<void> _fillPhotoSlot(String id) async {
+    final slots = page.elements.where((e) => e.id == id && e.photoSlot);
+    if (slots.isEmpty) return;
+    final slot = slots.first;
+    if (await pickPhotoIntoSlot(context, slot) &&
+        mounted &&
+        page.elements.contains(slot)) {
+      setState(() => _selectedId = id);
+      _changed();
+    }
+  }
+
+  void _clearPhotoSlot() {
+    final slot = selectedElement;
+    if (slot == null || !slot.photoSlot || slot.locked) return;
+    setState(() {
+      slot.content = '';
+      slot.photoCrop = null;
+    });
     _changed();
   }
 
@@ -395,6 +455,23 @@ class _EditorScreenState extends State<EditorScreen>
     }
 
     setState(() {
+      final emptySlots = page.elements
+          .where((e) => e.photoSlot && e.content.isEmpty && !e.locked)
+          .toList();
+      final filled = paths.length < emptySlots.length
+          ? paths.length
+          : emptySlots.length;
+      for (var i = 0; i < filled; i++) {
+        emptySlots[i].content = paths[i];
+        emptySlots[i].photoCrop = null;
+      }
+      paths.removeRange(0, filled);
+      aspectRatios.removeRange(0, filled);
+      if (filled > 0 && paths.isEmpty) {
+        _selectedId = emptySlots[filled - 1].id;
+        _importing = false;
+        return;
+      }
       final existingPhotoCount = page.elements
           .where((e) => e.type == AlbumElementType.photo)
           .length;
@@ -606,6 +683,10 @@ class _EditorScreenState extends State<EditorScreen>
   Future<void> _activateElement(String elementId) async {
     final element = selectedElement;
     if (element == null || element.id != elementId || element.locked) return;
+    if (element.photoSlot) {
+      await _fillPhotoSlot(elementId);
+      return;
+    }
     if (element.type != AlbumElementType.text) return;
     await _editSelectedText(element);
   }
@@ -725,12 +806,7 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   Future<void> _addShape() async {
-    final shape = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) => const ShapeObjectPickerSheet(),
-    );
+    final shape = await showShapeObjectPicker(context);
     if (shape == null || !mounted) return;
     final size = _stickerSize(shape);
     setState(() {
@@ -836,6 +912,7 @@ class _EditorScreenState extends State<EditorScreen>
     final copy = AlbumPageModel(
       id: newId(),
       backgroundColor: page.backgroundColor,
+      paperPattern: page.paperPattern,
       elements: page.elements
           .map(
             (e) => AlbumElementModel(
@@ -849,12 +926,19 @@ class _EditorScreenState extends State<EditorScreen>
               rotation: e.rotation,
               scale: e.scale,
               frameStyle: e.frameStyle,
+              frameScale: e.frameScale,
+              frameSpacing: e.frameSpacing,
               photoShape: e.photoShape,
               photoCrop: e.photoCrop,
+              photoSlot: e.photoSlot,
+              photoFit: e.photoFit,
+              groupId: e.groupId,
               textColor: e.textColor,
               textAlign: e.textAlign,
               fontSize: e.fontSize,
               extraData: e.extraData,
+              locked: e.locked,
+              cardColor: e.cardColor,
             ),
           )
           .toList(),
@@ -942,6 +1026,20 @@ class _EditorScreenState extends State<EditorScreen>
     );
   }
 
+  Future<void> _addScrapbookPage() async {
+    final template = await showScrapbookTemplatePicker(context);
+    if (template == null || !mounted) return;
+    setState(() {
+      album.pages.insert(
+        _pageIndex + 1,
+        createScrapbookPage(template, translate: context.tr),
+      );
+      _pageIndex++;
+      _selectedId = null;
+    });
+    _changed();
+  }
+
   void _changeBackground() {
     final theme = themeById(album.themeId);
     final seenColors = <int>{};
@@ -990,27 +1088,119 @@ class _EditorScreenState extends State<EditorScreen>
                       fontSize: 12,
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  FilledButton.tonalIcon(
+                    key: const ValueKey('add-scrapbook-page'),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _addScrapbookPage();
+                    },
+                    icon: const Icon(Icons.auto_stories_outlined),
+                    label: Text(context.tr('Kolaj sayfası ekle')),
+                  ),
                   const SizedBox(height: 18),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 12,
-                    children: [
-                      for (final choice in colors)
-                        _PaperColorTile(
-                          name: context.tr(choice.name),
-                          color: choice.color,
-                          selected:
-                              page.backgroundColor == choice.color.toARGB32(),
-                          onTap: () {
-                            setState(
-                              () => page.backgroundColor = choice.color
-                                  .toARGB32(),
-                            );
-                            _changed();
-                            Navigator.pop(context);
-                          },
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final scale = MediaQuery.textScalerOf(context).scale(1);
+                      final columns =
+                          (constraints.maxWidth / (100 * scale.clamp(1, 1.4)))
+                              .floor()
+                              .clamp(2, 6);
+                      final tileWidth =
+                          (constraints.maxWidth - (columns - 1) * 12) / columns;
+                      final patterns = paperPatterns.entries
+                          .where((entry) => entry.key != 'plain')
+                          .toList();
+                      return GridView.builder(
+                        key: const ValueKey('paper-background-grid'),
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: EdgeInsets.zero,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: columns,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 14,
+                          mainAxisExtent: tileWidth + 40 * scale + 12,
                         ),
-                    ],
+                        itemCount: patterns.length + colors.length,
+                        itemBuilder: (context, index) {
+                          if (index >= patterns.length) {
+                            final choice = colors[index - patterns.length];
+                            return _PaperColorTile(
+                              name: context.tr(choice.name),
+                              color: choice.color,
+                              selected:
+                                  page.paperPattern == 'plain' &&
+                                  page.backgroundColor ==
+                                      choice.color.toARGB32(),
+                              onTap: () {
+                                setState(() {
+                                  page.backgroundColor = choice.color
+                                      .toARGB32();
+                                  page.paperPattern = 'plain';
+                                });
+                                _changed();
+                                Navigator.pop(context);
+                              },
+                            );
+                          }
+                          final entry = patterns[index];
+                          final selected = page.paperPattern == entry.key;
+                          return Semantics(
+                            button: true,
+                            selected: selected,
+                            label: context.tr(entry.value),
+                            child: InkWell(
+                              key: ValueKey('paper-pattern-${entry.key}'),
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () {
+                                setState(() => page.paperPattern = entry.key);
+                                _changed();
+                                Navigator.pop(context);
+                              },
+                              child: Column(
+                                children: [
+                                  AspectRatio(
+                                    aspectRatio: 1,
+                                    child: Container(
+                                      clipBehavior: Clip.antiAlias,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: selected
+                                              ? Theme.of(
+                                                  context,
+                                                ).colorScheme.primary
+                                              : Theme.of(
+                                                  context,
+                                                ).colorScheme.outlineVariant,
+                                          width: selected ? 3 : 1,
+                                        ),
+                                      ),
+                                      child: PaperMaterialImage(
+                                        entry.key,
+                                        preview: true,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    context.tr(entry.value),
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      height: 1.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
                   ),
                 ],
               ),
@@ -1025,7 +1215,7 @@ class _EditorScreenState extends State<EditorScreen>
     final selected = selectedElement;
     if (selected == null) return;
     setState(() {
-      page.elements.removeWhere((element) => element.id == selected.id);
+      removeAlbumElementSet(page.elements, selected.id);
       _selectedId = null;
     });
     _changed();
@@ -1052,27 +1242,8 @@ class _EditorScreenState extends State<EditorScreen>
     final selected = selectedElement;
     if (selected == null) return;
     setState(() {
-      final copy = AlbumElementModel(
-        id: newId(),
-        type: selected.type,
-        content: selected.content,
-        x: (selected.x + 0.035).clamp(-0.3, 0.9),
-        y: (selected.y + 0.025).clamp(-0.2, 0.92),
-        width: selected.width,
-        height: selected.height,
-        rotation: selected.rotation,
-        scale: selected.scale,
-        frameStyle: selected.frameStyle,
-        photoShape: selected.photoShape,
-        photoCrop: selected.photoCrop,
-        textColor: selected.textColor,
-        textAlign: selected.textAlign,
-        fontSize: selected.fontSize,
-        extraData: selected.extraData,
-        cardColor: selected.cardColor,
-      );
-      page.elements.add(copy);
-      _selectedId = copy.id;
+      final copies = duplicateAlbumElementSet(page.elements, selected.id);
+      _selectedId = copies.first.id;
     });
     _changed();
   }
@@ -1128,7 +1299,30 @@ class _EditorScreenState extends State<EditorScreen>
           overlayRect,
         ),
         items: [
+          if (element.type == AlbumElementType.photo)
+            PopupMenuItem(
+              value: 'edit',
+              enabled: !element.locked,
+              child: ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: Text(context.tr('Düzenle')),
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
           PopupMenuItem(
+            value: 'lock',
+            child: ListTile(
+              leading: Icon(
+                element.locked ? Icons.lock_open : Icons.lock_outline,
+              ),
+              title: Text(context.tr(element.locked ? 'Kilidi aç' : 'Sabitle')),
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+          PopupMenuItem(
+            enabled: !element.locked,
             value: 'cut',
             child: Row(
               children: [
@@ -1171,6 +1365,7 @@ class _EditorScreenState extends State<EditorScreen>
           ),
           const PopupMenuDivider(),
           PopupMenuItem(
+            enabled: !element.locked,
             value: 'delete',
             child: Row(
               children: [
@@ -1192,6 +1387,21 @@ class _EditorScreenState extends State<EditorScreen>
 
       if (choice == null || !mounted) return;
       switch (choice) {
+        case 'edit':
+          await _styleSelected();
+          break;
+        case 'lock':
+          setState(() {
+            final value = !element.locked;
+            for (final member in albumElementMembers(
+              page.elements,
+              element.id,
+            )) {
+              member.locked = value;
+            }
+          });
+          _changed();
+          break;
         case 'cut':
           _cutElement(element);
           break;
@@ -1279,9 +1489,13 @@ class _EditorScreenState extends State<EditorScreen>
 
   void _cutElement(AlbumElementModel element) {
     _clipboard = AlbumElementModel.fromJson(element.toJson());
+    _clipboardMembers = albumElementMembers(
+      page.elements,
+      element.id,
+    ).map((e) => AlbumElementModel.fromJson(e.toJson())).toList();
     setState(() {
-      page.elements.removeWhere((e) => e.id == element.id);
-      if (_selectedId == element.id) _selectedId = null;
+      removeAlbumElementSet(page.elements, element.id);
+      _selectedId = null;
     });
     _changed();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1294,6 +1508,10 @@ class _EditorScreenState extends State<EditorScreen>
 
   void _copyElement(AlbumElementModel element) {
     _clipboard = AlbumElementModel.fromJson(element.toJson());
+    _clipboardMembers = albumElementMembers(
+      page.elements,
+      element.id,
+    ).map((e) => AlbumElementModel.fromJson(e.toJson())).toList();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(context.tr('Öğe panoya kopyalandı.')),
@@ -1311,18 +1529,22 @@ class _EditorScreenState extends State<EditorScreen>
             targetPageIndex < album.pages.length)
         ? album.pages[targetPageIndex]
         : page;
-    final json = clip.toJson();
-    json['id'] = newId();
-    final pasted = AlbumElementModel.fromJson(json);
-    if (targetNormalizedPos != null) {
-      pasted.x = (targetNormalizedPos.dx - pasted.width / 2).clamp(-0.15, 0.75);
-      pasted.y = (targetNormalizedPos.dy - pasted.height / 2).clamp(
-        -0.10,
-        0.75,
-      );
-    } else {
-      pasted.x = (pasted.x + 0.04).clamp(-0.15, 0.65);
-      pasted.y = (pasted.y + 0.04).clamp(-0.1, 0.65);
+    final sources = (_clipboardMembers.isEmpty ? [clip] : _clipboardMembers)
+        .map((e) => AlbumElementModel.fromJson(e.toJson()))
+        .toList();
+    final copied = duplicateAlbumElementSet(sources, sources.first.id);
+    final frame = copied.length > 1
+        ? photoGridFrame(copied, const Size(500, 700))
+        : copied.first;
+    final dx = targetNormalizedPos == null
+        ? .005
+        : targetNormalizedPos.dx - (frame.x + frame.width / 2);
+    final dy = targetNormalizedPos == null
+        ? .015
+        : targetNormalizedPos.dy - (frame.y + frame.height / 2);
+    for (final cell in copied) {
+      cell.x += dx;
+      cell.y += dy;
     }
     setState(() {
       if (targetPageIndex != null &&
@@ -1331,8 +1553,8 @@ class _EditorScreenState extends State<EditorScreen>
           _pageIndex != targetPageIndex) {
         _pageIndex = targetPageIndex;
       }
-      targetPage.elements.add(pasted);
-      _selectedId = pasted.id;
+      targetPage.elements.addAll(copied);
+      _selectedId = copied.first.id;
     });
     _changed();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1344,22 +1566,17 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   void _duplicateElement(AlbumElementModel element) {
-    final json = element.toJson();
-    json['id'] = newId();
-    final dup = AlbumElementModel.fromJson(json);
-    dup.x = (dup.x + 0.035).clamp(-0.3, 0.9);
-    dup.y = (dup.y + 0.025).clamp(-0.2, 0.92);
     setState(() {
-      page.elements.add(dup);
-      _selectedId = dup.id;
+      final copies = duplicateAlbumElementSet(page.elements, element.id);
+      _selectedId = copies.first.id;
     });
     _changed();
   }
 
   void _deleteElement(AlbumElementModel element) {
     setState(() {
-      page.elements.removeWhere((e) => e.id == element.id);
-      if (_selectedId == element.id) _selectedId = null;
+      removeAlbumElementSet(page.elements, element.id);
+      _selectedId = null;
     });
     _changed();
   }
@@ -1410,18 +1627,32 @@ class _EditorScreenState extends State<EditorScreen>
 
   Future<void> _styleSelected() async {
     final selected = selectedElement;
-    if (selected == null) return;
+    if (selected == null || selected.locked) return;
 
     if (selected.type == AlbumElementType.photo) {
       final style = await showAlbumPhotoStylePicker(
         context,
         selectedFrameStyle: selected.frameStyle,
         selectedShape: selected.photoShape,
+        element: selected,
+        allowAlbumScope: true,
       );
       if (style == null || !mounted) return;
       setState(() {
-        selected.frameStyle = style.frameStyle;
-        applyAlbumPhotoShape(selected, style.shape);
+        final targets = style.scope == PhotoStyleScope.album
+            ? album.pages.expand((p) => p.elements)
+            : style.scope == PhotoStyleScope.page
+            ? page.elements
+            : [selected];
+        for (final target in targets.where(
+          (e) => e.type == AlbumElementType.photo && !e.locked,
+        )) {
+          applyPhotoStudioResult(
+            target,
+            style,
+            includeCrop: target.id == selected.id,
+          );
+        }
       });
       _changed();
       return;
@@ -1711,6 +1942,10 @@ class _EditorScreenState extends State<EditorScreen>
                   ElementEditPanel(
                     key: ValueKey(_selectedId),
                     element: selectedElement!,
+                    groupElements: albumElementMembers(
+                      page.elements,
+                      selectedElement!.id,
+                    ),
                     onChanged: () {
                       setState(() {});
                       _changed();
@@ -1723,6 +1958,10 @@ class _EditorScreenState extends State<EditorScreen>
                     onDuplicate: _duplicateSelected,
                     onDelete: _removeSelected,
                     onFitPhoto: _fitPhotoToShape,
+                    onReplacePhoto: selectedElement!.photoSlot
+                        ? () => _fillPhotoSlot(selectedElement!.id)
+                        : null,
+                    onClearPhoto: _clearPhotoSlot,
                   ),
                 if (selectedElement == null)
                   BoundedControls(
@@ -1734,6 +1973,7 @@ class _EditorScreenState extends State<EditorScreen>
                       onSticker: _addSticker,
                       onPersonalSticker: () => _addSticker(personal: true),
                       onShape: _addShape,
+                      onPhotoSlots: _addPhotoSlots,
                       onBackground: _changeBackground,
                       onPage: _addPage,
                     ),
@@ -1875,6 +2115,7 @@ class _MainToolbar extends StatefulWidget {
     required this.onSticker,
     required this.onPersonalSticker,
     required this.onShape,
+    required this.onPhotoSlots,
     required this.onBackground,
     required this.onPage,
   });
@@ -1885,6 +2126,7 @@ class _MainToolbar extends StatefulWidget {
   final VoidCallback onSticker;
   final VoidCallback onPersonalSticker;
   final VoidCallback onShape;
+  final VoidCallback onPhotoSlots;
   final VoidCallback onBackground;
   final VoidCallback onPage;
 
@@ -1938,6 +2180,11 @@ class _MainToolbarState extends State<_MainToolbar> {
                       icon: Icons.text_fields_rounded,
                       label: context.tr('Yazı / Font'),
                       onTap: widget.onText,
+                    ),
+                    _Tool(
+                      icon: Icons.photo_size_select_large_outlined,
+                      label: context.tr('Fotoğraf yuvaları'),
+                      onTap: widget.onPhotoSlots,
                     ),
                     _Tool(
                       icon: Icons.gesture_rounded,
@@ -2099,65 +2346,58 @@ class _PaperColorTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return SizedBox(
-      width: 72,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 3),
-          child: Column(
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                width: 52,
-                height: 52,
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: selected ? colors.primary : colors.outlineVariant,
-                    width: selected ? 3 : 1,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Column(
+        children: [
+          AspectRatio(
+            aspectRatio: 1,
+            child: Center(
+              child: FractionallySizedBox(
+                widthFactor: .85,
+                heightFactor: .85,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: selected ? colors.primary : colors.outlineVariant,
+                      width: selected ? 3 : 1,
+                    ),
                   ),
-                  boxShadow: selected
-                      ? [
-                          BoxShadow(
-                            color: colors.primary.withValues(alpha: 0.25),
-                            blurRadius: 9,
-                          ),
-                        ]
-                      : null,
-                ),
-                child: ClipOval(
-                  child: CustomPaint(
-                    painter: _PaperSamplePainter(color),
-                    child: selected
-                        ? Icon(
-                            Icons.check_rounded,
-                            color: color.computeLuminance() > 0.48
-                                ? const Color(0xFF46382E)
-                                : Colors.white,
-                          )
-                        : const SizedBox.expand(),
+                  child: ClipOval(
+                    child: CustomPaint(
+                      painter: _PaperSamplePainter(color),
+                      child: selected
+                          ? Icon(
+                              Icons.check_rounded,
+                              color: color.computeLuminance() > .48
+                                  ? const Color(0xFF46382E)
+                                  : Colors.white,
+                            )
+                          : const SizedBox.expand(),
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 5),
-              Text(
-                name,
-                maxLines: 2,
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: selected ? colors.primary : colors.onSurfaceVariant,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  fontSize: 10,
-                  height: 1.05,
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+          const SizedBox(height: 8),
+          Text(
+            name,
+            maxLines: 3,
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: selected ? colors.primary : colors.onSurfaceVariant,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              fontSize: 11,
+              height: 1.2,
+            ),
+          ),
+        ],
       ),
     );
   }

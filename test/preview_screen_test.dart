@@ -256,6 +256,8 @@ void main() {
     expect(find.byKey(const ValueKey('share_current_png')), findsOneWidget);
     expect(find.byKey(const ValueKey('share_all_png')), findsOneWidget);
     expect(find.byKey(const ValueKey('share_mp4')), findsOneWidget);
+    expect(find.byKey(const ValueKey('save_cloud_backup')), findsOneWidget);
+    expect(find.text('Google Drive’a yedekle'), findsOneWidget);
     expect(find.textContaining('internet gerekmez'), findsNothing);
     expect(find.textContaining('sunucu gerekmez'), findsNothing);
     expect(find.text('OFFLINE'), findsNothing);
@@ -274,15 +276,7 @@ void main() {
           .selected,
       {VideoExportQuality.balanced},
     );
-    expect(find.text('Arka plan sesi'), findsOneWidget);
-    expect(
-      tester
-          .widget<SwitchListTile>(
-            find.byKey(const ValueKey('mp4_soundtrack_toggle')),
-          )
-          .value,
-      isTrue,
-    );
+    expect(find.byKey(const ValueKey('mp4_soundtrack_toggle')), findsNothing);
     expect(find.byKey(const ValueKey('start_mp4_export')), findsOneWidget);
     await tester.tap(find.text('Yüksek · 1080p'));
     await tester.pumpAndSettle();

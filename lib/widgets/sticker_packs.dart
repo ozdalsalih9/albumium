@@ -1,3 +1,6 @@
+import 'scrapbook_art.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'paper_materials.dart';
 import 'dart:io';
 import '../services/personal_sticker_storage.dart';
 import 'dart:math' as math;
@@ -33,6 +36,10 @@ String albumStickerAssetPath(String value) {
 /// bounds are stored as page-relative fractions, so their raw width/height
 /// cannot be used as a visual aspect ratio on a 9:14 page.
 double albumStickerAspectRatio(String value) {
+  if (value.startsWith('albumium:scrap_')) {
+    return scrapbookArt[value.substring(15)]?.$2 ?? 1;
+  }
+  if (isPaperKit(value)) return paperKitAspect(paperKitKey(value));
   if (isPersonalSticker(value)) return personalStickerAspect(value);
   if (isAlbumStickerAsset(value)) {
     return switch (albumStickerAssetPath(value)) {
@@ -136,6 +143,12 @@ double albumStickerAspectRatio(String value) {
 }
 
 String albumStickerLabel(String value) {
+  if (value.startsWith('albumium:scrap_')) {
+    return scrapbookArt[value.substring(15)]?.$1 ?? 'Kolaj parçaları';
+  }
+  if (isPaperKit(value)) {
+    return paperKitLabels[paperKitKey(value)] ?? 'Kâğıt atölyesi';
+  }
   const extraLabels = <String, String>{
     'albumium_shape:rectangle_blush': 'Pudra Dikdörtgen',
     'albumium_shape:rectangle_navy': 'Lacivert Dikdörtgen',
@@ -520,7 +533,29 @@ class StickerCategory {
       stickers.isNotEmpty && isIllustratedSticker(stickers.first);
 }
 
-const stickerPacks = <StickerCategory>[
+final stickerPacks = <StickerCategory>[
+  StickerCategory(
+    name: 'Kolaj parçaları',
+    icon: Icons.auto_awesome_mosaic_outlined,
+    stickers: [for (final key in scrapbookArt.keys) 'albumium:scrap_$key'],
+  ),
+  for (final group in const <(String, String, IconData)>[
+    ('paper_', 'Kâğıt parçaları', Icons.layers_outlined),
+    ('tape_', 'Bantlar', Icons.horizontal_rule),
+    ('corner_', 'Köşeler', Icons.change_history),
+    ('note_', 'Danteller', Icons.filter_vintage_outlined),
+    ('seal_', 'Mühürler', Icons.verified_outlined),
+  ])
+    StickerCategory(
+      name: group.$2,
+      icon: group.$3,
+      stickers: [
+        for (final key in paperKitLabels.keys.where(
+          (k) => k.startsWith(group.$1),
+        ))
+          'albumium:paperkit_$key',
+      ],
+    ),
   StickerCategory(
     name: 'Hatıra Koleksiyonu',
     icon: Icons.diamond_outlined,
@@ -840,6 +875,25 @@ class AlbumStickerView extends StatelessWidget {
       );
     }
 
+    if (content.startsWith('albumium:scrap_')) {
+      return Semantics(
+        image: true,
+        label: context.tr(albumStickerLabel(content)),
+        child: ScrapbookArtImage(content.substring(15), preview: preview),
+      );
+    }
+    if (isPaperKit(content)) {
+      return Semantics(
+        image: true,
+        label: context.tr(albumStickerLabel(content)),
+        child: Center(
+          child: AspectRatio(
+            aspectRatio: albumStickerAspectRatio(content),
+            child: PaperKitImage(paperKitKey(content), preview: preview),
+          ),
+        ),
+      );
+    }
     if (isAlbumShape(content)) {
       return Semantics(
         image: true,
@@ -874,8 +928,17 @@ class AlbumStickerView extends StatelessWidget {
   }
 }
 
-/// Albüm sayfasına fotoğraf ve yazılarla aynı hareket/ölçek davranışını
-/// paylaşan, emojiden bağımsız geometrik nesneler ekler.
+/// Opens the same near-full-height picker in the album and card editors.
+Future<String?> showShapeObjectPicker(BuildContext context) =>
+    showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (_) => const ShapeObjectPickerSheet(),
+    );
+
+/// Geometric objects share the photo and text movement/scale controls.
 class ShapeObjectPickerSheet extends StatefulWidget {
   const ShapeObjectPickerSheet({super.key});
   @override
@@ -884,6 +947,13 @@ class ShapeObjectPickerSheet extends StatefulWidget {
 
 class _ShapeObjectPickerSheetState extends State<ShapeObjectPickerSheet> {
   String _query = '';
+  final _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -896,101 +966,132 @@ class _ShapeObjectPickerSheetState extends State<ShapeObjectPickerSheet> {
               .contains(_query.toLowerCase()),
         )
         .toList();
-    final tablet = MediaQuery.sizeOf(context).shortestSide >= 600;
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 4, 18, 22),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: FractionallySizedBox(
+        heightFactor: .96,
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            key: const ValueKey('shape-picker-body'),
+            padding: const EdgeInsets.fromLTRB(18, 4, 18, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.interests_outlined, color: colors.primary),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
+                Row(
+                  children: [
+                    Icon(Icons.interests_outlined, color: colors.primary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
                         context.tr('Şekil Nesneleri'),
                         style: const TextStyle(
                           fontSize: 19,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
-                      Text(
-                        context.tr(
-                          'Geometrik şekilleri büyüt, döndür ve katmanla',
-                        ),
-                        style: const TextStyle(fontSize: 11.5),
-                      ),
-                    ],
+                    ),
+                    IconButton(
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).closeButtonTooltip,
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                Text(
+                  context.tr('Geometrik şekilleri büyüt, döndür ve katmanla'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colors.onSurfaceVariant,
                   ),
                 ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded),
+                const SizedBox(height: 14),
+                TextField(
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search),
+                    hintText: context.tr('Şekil veya renk ara'),
+                  ),
+                  onChanged: (value) {
+                    setState(() => _query = value.trim());
+                    if (_scrollController.hasClients) {
+                      _scrollController.jumpTo(0);
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final scale = MediaQuery.textScalerOf(context).scale(1);
+                      final columns =
+                          (constraints.maxWidth / (112 * scale.clamp(1, 1.4)))
+                              .floor()
+                              .clamp(2, 6);
+                      final tileWidth =
+                          (constraints.maxWidth - (columns - 1) * 12) / columns;
+                      return GridView.builder(
+                        key: const ValueKey('shape-picker-grid'),
+                        controller: _scrollController,
+                        padding: const EdgeInsets.only(bottom: 12),
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: columns,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                          mainAxisExtent: tileWidth * .78 + 26 * scale + 28,
+                        ),
+                        itemCount: shapes.length,
+                        itemBuilder: (context, index) {
+                          final shape = shapes[index];
+                          // Each tile owns its ink surface, so scrolling ink stays
+                          // clipped to the grid instead of painting under the header.
+                          return Material(
+                            key: ValueKey('shape-tile-$shape'),
+                            color: colors.surfaceContainerHigh,
+                            clipBehavior: Clip.antiAlias,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(color: colors.outlineVariant),
+                            ),
+                            child: InkWell(
+                              onTap: () => Navigator.pop(context, shape),
+                              child: Padding(
+                                padding: const EdgeInsets.all(10),
+                                child: Column(
+                                  children: [
+                                    Expanded(
+                                      child: AlbumStickerView(
+                                        content: shape,
+                                        preview: true,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      context.tr(albumStickerLabel(shape)),
+                                      maxLines: 2,
+                                      textAlign: TextAlign.center,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
-            TextField(
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search),
-                hintText: context.tr('Şekil veya renk ara'),
-              ),
-              onChanged: (value) => setState(() => _query = value.trim()),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: tablet ? 270 : 236,
-              child: GridView.builder(
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: tablet ? 6 : 3,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 0.88,
-                ),
-                itemCount: shapes.length,
-                itemBuilder: (context, index) {
-                  final shape = shapes[index];
-                  return InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: () => Navigator.pop(context, shape),
-                    child: Ink(
-                      padding: const EdgeInsets.all(9),
-                      decoration: BoxDecoration(
-                        color: colors.surfaceContainerHigh,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: colors.outlineVariant),
-                      ),
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: AlbumStickerView(
-                              content: shape,
-                              preview: true,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            context.tr(albumStickerLabel(shape)),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -1055,6 +1156,48 @@ class StickerPackPickerSheet extends StatefulWidget {
 class _StickerPackPickerSheetState extends State<StickerPackPickerSheet> {
   String _query = '';
   String? _selectedCategory;
+  List<String> _recent = [];
+  @override
+  void initState() {
+    super.initState();
+    _loadRecent();
+  }
+
+  Future<void> _loadRecent() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final available = stickerPacks.expand((p) => p.stickers).toSet();
+      if (mounted) {
+        setState(
+          () => _recent =
+              (prefs.getStringList('albumium.decorations.recent') ?? [])
+                  .where(available.contains)
+                  .take(16)
+                  .toList(),
+        );
+      }
+    } catch (_) {
+      // The decoration picker remains usable when preferences are unavailable.
+    }
+  }
+
+  Future<void> _saveRecent(List<String> items) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('albumium.decorations.recent', items);
+    } catch (_) {
+      // Selection must not depend on writing optional history.
+    }
+  }
+
+  void _pick(String sticker) {
+    final updated = [
+      sticker,
+      ..._recent.where((s) => s != sticker),
+    ].take(16).toList();
+    _saveRecent(updated);
+    Navigator.pop(context, sticker);
+  }
 
   void _pickSurpriseSticker() {
     final choices = stickerPacks
@@ -1062,7 +1205,7 @@ class _StickerPackPickerSheetState extends State<StickerPackPickerSheet> {
         .where(isIllustratedSticker)
         .toList(growable: false);
     if (choices.isEmpty) return;
-    Navigator.pop(context, choices[math.Random().nextInt(choices.length)]);
+    _pick(choices[math.Random().nextInt(choices.length)]);
   }
 
   @override
@@ -1072,7 +1215,16 @@ class _StickerPackPickerSheetState extends State<StickerPackPickerSheet> {
     final tablet = mediaSize.shortestSide >= 600;
     final query = _query.trim().toLowerCase();
     final entries = <({String sticker, String category, bool illustrated})>[];
-    for (final pack in stickerPacks) {
+    final visiblePacks = [
+      if (_recent.isNotEmpty)
+        StickerCategory(
+          name: 'Son kullanılanlar',
+          icon: Icons.history,
+          stickers: _recent,
+        ),
+      ...stickerPacks,
+    ];
+    for (final pack in visiblePacks) {
       if (_selectedCategory != null && pack.name != _selectedCategory) continue;
       for (final sticker in pack.stickers) {
         final label = context.tr(albumStickerLabel(sticker));
@@ -1171,7 +1323,7 @@ class _StickerPackPickerSheetState extends State<StickerPackPickerSheet> {
                     ),
                     itemBuilder: (context) => [
                       PopupMenuItem(value: '', child: Text(context.tr('Tümü'))),
-                      for (final pack in stickerPacks)
+                      for (final pack in visiblePacks)
                         PopupMenuItem(
                           value: pack.name,
                           child: Row(
@@ -1214,6 +1366,31 @@ class _StickerPackPickerSheetState extends State<StickerPackPickerSheet> {
                 ],
               ),
               const SizedBox(height: 9),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final name in [
+                      if (_recent.isNotEmpty) 'Son kullanılanlar',
+                      'Kâğıt parçaları',
+                      'Bantlar',
+                      'Köşeler',
+                      'Danteller',
+                      'Mühürler',
+                    ])
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: FilterChip(
+                          label: Text(context.tr(name)),
+                          selected: _selectedCategory == name,
+                          onSelected: (selected) => setState(
+                            () => _selectedCategory = selected ? name : null,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
               Text(
                 context.tr(
                   '{count} yaratıcı parça',
@@ -1246,7 +1423,7 @@ class _StickerPackPickerSheetState extends State<StickerPackPickerSheet> {
                           final entry = entries[index];
                           return InkWell(
                             borderRadius: BorderRadius.circular(14),
-                            onTap: () => Navigator.pop(context, entry.sticker),
+                            onTap: () => _pick(entry.sticker),
                             child: Ink(
                               decoration: BoxDecoration(
                                 color: colors.surfaceContainerHigh,

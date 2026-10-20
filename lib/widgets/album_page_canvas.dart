@@ -1,3 +1,4 @@
+import 'paper_materials.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -8,11 +9,13 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../l10n/albumium_localizations.dart';
 import '../models/album_models.dart';
+import '../models/photo_grid_transform.dart';
 import '../themes/theme_image_helper.dart';
 import 'font_selector_dialog.dart';
 import 'handwriting_painter.dart';
 import 'occasion_cards.dart';
 import 'photo_crop_editor.dart';
+import 'photo_slot_shapes.dart';
 import 'physical_book_spread.dart';
 import 'sticker_packs.dart';
 import 'theme_page_decoration.dart';
@@ -35,6 +38,14 @@ const albumPhotoFrameLabels = <String>[
   'Retro slayt',
   'Dikişli keten',
   'Fotoğraf kabini',
+  'Gül ekose çerçeve',
+  'Mavi pötikare çerçeve',
+  'Adaçayı çerçeve',
+  'Bal rengi çerçeve',
+  'Çiçekli çerçeve',
+  'Mavi dal çerçeve',
+  'Pembe tartan çerçeve',
+  'Dantel çerçeve',
 ];
 
 int get albumPhotoFrameCount => albumPhotoFrameLabels.length;
@@ -57,8 +68,13 @@ EdgeInsets albumPhotoFrameInsets(int style) =>
       13 => const EdgeInsets.fromLTRB(10, 12, 10, 20),
       14 => const EdgeInsets.all(10),
       15 => const EdgeInsets.fromLTRB(7, 7, 7, 18),
+      >= 16 => const EdgeInsets.all(16),
       _ => EdgeInsets.zero,
     };
+
+EdgeInsets albumElementFrameInsets(AlbumElementModel e) =>
+    albumPhotoFrameInsets(e.frameStyle) * e.frameScale +
+    EdgeInsets.all(e.frameSpacing);
 
 String albumPhotoFrameLabel(int style) =>
     albumPhotoFrameLabels[style % albumPhotoFrameLabels.length];
@@ -152,6 +168,7 @@ class AlbumPageCanvas extends StatelessWidget {
       builder: (context, constraints) {
         final size = Size(constraints.maxWidth, constraints.maxHeight);
         final background = Color(page.backgroundColor);
+        final isCard = theme.id.startsWith('special_card_');
         final warmedBackground = Color.alphaBlend(
           background.computeLuminance() > 0.5
               ? const Color(0x0ED29A62)
@@ -172,7 +189,7 @@ class AlbumPageCanvas extends StatelessWidget {
             borderRadius: BorderRadius.circular(6),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: warmedBackground,
+                color: isCard ? background : warmedBackground,
                 boxShadow: const [
                   BoxShadow(
                     color: Colors.black26,
@@ -189,16 +206,23 @@ class AlbumPageCanvas extends StatelessWidget {
                     // operations out of the layer repainted by each drag.
                     child: RepaintBoundary(
                       key: ValueKey('album-page-art-${page.id}'),
-                      child: CustomPaint(
-                        painter: _PaperTexturePainter(
-                          backgroundColor: background,
-                          accentColor: theme.accent,
-                        ),
-                        child: ThemePageDecoration(
-                          theme: theme,
-                          paperColor: background,
-                        ),
-                      ),
+                      child:
+                          theme.id != 'special_card_blank' &&
+                              page.paperPattern != 'plain' &&
+                              paperPatterns.containsKey(page.paperPattern)
+                          ? PaperMaterialImage(page.paperPattern)
+                          : CustomPaint(
+                              painter: isCard
+                                  ? null
+                                  : _PaperTexturePainter(
+                                      backgroundColor: background,
+                                      accentColor: theme.accent,
+                                    ),
+                              child: ThemePageDecoration(
+                                theme: theme,
+                                paperColor: background,
+                              ),
+                            ),
                     ),
                   ),
                   Positioned.fill(
@@ -262,12 +286,60 @@ class _AlbumElementsLayer extends StatefulWidget {
 }
 
 class _AlbumElementsLayerState extends State<_AlbumElementsLayer> {
+  String? _hoverSlotId;
+
+  void _photoDrag(AlbumElementModel source, Offset? point) {
+    String? target;
+    if (point != null && source.content.isNotEmpty) {
+      for (final slot in widget.page.elements.reversed) {
+        if (slot.id != source.id &&
+            slot.photoSlot &&
+            !slot.locked &&
+            photoSlotContains(slot, point, widget.pageSize)) {
+          target = slot.id;
+          break;
+        }
+      }
+    }
+    if (target != _hoverSlotId && mounted) {
+      setState(() => _hoverSlotId = target);
+    }
+  }
+
+  bool _dropPhoto(AlbumElementModel source) {
+    final targets = widget.page.elements
+        .where((e) => e.id == _hoverSlotId && e.photoSlot && !e.locked)
+        .toList();
+    _hoverSlotId = null;
+    if (targets.isEmpty || source.content.isEmpty) return false;
+    final target = targets.first;
+    final previous = target.content;
+    final crop = target.photoCrop;
+    target.content = source.content;
+    target.photoCrop = null;
+    if (source.photoSlot || previous.isNotEmpty) {
+      source.content = previous;
+      source.photoCrop = crop;
+    } else {
+      widget.page.elements.remove(source);
+    }
+    HapticFeedback.lightImpact();
+    widget.onSelect?.call(target.id);
+    return true;
+  }
+
   void _geometryChanged() {
     if (mounted) setState(() {});
   }
 
   /// Selects an element, or opens it when it was already the selected one.
   void _handleTap(String elementId) {
+    final element = widget.page.elements.firstWhere((e) => e.id == elementId);
+    if (element.photoSlot && element.content.isEmpty && !element.locked) {
+      widget.onSelect?.call(elementId);
+      widget.onActivate?.call(elementId);
+      return;
+    }
     final activate = widget.onActivate;
     if (activate != null && elementId == widget.selectedId) {
       activate(elementId);
@@ -279,27 +351,71 @@ class _AlbumElementsLayerState extends State<_AlbumElementsLayer> {
   @override
   Widget build(BuildContext context) {
     AlbumElementModel? selected;
+    AlbumElementModel? hovered;
     for (final element in widget.page.elements) {
       if (element.id == widget.selectedId) selected = element;
+      if (element.id == _hoverSlotId) hovered = element;
     }
 
+    final group = selected == null
+        ? <AlbumElementModel>[]
+        : albumElementMembers(widget.page.elements, selected.id);
+    if (group.length > 1) selected = photoGridFrame(group, widget.pageSize);
     return Stack(
       clipBehavior: Clip.none,
       children: [
         for (final element in widget.page.elements)
-          _AlbumElementView(
-            key: ValueKey(element.id),
-            element: element,
-            theme: widget.theme,
-            pageSize: widget.pageSize,
-            interactive: widget.interactive,
-            onTap: () => _handleTap(element.id),
-            onSelect: () => widget.onSelect?.call(element.id),
-            onGeometryChanged: _geometryChanged,
-            onChanged: widget.onChanged,
-            onLongPress: widget.onLongPressElement == null
-                ? null
-                : (pos) => widget.onLongPressElement!(element.id, pos),
+          if (widget.theme.id != 'special_card_blank' ||
+              !element.id.startsWith('scrap-decor-'))
+            _AlbumElementView(
+              key: ValueKey(element.id),
+              element: element,
+              groupElements: albumElementMembers(
+                widget.page.elements,
+                element.id,
+              ),
+              theme: widget.theme,
+              pageSize: widget.pageSize,
+              interactive: widget.interactive,
+              onTap: () => _handleTap(element.id),
+              onSelect: () => widget.onSelect?.call(element.id),
+              onGeometryChanged: _geometryChanged,
+              onChanged: widget.onChanged,
+              onPhotoDrag:
+                  element.type == AlbumElementType.photo &&
+                      element.groupId == null
+                  ? (point) => _photoDrag(element, point)
+                  : null,
+              onPhotoDrop:
+                  element.type == AlbumElementType.photo &&
+                      element.groupId == null
+                  ? () => _dropPhoto(element)
+                  : null,
+              dropHovered: element.id == _hoverSlotId,
+              onLongPress: widget.onLongPressElement == null
+                  ? null
+                  : (pos) => widget.onLongPressElement!(element.id, pos),
+            ),
+        if (widget.interactive && hovered != null)
+          Positioned(
+            left: hovered.x * widget.pageSize.width,
+            top: hovered.y * widget.pageSize.height,
+            width: hovered.width * widget.pageSize.width,
+            height: hovered.height * widget.pageSize.height,
+            child: IgnorePointer(
+              child: Transform.rotate(
+                angle: hovered.rotation,
+                child: Transform.scale(
+                  scale: hovered.scale,
+                  child: CustomPaint(
+                    painter: PhotoSlotOutline(
+                      hovered.photoShape,
+                      Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         if (widget.interactive && selected != null)
           Positioned.fill(
@@ -314,6 +430,7 @@ class _AlbumElementsLayerState extends State<_AlbumElementsLayer> {
             child: _AlbumSelectionOverlay(
               key: ValueKey('selection-overlay-${selected.id}'),
               element: selected,
+              groupElements: group,
               pageSize: widget.pageSize,
               onGeometryChanged: _geometryChanged,
               onChanged: widget.onChanged,
@@ -328,6 +445,7 @@ class _AlbumElementView extends StatefulWidget {
   const _AlbumElementView({
     super.key,
     required this.element,
+    this.groupElements = const [],
     required this.theme,
     required this.pageSize,
     required this.interactive,
@@ -336,9 +454,13 @@ class _AlbumElementView extends StatefulWidget {
     required this.onGeometryChanged,
     required this.onChanged,
     this.onLongPress,
+    this.onPhotoDrag,
+    this.onPhotoDrop,
+    this.dropHovered = false,
   });
 
   final AlbumElementModel element;
+  final List<AlbumElementModel> groupElements;
   final AlbumThemePreset theme;
   final Size pageSize;
   final bool interactive;
@@ -347,6 +469,9 @@ class _AlbumElementView extends StatefulWidget {
   final VoidCallback onGeometryChanged;
   final VoidCallback? onChanged;
   final void Function(Offset globalPosition)? onLongPress;
+  final ValueChanged<Offset?>? onPhotoDrag;
+  final bool Function()? onPhotoDrop;
+  final bool dropHovered;
 
   @override
   State<_AlbumElementView> createState() => _AlbumElementViewState();
@@ -361,6 +486,9 @@ class _AlbumElementViewState extends State<_AlbumElementView> {
   RenderBox? _gestureCoordinateSpace;
   Offset _gestureAnchor = Offset.zero;
   bool _transformChanged = false;
+  double _startX = 0, _startY = 0;
+  bool _singlePointerDrag = false;
+  PhotoGridTransform? _gridTransform;
 
   @override
   void dispose() {
@@ -391,7 +519,10 @@ class _AlbumElementViewState extends State<_AlbumElementView> {
   }
 
   void _handleScaleStart(ScaleStartDetails details) {
-    final element = widget.element;
+    _gridTransform = widget.groupElements.length > 1
+        ? PhotoGridTransform(widget.groupElements, widget.pageSize)
+        : null;
+    final element = _gridTransform?.frame ?? widget.element;
     _longPressTimer?.cancel();
     // Selecting for a transform must never activate the content editor.
     widget.onSelect();
@@ -399,6 +530,9 @@ class _AlbumElementViewState extends State<_AlbumElementView> {
         ? element.scale.clamp(albumElementMinScale, albumElementMaxScale)
         : 1;
     _startRotation = element.rotation;
+    _startX = element.x;
+    _startY = element.y;
+    _singlePointerDrag = false;
     _transformChanged = false;
 
     // Work in the page Stack's coordinate system. This also compensates for
@@ -415,7 +549,7 @@ class _AlbumElementViewState extends State<_AlbumElementView> {
   }
 
   void _handleScaleUpdate(ScaleUpdateDetails details) {
-    final element = widget.element;
+    final element = _gridTransform?.frame ?? widget.element;
     final scale = (_startScale * details.scale).clamp(
       albumElementMinScale,
       albumElementMaxScale,
@@ -443,11 +577,25 @@ class _AlbumElementViewState extends State<_AlbumElementView> {
     element.scale = scale;
     element.rotation = rotation;
     if (details.pointerCount == 1) snapAlbumElement(element, widget.pageSize);
+    _gridTransform?.apply(element);
+    _singlePointerDrag = details.pointerCount == 1;
+    widget.onPhotoDrag?.call(_singlePointerDrag ? focalPoint : null);
     widget.onGeometryChanged();
   }
 
   void _handleScaleEnd(ScaleEndDetails details) {
     _gestureCoordinateSpace = null;
+    if (_transformChanged &&
+        _singlePointerDrag &&
+        (widget.onPhotoDrop?.call() ?? false)) {
+      widget.element
+        ..x = _startX
+        ..y = _startY
+        ..scale = _startScale
+        ..rotation = _startRotation;
+    }
+    widget.onPhotoDrag?.call(null);
+    _gridTransform = null;
     if (!_transformChanged) return;
     _transformChanged = false;
     widget.onChanged?.call();
@@ -620,37 +768,177 @@ class _AlbumElementViewState extends State<_AlbumElementView> {
   }
 
   Widget _photo(AlbumElementModel element) {
+    if (element.photoSlot && element.content.isEmpty) {
+      return _photoFrame(
+        element,
+        _PhotoShapeClip(
+          shape: element.photoShape,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              const CustomPaint(painter: PhotoSlotArtwork()),
+              if (widget.interactive)
+                Center(
+                  child: LayoutBuilder(
+                    builder: (context, c) => FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: .85),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.add_photo_alternate_outlined,
+                              size: 22,
+                              color: Color(0xFF4D6558),
+                            ),
+                          ),
+                          if (c.maxHeight > 100 && c.maxWidth > 100)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                context.tr('Fotoğraf ekle'),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF344D40),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              if (widget.dropHovered)
+                ColoredBox(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: .32),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
     if (element.photoCrop != null &&
-        element.photoShape == AlbumPhotoShape.free) {
+        element.photoShape == AlbumPhotoShape.free &&
+        !element.photoSlot) {
       return CroppedAlbumPhoto(
         path: element.content,
         crop: element.photoCrop!,
-        frameInsets: albumPhotoFrameInsets(element.frameStyle),
+        frameInsets: albumElementFrameInsets(element),
         frameBuilder: (photo) => _photoFrame(element, photo),
       );
     }
+    final fit = element.photoSlot
+        ? element.photoFit
+        : element.photoShape == AlbumPhotoShape.free &&
+              element.photoCrop != null
+        ? BoxFit.contain
+        : BoxFit.cover;
+    final pixels = element.photoCrop != null
+        ? CroppedAlbumPhoto(
+            path: element.content,
+            crop: element.photoCrop!,
+            fit: fit,
+          )
+        : ThemeImage(
+            url: element.content,
+            width: double.infinity,
+            height: double.infinity,
+            fit: fit,
+          );
     final image = _PhotoShapeClip(
       shape: element.photoShape,
-      child: element.photoCrop != null
-          ? CroppedAlbumPhoto(
-              path: element.content,
-              crop: element.photoCrop!,
-              fit: element.photoShape == AlbumPhotoShape.free
-                  ? BoxFit.contain
-                  : BoxFit.cover,
+      child: element.photoSlot
+          ? ColoredBox(
+              color: Color.alphaBlend(
+                widget.theme.accent.withValues(alpha: .06),
+                const Color(0xFFFFFCF5),
+              ),
+              child: pixels,
             )
-          : ThemeImage(
-              url: element.content,
-              width: double.infinity,
-              height: double.infinity,
-              fit: BoxFit.cover,
-            ),
+          : pixels,
     );
 
-    return _photoFrame(element, image);
+    return _photoFrame(
+      element,
+      widget.dropHovered
+          ? Stack(
+              fit: StackFit.expand,
+              children: [
+                image,
+                ColoredBox(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: .25),
+                ),
+              ],
+            )
+          : image,
+    );
   }
 
   Widget _photoFrame(AlbumElementModel element, Widget image) {
+    final style = element.frameStyle % albumPhotoFrameCount;
+    if (style < 16 && element.frameScale == 1 && element.frameSpacing == 0) {
+      return _legacyPhotoFrame(element, image);
+    }
+    return LayoutBuilder(
+      builder: (context, bounds) {
+        final factor = element.frameScale;
+        final inset = albumElementFrameInsets(element);
+        // Clamp extremely small elements so their image area never becomes negative.
+        final limit = math.min(
+          1.0,
+          math.min(
+            bounds.maxWidth / (inset.horizontal + 16),
+            bounds.maxHeight / (inset.vertical + 16),
+          ),
+        );
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            if (style >= 16)
+              if (paperPhotoFrames[style - 16] == 'lace')
+                Image.asset(
+                  'assets/paper_kit/frame_lace.png',
+                  fit: BoxFit.fill,
+                  cacheWidth: 600,
+                )
+              else
+                PaperMaterialImage(paperPhotoFrames[style - 16])
+            else
+              FittedBox(
+                fit: BoxFit.fill,
+                child: SizedBox(
+                  width: bounds.maxWidth / factor,
+                  height: bounds.maxHeight / factor,
+                  child: _legacyPhotoFrame(element, const SizedBox.expand()),
+                ),
+              ),
+            Padding(
+              padding:
+                  (albumPhotoFrameInsets(element.frameStyle) * factor) * limit,
+              child: ColoredBox(
+                color: const Color(0xFFF5F0E5),
+                child: Padding(
+                  padding: EdgeInsets.all(element.frameSpacing * limit),
+                  child: image,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _legacyPhotoFrame(AlbumElementModel element, Widget image) {
     switch (element.frameStyle % albumPhotoFrameCount) {
       case 1:
         // Polaroid frame
@@ -907,12 +1195,14 @@ class _AlbumSelectionOverlay extends StatefulWidget {
   const _AlbumSelectionOverlay({
     super.key,
     required this.element,
+    this.groupElements = const [],
     required this.pageSize,
     required this.onGeometryChanged,
     required this.onChanged,
   });
 
   final AlbumElementModel element;
+  final List<AlbumElementModel> groupElements;
   final Size pageSize;
   final VoidCallback onGeometryChanged;
   final VoidCallback? onChanged;
@@ -923,6 +1213,8 @@ class _AlbumSelectionOverlay extends StatefulWidget {
 
 class _AlbumSelectionOverlayState extends State<_AlbumSelectionOverlay> {
   RenderBox? _coordinateSpace;
+  PhotoGridTransform? _gridTransform;
+  AlbumElementModel get _element => _gridTransform?.frame ?? widget.element;
   Offset _fixedCorner = Offset.zero;
   Offset _baseHandleVector = Offset.zero;
   Offset _rotationCenter = Offset.zero;
@@ -932,18 +1224,18 @@ class _AlbumSelectionOverlayState extends State<_AlbumSelectionOverlay> {
   bool _rotationChanged = false;
 
   double get _safeScale {
-    final scale = widget.element.scale;
+    final scale = _element.scale;
     return scale.isFinite
         ? scale.clamp(albumElementMinScale, albumElementMaxScale)
         : 1;
   }
 
   double get _safeRotation =>
-      widget.element.rotation.isFinite ? widget.element.rotation : 0;
+      _element.rotation.isFinite ? _element.rotation : 0;
 
   Offset get _center => Offset(
-    (widget.element.x + widget.element.width / 2) * widget.pageSize.width,
-    (widget.element.y + widget.element.height / 2) * widget.pageSize.height,
+    (_element.x + _element.width / 2) * widget.pageSize.width,
+    (_element.y + _element.height / 2) * widget.pageSize.height,
   );
 
   Offset _pagePoint(Offset globalPosition) {
@@ -957,12 +1249,8 @@ class _AlbumSelectionOverlayState extends State<_AlbumSelectionOverlay> {
   Offset _cornerPosition(_ResizeCorner corner) {
     final signs = _cornerSigns(corner);
     final localCorner = Offset(
-      signs.dx * widget.element.width * widget.pageSize.width * _safeScale / 2,
-      signs.dy *
-          widget.element.height *
-          widget.pageSize.height *
-          _safeScale /
-          2,
+      signs.dx * _element.width * widget.pageSize.width * _safeScale / 2,
+      signs.dy * _element.height * widget.pageSize.height * _safeScale / 2,
     );
     return _center + _rotateOffset(localCorner, _safeRotation);
   }
@@ -970,7 +1258,7 @@ class _AlbumSelectionOverlayState extends State<_AlbumSelectionOverlay> {
   Offset get _topEdgeCenter {
     final localTopEdge = Offset(
       0,
-      -widget.element.height * widget.pageSize.height * _safeScale / 2,
+      -_element.height * widget.pageSize.height * _safeScale / 2,
     );
     return _center + _rotateOffset(localTopEdge, _safeRotation);
   }
@@ -984,11 +1272,14 @@ class _AlbumSelectionOverlayState extends State<_AlbumSelectionOverlay> {
   }
 
   void _handleResizeStart(_ResizeCorner corner, DragStartDetails details) {
+    _gridTransform = widget.groupElements.length > 1
+        ? PhotoGridTransform(widget.groupElements, widget.pageSize)
+        : null;
     final signs = _cornerSigns(corner);
     _coordinateSpace = context.findAncestorRenderObjectOfType<RenderStack>();
     _baseHandleVector = Offset(
-      signs.dx * widget.element.width * widget.pageSize.width / 2,
-      signs.dy * widget.element.height * widget.pageSize.height / 2,
+      signs.dx * _element.width * widget.pageSize.width / 2,
+      signs.dy * _element.height * widget.pageSize.height / 2,
     );
     _fixedCorner =
         _center - _rotateOffset(_baseHandleVector * _safeScale, _safeRotation);
@@ -1009,30 +1300,39 @@ class _AlbumSelectionOverlayState extends State<_AlbumSelectionOverlay> {
     );
     final center =
         _fixedCorner + _rotateOffset(_baseHandleVector * scale, _safeRotation);
-    final x = (center.dx / widget.pageSize.width - widget.element.width / 2)
-        .clamp(-0.35, 0.92);
-    final y = (center.dy / widget.pageSize.height - widget.element.height / 2)
-        .clamp(-0.25, 0.94);
+    final x = (center.dx / widget.pageSize.width - _element.width / 2).clamp(
+      -0.35,
+      0.92,
+    );
+    final y = (center.dy / widget.pageSize.height - _element.height / 2).clamp(
+      -0.25,
+      0.94,
+    );
     final changed =
-        (widget.element.x - x).abs() > .000001 ||
-        (widget.element.y - y).abs() > .000001 ||
-        (widget.element.scale - scale).abs() > .000001;
+        (_element.x - x).abs() > .000001 ||
+        (_element.y - y).abs() > .000001 ||
+        (_element.scale - scale).abs() > .000001;
     if (!changed) return;
-    widget.element.x = x;
-    widget.element.y = y;
-    widget.element.scale = scale;
+    _element.x = x;
+    _element.y = y;
+    _element.scale = scale;
     _resizeChanged = true;
+    _gridTransform?.apply(_element);
     widget.onGeometryChanged();
   }
 
   void _finishResize() {
     _coordinateSpace = null;
+    _gridTransform = null;
     if (!_resizeChanged) return;
     _resizeChanged = false;
     widget.onChanged?.call();
   }
 
   void _handleRotationStart(DragStartDetails details) {
+    _gridTransform = widget.groupElements.length > 1
+        ? PhotoGridTransform(widget.groupElements, widget.pageSize)
+        : null;
     _coordinateSpace = context.findAncestorRenderObjectOfType<RenderStack>();
     _rotationCenter = _center;
     _rotationStart = _safeRotation;
@@ -1050,14 +1350,16 @@ class _AlbumSelectionOverlayState extends State<_AlbumSelectionOverlay> {
     final rawDelta = pointerAngle - _rotationPointerAngle;
     final delta = math.atan2(math.sin(rawDelta), math.cos(rawDelta));
     final rotation = _rotationStart + delta;
-    if ((widget.element.rotation - rotation).abs() <= .000001) return;
-    widget.element.rotation = rotation;
+    if ((_element.rotation - rotation).abs() <= .000001) return;
+    _element.rotation = rotation;
     _rotationChanged = true;
+    _gridTransform?.apply(_element);
     widget.onGeometryChanged();
   }
 
   void _finishRotation() {
     _coordinateSpace = null;
+    _gridTransform = null;
     if (!_rotationChanged) return;
     _rotationChanged = false;
     widget.onChanged?.call();
@@ -1133,7 +1435,7 @@ class _AlbumSelectionOverlayState extends State<_AlbumSelectionOverlay> {
           height: 48,
           child: Semantics(
             label: context.tr(
-              widget.element.type == AlbumElementType.photo
+              _element.type == AlbumElementType.photo
                   ? 'Fotoğrafı döndür'
                   : 'Öğeyi döndür',
             ),
@@ -1259,6 +1561,13 @@ class _PhotoShapeClip extends StatelessWidget {
       ),
       AlbumPhotoShape.torn => ClipPath(
         clipper: const _SoftTornPhotoClipper(),
+        child: expanded,
+      ),
+      AlbumPhotoShape.rounded ||
+      AlbumPhotoShape.heart ||
+      AlbumPhotoShape.diamond ||
+      AlbumPhotoShape.hexagon => ClipPath(
+        clipper: PhotoSlotClipper(shape),
         child: expanded,
       ),
       AlbumPhotoShape.free ||
@@ -1894,6 +2203,10 @@ class _ElementHitRender extends RenderProxyBox {
       }
     }
     if (element.type == AlbumElementType.photo && element.frameStyle == 0) {
+      if (element.photoSlot &&
+          !photoSlotPath(element.photoShape, size).contains(position)) {
+        return false;
+      }
       if (element.photoShape == AlbumPhotoShape.circle &&
           !(Path()..addOval(Offset.zero & size)).contains(position)) {
         return false;

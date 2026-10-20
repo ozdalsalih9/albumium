@@ -1,16 +1,27 @@
 import 'album_models.dart';
-import 'cinematic_storyboard.dart';
 
 enum SocialVideoTemplate {
-  summer('Yaz Anıları'),
+  summer('Gün ışığı'),
   together('Birlikte'),
-  year('Yıl Özeti');
+  year('Gece arşivi'),
+  editorial('Editoryal'),
+  botanical('Botanik');
 
   const SocialVideoTemplate(this.title);
   final String title;
 }
 
 enum SocialVideoSource { pages, photos }
+
+enum SocialVideoPace {
+  lively('Canlı', 72),
+  natural('Doğal', 108),
+  calm('Sakin', 150);
+
+  const SocialVideoPace(this.title, this.pageFrames);
+  final String title;
+  final int pageFrames;
+}
 
 class SocialVideoShot {
   const SocialVideoShot({
@@ -33,11 +44,12 @@ class SocialVideoDraft {
   late final List<AlbumPageModel> _photoPages = [
     for (final page in _album.pages)
       for (final photo in page.elements.where(
-        (e) => e.type == AlbumElementType.photo,
+        (e) => e.type == AlbumElementType.photo && e.content.isNotEmpty,
       ))
         AlbumPageModel(
           id: 'video-photo:${page.id}:${photo.id}',
           backgroundColor: page.backgroundColor,
+          paperPattern: page.paperPattern,
           elements: [
             AlbumElementModel.fromJson({
               ...photo.toJson(),
@@ -65,29 +77,34 @@ class SocialVideoDraft {
   }
 
   SocialVideoTemplate template = SocialVideoTemplate.summer;
-  int seconds = 15;
+  SocialVideoPace pace = SocialVideoPace.natural;
   String? coverPageId;
   String closingNote = '';
   final List<String> pageIds;
   static const fps = 30;
-  int get totalFrames => seconds * fps;
+  static const openingFrames = 60;
+  static const closingFrames = 45;
+  static const turnFrames = 27;
+  int get totalFrames =>
+      openingFrames + pageIds.length * pace.pageFrames + closingFrames;
+  double get seconds => totalFrames / fps;
+  Duration get duration => Duration(
+    microseconds: (totalFrames * Duration.microsecondsPerSecond / fps).round(),
+  );
   bool get canExport =>
-      [15, 30].contains(seconds) &&
       pageIds.isNotEmpty &&
-      pageIds.length <= 20 &&
-      pageIds.toSet().length == pageIds.length;
+      pageIds.toSet().length == pageIds.length &&
+      pageIds.every(availablePages.map((p) => p.id).toSet().contains) &&
+      (coverPageId == null || availablePages.any((p) => p.id == coverPageId));
 
   List<SocialVideoShot> get shots {
-    if (!canExport) throw StateError('Choose between 1 and 20 pages.');
-    final available = totalFrames - fps * 4;
-    final base = available ~/ pageIds.length;
-    final remainder = available % pageIds.length;
-    var cursor = fps * 2;
+    if (!canExport) throw StateError('Choose at least one valid page.');
+    var cursor = openingFrames;
     final result = <SocialVideoShot>[
-      const SocialVideoShot(index: 0, start: 0, frames: fps * 2),
+      const SocialVideoShot(index: 0, start: 0, frames: openingFrames),
     ];
     for (var i = 0; i < pageIds.length; i++) {
-      final count = base + (i < remainder ? 1 : 0);
+      final count = pace.pageFrames;
       result.add(
         SocialVideoShot(
           index: i + 1,
@@ -99,29 +116,35 @@ class SocialVideoDraft {
       cursor += count;
     }
     result.add(
-      SocialVideoShot(index: result.length, start: cursor, frames: fps * 2),
+      SocialVideoShot(
+        index: result.length,
+        start: cursor,
+        frames: closingFrames,
+      ),
     );
     return result;
   }
 
-  SocialVideoShot shotAt(int frame) =>
-      shots.lastWhere((s) => s.start <= frame.clamp(0, totalFrames - 1));
-  CinematicStoryboard get soundtrack => CinematicStoryboard(
-    fps: fps,
-    beats: [
-      for (final shot in shots)
-        CinematicBeat(
-          kind: shot.index == 0
-              ? CinematicBeatKind.prologue
-              : shot.pageId == null
-              ? CinematicBeatKind.epilogue
-              : CinematicBeatKind.memory,
-          from: shot.index,
-          frameCount: shot.frames,
-          shotVariant: template.index,
-        ),
-    ],
-  );
+  SocialVideoShot shotAt(int frame) {
+    final position = frame.clamp(0, totalFrames - 1);
+    if (position < openingFrames) {
+      return const SocialVideoShot(index: 0, start: 0, frames: openingFrames);
+    }
+    final page = (position - openingFrames) ~/ pace.pageFrames;
+    if (page >= pageIds.length) {
+      return SocialVideoShot(
+        index: pageIds.length + 1,
+        start: totalFrames - closingFrames,
+        frames: closingFrames,
+      );
+    }
+    return SocialVideoShot(
+      index: page + 1,
+      start: openingFrames + page * pace.pageFrames,
+      frames: pace.pageFrames,
+      pageId: pageIds[page],
+    );
+  }
 }
 
 /// A gift is an independent editable copy, using existing text/page elements.
@@ -150,6 +173,7 @@ AlbumModel createGiftAlbum(
       AlbumPageModel(
         id: newId(),
         backgroundColor: page.backgroundColor,
+        paperPattern: page.paperPattern,
         elements: [
           for (final e in page.elements)
             AlbumElementModel.fromJson({...e.toJson(), 'id': newId()}),

@@ -50,21 +50,24 @@ void main() {
       final draft = tester
           .widget<SocialVideoFrame>(find.byType(SocialVideoFrame))
           .draft;
-      await tester.ensureVisible(find.widgetWithText(ChoiceChip, '30 seconds'));
-      await tester.tap(find.widgetWithText(ChoiceChip, '30 seconds'));
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('social-pace-calm')),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('social-pace-calm')),
+      );
       await tester.pumpAndSettle();
-      expect(draft.totalFrames, 900);
-      // Drag the outer page gutter, away from the independently scrolling page list.
-      for (
-        var i = 0;
-        i < 12 &&
-            find.byKey(const ValueKey('social-export')).evaluate().isEmpty;
-        i++
-      ) {
-        await tester.dragFrom(const Offset(8, 620), const Offset(0, -450));
-        await tester.pumpAndSettle();
-      }
-      await tester.ensureVisible(find.byKey(const ValueKey('social-export')));
+      await tester.tap(find.byKey(const ValueKey('social-pace-calm')));
+      await tester.pumpAndSettle();
+      expect(draft.totalFrames, 555);
+      expect(find.text('Music'), findsNothing);
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('social-quality-1080')),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.pumpAndSettle();
       expect(find.text('1080p'), findsOneWidget);
       expect(find.text('720p'), findsOneWidget);
@@ -89,7 +92,15 @@ void main() {
         final draft = SocialVideoDraft(album)
           ..template = template
           ..closingNote = 'Bütün güzel anılarımız hep bizimle kalsın. ' * 3;
-        for (final frame in [15, 90, 440]) {
+        for (final frame in [
+          0,
+          60,
+          73,
+          87,
+          180,
+          draft.totalFrames - 30,
+          draft.totalFrames - 1,
+        ]) {
           await tester.pumpWidget(
             app(
               Scaffold(

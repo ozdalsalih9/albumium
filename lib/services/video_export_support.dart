@@ -27,7 +27,7 @@ enum VideoExportQuality {
 class VideoExportSettings {
   const VideoExportSettings({
     this.quality = VideoExportQuality.balanced,
-    this.includeSoundtrack = true,
+    this.includeSoundtrack = false,
   });
 
   final VideoExportQuality quality;

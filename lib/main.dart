@@ -61,16 +61,10 @@ Future<void> main() async {
     entitlements.initialize(),
   ]);
   await ReminderService.initialize();
-  await ReminderService.save(
-    await ReminderService.settings(),
-    languageController.language.code,
-  );
+  unawaited(ReminderService.refreshSchedule(languageController.language.code));
   languageController.addListener(() {
     unawaited(
-      ReminderService.settings().then(
-        (settings) =>
-            ReminderService.save(settings, languageController.language.code),
-      ),
+      ReminderService.refreshSchedule(languageController.language.code),
     );
   });
   runApp(

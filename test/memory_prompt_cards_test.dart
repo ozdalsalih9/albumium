@@ -52,7 +52,12 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.byType(FilledButton), findsNWidgets(3));
+      for (final kind in MemoryKind.values) {
+        expect(
+          find.byKey(ValueKey('memory-card-${kind.name}')),
+          findsOneWidget,
+        );
+      }
       expect(tester.takeException(), isNull);
       await tester.ensureVisible(
         find.byKey(const ValueKey('memory-card-year')),

@@ -3,7 +3,7 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Albums and exports stay on the device. The network is reached only to
          fetch a rewarded ad, which is how Full HD export can be unlocked
-         without paying, and later for Play billing. -->
+         without paying, for Play billing and store update availability. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
     <!-- Saving exports to the gallery needs this only up to Android 10. -->

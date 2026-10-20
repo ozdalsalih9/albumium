@@ -1,3 +1,4 @@
+import '../services/album_backup_service.dart';
 import '../services/platform_album_services.dart';
 import '../services/personal_sticker_storage.dart';
 import 'dart:async';
@@ -25,7 +26,6 @@ import 'social_video_screen.dart';
 import '../models/cinematic_storyboard.dart';
 import '../models/single_page_export_storyboard.dart';
 import '../services/album_package_service.dart';
-import '../services/cinematic_soundtrack.dart';
 import '../services/video_export_support.dart';
 import '../theme/albumium_app_theme.dart';
 import '../themes/theme_image_helper.dart';
@@ -42,6 +42,7 @@ const _exportPngWidth = 1080;
 const _exportPngPixelRatio = _exportPngWidth / _exportLogicalWidth;
 
 enum _ShareExportChoice {
+  backup,
   interactiveAlbum,
   currentPng,
   allPng,
@@ -774,12 +775,29 @@ class _PreviewScreenState extends State<PreviewScreen>
               ),
             ),
             const SizedBox(height: 8),
+            if (AlbumBackupService.supported)
+              _ShareOptionTile(
+                key: const ValueKey('save_cloud_backup'),
+                icon: Icons.cloud_upload_outlined,
+                title: sheetContext.tr(
+                  AlbumBackupService.usesICloud
+                      ? 'iCloud’a yedekle'
+                      : 'Google Drive’a yedekle',
+                ),
+                subtitle: sheetContext.tr(
+                  AlbumBackupService.usesICloud
+                      ? 'Dosyalar’da iCloud Drive klasörünü seç. Fotoğraflar ve düzenlenebilir sayfalar birlikte saklanır.'
+                      : 'Dosya seçicide Google Drive klasörünü seç. Drive uygulamasında hesabın açık olmalı.',
+                ),
+                onTap: () =>
+                    Navigator.pop(sheetContext, _ShareExportChoice.backup),
+              ),
             _ShareOptionTile(
               key: const ValueKey('share_social_video'),
               icon: Icons.video_collection_outlined,
               title: sheetContext.tr('Video şablonları'),
               subtitle: sheetContext.tr(
-                '15 veya 30 saniyelik müzikli video. TikTok ve Reels için hazırla.',
+                'Sayfaların çevrildiği, albümün kadar uzun bir video. Kendi ritmini seç.',
               ),
               onTap: () =>
                   Navigator.pop(sheetContext, _ShareExportChoice.socialVideo),
@@ -829,6 +847,8 @@ class _PreviewScreenState extends State<PreviewScreen>
     if (!mounted || choice == null) return;
 
     switch (choice) {
+      case _ShareExportChoice.backup:
+        await _exportInteractiveAlbum(backup: true);
       case _ShareExportChoice.socialVideo:
         await Navigator.of(context).push(
           MaterialPageRoute<void>(
@@ -923,7 +943,7 @@ class _PreviewScreenState extends State<PreviewScreen>
     }
   }
 
-  Future<void> _exportInteractiveAlbum() async {
+  Future<void> _exportInteractiveAlbum({bool backup = false}) async {
     if (_exporting) return;
     _timer?.cancel();
     final localizations =
@@ -947,6 +967,7 @@ class _PreviewScreenState extends State<PreviewScreen>
     try {
       final result = await AlbumPackageService().createPackage(
         widget.album,
+        preserveOriginalMedia: backup,
         onProgress: (stage, progress) {
           if (!mounted) return;
           setState(() {
@@ -956,7 +977,9 @@ class _PreviewScreenState extends State<PreviewScreen>
                 'Albüm paketi hazırlanıyor…',
               ),
               AlbumPackageStage.optimizingPhotos => localizations.text(
-                'Fotoğraflar paylaşım için küçültülüyor…',
+                backup
+                    ? 'Fotoğraflar yedeğe ekleniyor…'
+                    : 'Fotoğraflar paylaşım için küçültülüyor…',
               ),
               AlbumPackageStage.packaging => localizations.text(
                 'Albüm dosyası paketleniyor…',
@@ -968,7 +991,9 @@ class _PreviewScreenState extends State<PreviewScreen>
       if (!mounted) return;
       setState(() {
         _exportProgress = 1;
-        _exportStatus = localizations.text('Paylaşım menüsü açılıyor…');
+        _exportStatus = localizations.text(
+          backup ? 'Kayıt konumu seçiliyor…' : 'Paylaşım menüsü açılıyor…',
+        );
         _exportProgressDetails = localizations.text(
           '{size} · {count} fotoğraf',
           values: {
@@ -977,6 +1002,21 @@ class _PreviewScreenState extends State<PreviewScreen>
           },
         );
       });
+      if (backup) {
+        final saved = await AlbumBackupService.save(result.file.path);
+        if (saved && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                context.tr(
+                  'Seçtiğin konuma kaydedildi. Bulut yüklemesini Drive veya Dosyalar uygulamasından kontrol edebilirsin.',
+                ),
+              ),
+            ),
+          );
+        }
+        return;
+      }
       final filename = result.file.uri.pathSegments.last;
       await SharePlus.instance.share(
         ShareParams(
@@ -994,7 +1034,9 @@ class _PreviewScreenState extends State<PreviewScreen>
           SnackBar(
             content: Text(
               localizations.text(
-                'Etkileşimli albüm hazırlanamadı: {error}',
+                backup
+                    ? 'Yedek kaydedilemedi: {error}'
+                    : 'Etkileşimli albüm hazırlanamadı: {error}',
                 values: {
                   'error': _albumPackageExportError(localizations, error),
                 },
@@ -1025,7 +1067,6 @@ class _PreviewScreenState extends State<PreviewScreen>
       );
       return null;
     }
-    var includeSoundtrack = true;
     var quality = VideoExportQuality.balanced;
     final storyboard = SinglePageExportStoryboard.forPages(
       widget.album.pages.length,
@@ -1045,7 +1086,7 @@ class _PreviewScreenState extends State<PreviewScreen>
         builder: (context, setSheetState) {
           final settings = VideoExportSettings(
             quality: quality,
-            includeSoundtrack: includeSoundtrack,
+            includeSoundtrack: false,
           );
           final estimatedMegabytes = math.max(
             1,
@@ -1138,20 +1179,6 @@ class _PreviewScreenState extends State<PreviewScreen>
                 const SizedBox(height: 20),
                 const Divider(height: 1),
                 const SizedBox(height: 8),
-                SwitchListTile.adaptive(
-                  key: const ValueKey('mp4_soundtrack_toggle'),
-                  contentPadding: EdgeInsets.zero,
-                  value: includeSoundtrack,
-                  onChanged: (value) =>
-                      setSheetState(() => includeSoundtrack = value),
-                  secondary: const Icon(Icons.graphic_eq_rounded),
-                  title: Text(context.tr('Arka plan sesi')),
-                  subtitle: Text(
-                    context.tr(
-                      'Hafif bir melodi ve doğal sayfa çevirme sesleri.',
-                    ),
-                  ),
-                ),
                 const SizedBox(height: 24),
                 Row(
                   children: [
@@ -1314,7 +1341,6 @@ class _PreviewScreenState extends State<PreviewScreen>
       if (!await _offerFullHd(context)) return;
       if (!mounted || _fullHdLocked || _exporting) return;
     }
-    final includeSoundtrack = settings.includeSoundtrack;
     final localizedShareText = context.tr(
       '“{title}” albümümün sayfalarını Albumium ile hazırladım.',
       values: {'title': widget.album.title},
@@ -1379,7 +1405,6 @@ class _PreviewScreenState extends State<PreviewScreen>
           context.tr('MP4 oluşturmak için albümde sayfa bulunamadı.'),
         );
       }
-      final soundtrackStoryboard = _soundtrackStoryboardFor(storyboard);
       final directory = await getTemporaryDirectory();
       await cleanupStaleAlbumiumExports(directory);
       _throwIfExportCancelled();
@@ -1398,16 +1423,15 @@ class _PreviewScreenState extends State<PreviewScreen>
         fps: storyboard.fps,
         videoBitrate: settings.quality.videoBitrate,
         profileLevel: ProfileLevel.highAutoLevel,
-        audioChannels: includeSoundtrack ? CinematicSoundtrack.channelCount : 0,
-        audioBitrate: settings.audioBitrate,
-        sampleRate: includeSoundtrack ? CinematicSoundtrack.sampleRate : 0,
+        audioChannels: 0,
+        audioBitrate: 0,
+        sampleRate: 0,
         filepath: path,
       );
       encoderStarted = true;
 
       var completed = 0;
       var assetsSettled = false;
-      var filmFrame = 0;
       var lastProgressUpdate = Duration.zero;
 
       // Ensure all album page photos are precached in memory before rendering frames.
@@ -1458,17 +1482,6 @@ class _PreviewScreenState extends State<PreviewScreen>
           }
           _throwIfExportCancelled();
           await FlutterQuickVideoEncoder.appendVideoFrame(sampledFrame);
-          if (includeSoundtrack) {
-            _throwIfExportCancelled();
-            await FlutterQuickVideoEncoder.appendAudioFrame(
-              CinematicSoundtrack.pcmFrame(
-                storyboard: soundtrackStoryboard,
-                frameIndex: filmFrame,
-                fps: storyboard.fps,
-              ),
-            );
-          }
-          filmFrame++;
           completed++;
           _throwIfExportCancelled();
           final elapsed = stopwatch.elapsed;
@@ -2354,36 +2367,6 @@ class _SinglePageExportFrame extends StatelessWidget {
       ),
     );
   }
-}
-
-CinematicStoryboard _soundtrackStoryboardFor(
-  SinglePageExportStoryboard storyboard,
-) {
-  final lastPage = storyboard.pageCount - 1;
-  return CinematicStoryboard(
-    fps: storyboard.fps,
-    beats: [
-      for (final beat in storyboard.beats)
-        CinematicBeat(
-          kind: switch (beat.kind) {
-            SinglePageExportBeatKind.pageTurn => CinematicBeatKind.pageTurn,
-            SinglePageExportBeatKind.pan => CinematicBeatKind.memory,
-            SinglePageExportBeatKind.hold
-                when storyboard.pageCount > 1 && beat.fromPage == 0 =>
-              CinematicBeatKind.prologue,
-            SinglePageExportBeatKind.hold
-                when storyboard.pageCount > 1 && beat.fromPage == lastPage =>
-              CinematicBeatKind.epilogue,
-            SinglePageExportBeatKind.hold => CinematicBeatKind.memory,
-          },
-          from: beat.fromPage,
-          to: beat.kind == SinglePageExportBeatKind.pageTurn
-              ? beat.toPage
-              : null,
-          frameCount: beat.frameCount,
-        ),
-    ],
-  );
 }
 
 class _ExportBookFrame extends StatelessWidget {

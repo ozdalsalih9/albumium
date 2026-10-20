@@ -89,6 +89,10 @@ void main() {
           store.fail = false;
           await tester.tap(find.byKey(const ValueKey('editor-save')));
           await tester.pumpAndSettle();
+          // A failed Save and Exit must not leave the navigation guard stuck.
+          await navigator.currentState!.maybePop();
+          await tester.pumpAndSettle();
+          expect(find.text('Library'), findsOneWidget);
         }
         if (action == 'back') expect(find.text('Library'), findsOneWidget);
         final loaded = await AlbumStorage.instance.loadAlbums();
