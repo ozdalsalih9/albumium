@@ -2,6 +2,17 @@
 
 20 Ekim 2026 — editör seçim panellerinin yerleşim düzeltmeleri.
 
+## iOS yerel test düzeltmesi — 21 Ekim 2026
+
+- Codemagic `ios-validation` akışındaki `testDisabledAndElapsedToday`, boş
+  ayarları kapalı sayan eski beklenti nedeniyle başarısız oluyordu. Güncel
+  Flutter, Android ve iOS davranışında eksik `enabled` değeri açık kabul edilir.
+- Test üç ayrı duruma ayrıldı: açıkça kapatılan bildirimler planlanmaz; eksik
+  ayarlar varsayılan planı üretir; 31 Aralık bildirim saati geçince bir sonraki
+  yılın 31 Aralık tarihi seçilir. Sabit tarih ve saat dilimi kullanılır.
+- Uygulama kodu ve sürüm numarası değiştirilmedi. Yerel Xcode testleri Windows
+  üzerinde çalıştırılamadığından `ios-validation` akışı tekrar çalıştırılmalı.
+
 ## Build 67
 
 66 numaralı derleme Play'e yüklenmedi; üretime giden paket 67'dir.

@@ -25,10 +25,22 @@ class RunnerTests: XCTestCase {
     XCTAssertEqual(Set(events.map { $0.0 }).count, events.count)
     XCTAssertLessThanOrEqual(events.count, 60)
   }
-  func testDisabledAndElapsedToday() {
-    XCTAssertTrue(MemoryCalendar.occurrences(after: Date(), settings: [:]).isEmpty)
+  func testDisabledRemindersDoNotSchedule() {
+    let events = MemoryCalendar.occurrences(after: date(2023, 12, 31), settings: ["enabled": false], calendar: calendar)
+    XCTAssertTrue(events.isEmpty)
+  }
+  func testMissingEnabledUsesDefault() {
+    // Match the enabled-by-default setting used by Flutter and Android.
+    let now = date(2023, 12, 31)
+    let events = MemoryCalendar.occurrences(after: now, settings: [:], calendar: calendar)
+    XCTAssertEqual(events.first?.0, date(2023, 12, 31, 20))
+    XCTAssertEqual(events.first?.1["kinds"] as? String, "weekend,month,year")
+    XCTAssertTrue(events.allSatisfy { $0.0 > now })
+  }
+  func testElapsedTodayMovesToNextYear() {
     let events = MemoryCalendar.occurrences(after: date(2023, 12, 31, 21), settings: ["enabled": true, "weekend": false, "month": false], calendar: calendar)
     XCTAssertEqual(events.first?.1["year"] as? Int, 2024)
+    XCTAssertEqual(events.first?.0, date(2024, 12, 31, 20))
   }
   func testDaylightSavingUsesCalendarTime() {
     var c = Calendar(identifier: .gregorian)
