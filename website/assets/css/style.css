@@ -334,22 +334,10 @@ button {
   color: #FFFFFF;
 }
 
-.store-badge.badge-play {
+.store-badge.badge-play,
+.store-badge.badge-ios {
   background: linear-gradient(135deg, #1C1514 0%, #2D1E1B 100%);
   border: 1px solid rgba(194, 149, 83, 0.3);
-}
-
-.store-badge.badge-ios-soon {
-  background: rgba(43, 30, 27, 0.08);
-  color: var(--text-secondary);
-  border: 1px dashed rgba(43, 30, 27, 0.2);
-  box-shadow: none;
-  cursor: default;
-}
-
-.store-badge.badge-ios-soon:hover {
-  transform: none;
-  box-shadow: none;
 }
 
 .store-badge svg {
@@ -375,17 +363,6 @@ button {
   font-size: 1.08rem;
   font-weight: 700;
   line-height: 1.1;
-}
-
-.soon-pill {
-  font-size: 0.68rem;
-  font-weight: 700;
-  background: var(--accent-rose);
-  color: #FFF;
-  padding: 2px 7px;
-  border-radius: 10px;
-  margin-left: 6px;
-  text-transform: uppercase;
 }
 
 .hero-guarantee {
